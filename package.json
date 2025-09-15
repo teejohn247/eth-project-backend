@@ -9,7 +9,7 @@
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "test": "jest",
     "lint": "echo 'Linting not configured yet'",
-    "postbuild": "cp package*.json dist/ && cp -r node_modules dist/",
+    "postbuild": "echo 'Build completed successfully'",
     "docker:build": "docker build -t edo-talent-hunt-backend .",
     "docker:run": "docker run -p 3001:3001 edo-talent-hunt-backend"
   },
