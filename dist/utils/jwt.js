@@ -12,7 +12,8 @@ const generateToken = (user) => {
         userId: user._id.toString(),
         email: user.email,
         isEmailVerified: user.isEmailVerified,
-        isPasswordSet: user.isPasswordSet
+        isPasswordSet: user.isPasswordSet,
+        role: user.role
     };
     return jsonwebtoken_1.default.sign(payload, JWT_SECRET, {
         expiresIn: JWT_EXPIRES_IN,

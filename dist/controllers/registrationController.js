@@ -1,0 +1,497 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.deleteRegistration = exports.getRegistrationStatus = exports.updateTermsConditions = exports.updateAuditionInfo = exports.updateGuardianInfo = exports.updateGroupInfo = exports.updateTalentInfo = exports.updatePersonalInfo = exports.submitRegistration = exports.updateRegistration = exports.getRegistration = exports.createRegistration = exports.getUserRegistrations = void 0;
+const Registration_1 = __importDefault(require("../models/Registration"));
+const AuditionSchedule_1 = __importDefault(require("../models/AuditionSchedule"));
+const getUserRegistrations = async (req, res) => {
+    try {
+        const registrations = await Registration_1.default.find({ userId: req.user?.userId })
+            .sort({ createdAt: -1 })
+            .select('-paymentInfo.paymentResponse');
+        res.status(200).json({
+            success: true,
+            message: 'Registrations retrieved successfully',
+            data: registrations
+        });
+    }
+    catch (error) {
+        console.error('Get registrations error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to retrieve registrations',
+            error: process.env.NODE_ENV === 'development' ? error : undefined
+        });
+    }
+};
+exports.getUserRegistrations = getUserRegistrations;
+const createRegistration = async (req, res) => {
+    try {
+        const { registrationType } = req.body;
+        const existingRegistration = await Registration_1.default.findOne({
+            userId: req.user?.userId,
+            status: { $in: ['draft', 'submitted', 'under_review', 'approved'] }
+        });
+        if (existingRegistration) {
+            res.status(400).json({
+                success: false,
+                message: 'You already have an active registration'
+            });
+            return;
+        }
+        const registration = new Registration_1.default({
+            userId: req.user?.userId,
+            registrationType,
+            personalInfo: {
+                firstName: 'Draft',
+                lastName: 'User',
+                email: req.user?.email || '',
+                phoneNo: '00000000000',
+                dateOfBirth: new Date(),
+                gender: 'Male',
+                tshirtSize: 'M'
+            },
+            talentInfo: {
+                talentCategory: 'Singing',
+                skillLevel: 'Beginner'
+            },
+            auditionInfo: {
+                auditionLocation: 'Lagos',
+                auditionDate: new Date(),
+                auditionTime: '09:00'
+            },
+            termsConditions: {
+                rulesAcceptance: false,
+                promotionalAcceptance: false
+            },
+            paymentInfo: {
+                amount: process.env.REGISTRATION_FEE ? parseInt(process.env.REGISTRATION_FEE) : 1090,
+                currency: process.env.PAYMENT_CURRENCY || 'NGN',
+                paymentStatus: 'pending'
+            }
+        });
+        await registration.save();
+        res.status(201).json({
+            success: true,
+            message: 'Registration created successfully',
+            data: registration
+        });
+    }
+    catch (error) {
+        console.error('Create registration error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to create registration',
+            error: process.env.NODE_ENV === 'development' ? error : undefined
+        });
+    }
+};
+exports.createRegistration = createRegistration;
+const getRegistration = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const registration = await Registration_1.default.findOne({
+            _id: id,
+            userId: req.user?.userId
+        }).select('-paymentInfo.paymentResponse');
+        if (!registration) {
+            res.status(404).json({
+                success: false,
+                message: 'Registration not found'
+            });
+            return;
+        }
+        res.status(200).json({
+            success: true,
+            message: 'Registration retrieved successfully',
+            data: registration
+        });
+    }
+    catch (error) {
+        console.error('Get registration error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to retrieve registration',
+            error: process.env.NODE_ENV === 'development' ? error : undefined
+        });
+    }
+};
+exports.getRegistration = getRegistration;
+const updateRegistration = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updateData = req.body;
+        const registration = await Registration_1.default.findOne({
+            _id: id,
+            userId: req.user?.userId
+        });
+        if (!registration) {
+            res.status(404).json({
+                success: false,
+                message: 'Registration not found'
+            });
+            return;
+        }
+        if (registration.status !== 'draft') {
+            res.status(400).json({
+                success: false,
+                message: 'Cannot update a submitted registration'
+            });
+            return;
+        }
+        Object.assign(registration, updateData);
+        await registration.save();
+        res.status(200).json({
+            success: true,
+            message: 'Registration updated successfully',
+            data: registration
+        });
+    }
+    catch (error) {
+        console.error('Update registration error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update registration',
+            error: process.env.NODE_ENV === 'development' ? error : undefined
+        });
+    }
+};
+exports.updateRegistration = updateRegistration;
+const submitRegistration = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const registration = await Registration_1.default.findOne({
+            _id: id,
+            userId: req.user?.userId
+        });
+        if (!registration) {
+            res.status(404).json({
+                success: false,
+                message: 'Registration not found'
+            });
+            return;
+        }
+        if (registration.status !== 'draft') {
+            res.status(400).json({
+                success: false,
+                message: 'Registration has already been submitted'
+            });
+            return;
+        }
+        const requiredSteps = registration.registrationType === 'individual' ?
+            [1, 2, 4, 5, 6] :
+            [1, 2, 3, 5, 6];
+        const missingSteps = requiredSteps.filter(step => !registration.completedSteps.includes(step));
+        if (missingSteps.length > 0) {
+            res.status(400).json({
+                success: false,
+                message: 'Please complete all required steps before submission',
+                missingSteps
+            });
+            return;
+        }
+        if (registration.paymentInfo.paymentStatus !== 'completed') {
+            res.status(400).json({
+                success: false,
+                message: 'Payment must be completed before submission'
+            });
+            return;
+        }
+        registration.status = 'submitted';
+        registration.submittedAt = new Date();
+        await registration.save();
+        res.status(200).json({
+            success: true,
+            message: 'Registration submitted successfully',
+            data: registration
+        });
+    }
+    catch (error) {
+        console.error('Submit registration error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to submit registration',
+            error: process.env.NODE_ENV === 'development' ? error : undefined
+        });
+    }
+};
+exports.submitRegistration = submitRegistration;
+const updatePersonalInfo = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const personalInfo = req.body;
+        const registration = await Registration_1.default.findOneAndUpdate({ _id: id, userId: req.user?.userId }, {
+            personalInfo,
+            $addToSet: { completedSteps: 1 },
+            currentStep: 1
+        }, { new: true });
+        if (!registration) {
+            res.status(404).json({
+                success: false,
+                message: 'Registration not found'
+            });
+            return;
+        }
+        res.status(200).json({
+            success: true,
+            message: 'Personal information updated successfully',
+            data: registration
+        });
+    }
+    catch (error) {
+        console.error('Update personal info error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update personal information',
+            error: process.env.NODE_ENV === 'development' ? error : undefined
+        });
+    }
+};
+exports.updatePersonalInfo = updatePersonalInfo;
+const updateTalentInfo = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const talentInfo = req.body;
+        const registration = await Registration_1.default.findOneAndUpdate({ _id: id, userId: req.user?.userId }, {
+            talentInfo,
+            $addToSet: { completedSteps: 2 },
+            currentStep: 2
+        }, { new: true });
+        if (!registration) {
+            res.status(404).json({
+                success: false,
+                message: 'Registration not found'
+            });
+            return;
+        }
+        res.status(200).json({
+            success: true,
+            message: 'Talent information updated successfully',
+            data: registration
+        });
+    }
+    catch (error) {
+        console.error('Update talent info error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update talent information',
+            error: process.env.NODE_ENV === 'development' ? error : undefined
+        });
+    }
+};
+exports.updateTalentInfo = updateTalentInfo;
+const updateGroupInfo = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const groupInfo = req.body;
+        const registration = await Registration_1.default.findOneAndUpdate({ _id: id, userId: req.user?.userId }, {
+            groupInfo,
+            $addToSet: { completedSteps: 3 },
+            currentStep: 3
+        }, { new: true });
+        if (!registration) {
+            res.status(404).json({
+                success: false,
+                message: 'Registration not found'
+            });
+            return;
+        }
+        res.status(200).json({
+            success: true,
+            message: 'Group information updated successfully',
+            data: registration
+        });
+    }
+    catch (error) {
+        console.error('Update group info error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update group information',
+            error: process.env.NODE_ENV === 'development' ? error : undefined
+        });
+    }
+};
+exports.updateGroupInfo = updateGroupInfo;
+const updateGuardianInfo = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const guardianInfo = req.body;
+        const registration = await Registration_1.default.findOneAndUpdate({ _id: id, userId: req.user?.userId }, {
+            guardianInfo,
+            $addToSet: { completedSteps: 4 },
+            currentStep: 4
+        }, { new: true });
+        if (!registration) {
+            res.status(404).json({
+                success: false,
+                message: 'Registration not found'
+            });
+            return;
+        }
+        res.status(200).json({
+            success: true,
+            message: 'Guardian information updated successfully',
+            data: registration
+        });
+    }
+    catch (error) {
+        console.error('Update guardian info error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update guardian information',
+            error: process.env.NODE_ENV === 'development' ? error : undefined
+        });
+    }
+};
+exports.updateGuardianInfo = updateGuardianInfo;
+const updateAuditionInfo = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const auditionInfo = req.body;
+        const schedule = await AuditionSchedule_1.default.findOne({
+            location: auditionInfo.auditionLocation,
+            date: auditionInfo.auditionDate
+        });
+        if (schedule) {
+            const timeSlot = schedule.timeSlots.find(slot => slot.time === auditionInfo.auditionTime);
+            if (timeSlot && timeSlot.bookedContestants >= timeSlot.maxContestants) {
+                res.status(400).json({
+                    success: false,
+                    message: 'Selected audition time slot is fully booked'
+                });
+                return;
+            }
+        }
+        const registration = await Registration_1.default.findOneAndUpdate({ _id: id, userId: req.user?.userId }, {
+            auditionInfo,
+            $addToSet: { completedSteps: 5 },
+            currentStep: 5
+        }, { new: true });
+        if (!registration) {
+            res.status(404).json({
+                success: false,
+                message: 'Registration not found'
+            });
+            return;
+        }
+        res.status(200).json({
+            success: true,
+            message: 'Audition information updated successfully',
+            data: registration
+        });
+    }
+    catch (error) {
+        console.error('Update audition info error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update audition information',
+            error: process.env.NODE_ENV === 'development' ? error : undefined
+        });
+    }
+};
+exports.updateAuditionInfo = updateAuditionInfo;
+const updateTermsConditions = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const termsConditions = req.body;
+        const registration = await Registration_1.default.findOneAndUpdate({ _id: id, userId: req.user?.userId }, {
+            termsConditions: {
+                ...termsConditions,
+                signedAt: new Date()
+            },
+            $addToSet: { completedSteps: 6 },
+            currentStep: 6
+        }, { new: true });
+        if (!registration) {
+            res.status(404).json({
+                success: false,
+                message: 'Registration not found'
+            });
+            return;
+        }
+        res.status(200).json({
+            success: true,
+            message: 'Terms and conditions updated successfully',
+            data: registration
+        });
+    }
+    catch (error) {
+        console.error('Update terms conditions error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update terms and conditions',
+            error: process.env.NODE_ENV === 'development' ? error : undefined
+        });
+    }
+};
+exports.updateTermsConditions = updateTermsConditions;
+const getRegistrationStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const registration = await Registration_1.default.findOne({
+            _id: id,
+            userId: req.user?.userId
+        }).select('status currentStep completedSteps paymentInfo.paymentStatus submittedAt reviewNotes');
+        if (!registration) {
+            res.status(404).json({
+                success: false,
+                message: 'Registration not found'
+            });
+            return;
+        }
+        res.status(200).json({
+            success: true,
+            message: 'Registration status retrieved successfully',
+            data: registration
+        });
+    }
+    catch (error) {
+        console.error('Get registration status error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to retrieve registration status',
+            error: process.env.NODE_ENV === 'development' ? error : undefined
+        });
+    }
+};
+exports.getRegistrationStatus = getRegistrationStatus;
+const deleteRegistration = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const registration = await Registration_1.default.findOne({
+            _id: id,
+            userId: req.user?.userId
+        });
+        if (!registration) {
+            res.status(404).json({
+                success: false,
+                message: 'Registration not found'
+            });
+            return;
+        }
+        if (registration.status !== 'draft') {
+            res.status(400).json({
+                success: false,
+                message: 'Cannot delete a submitted registration'
+            });
+            return;
+        }
+        await Registration_1.default.findByIdAndDelete(id);
+        res.status(200).json({
+            success: true,
+            message: 'Registration deleted successfully'
+        });
+    }
+    catch (error) {
+        console.error('Delete registration error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to delete registration',
+            error: process.env.NODE_ENV === 'development' ? error : undefined
+        });
+    }
+};
+exports.deleteRegistration = deleteRegistration;
+//# sourceMappingURL=registrationController.js.map

@@ -7,10 +7,47 @@ const express_1 = require("express");
 const models_1 = require("../models");
 const jwt_1 = require("../utils/jwt");
 const emailService_1 = __importDefault(require("../services/emailService"));
-const validation_1 = require("../middleware/validation");
+const express_validator_1 = require("express-validator");
 const rateLimiter_1 = require("../middleware/rateLimiter");
 const router = (0, express_1.Router)();
-router.post('/register', rateLimiter_1.authLimiter, (0, validation_1.validate)(validation_1.registerSchema), async (req, res) => {
+const handleValidation = (req, res, next) => {
+    const errors = (0, express_validator_1.validationResult)(req);
+    if (!errors.isEmpty()) {
+        res.status(400).json({
+            success: false,
+            message: 'Validation failed',
+            errors: errors.array()
+        });
+        return;
+    }
+    next();
+};
+const registerValidation = [
+    (0, express_validator_1.body)('firstName').trim().isLength({ min: 2, max: 50 }).withMessage('First name must be between 2 and 50 characters'),
+    (0, express_validator_1.body)('lastName').trim().isLength({ min: 2, max: 50 }).withMessage('Last name must be between 2 and 50 characters'),
+    (0, express_validator_1.body)('email').isEmail().normalizeEmail().withMessage('Please provide a valid email address'),
+    handleValidation
+];
+const loginValidation = [
+    (0, express_validator_1.body)('email').isEmail().normalizeEmail().withMessage('Please provide a valid email address'),
+    (0, express_validator_1.body)('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
+    handleValidation
+];
+const otpValidation = [
+    (0, express_validator_1.body)('email').isEmail().normalizeEmail().withMessage('Please provide a valid email address'),
+    (0, express_validator_1.body)('otp').isLength({ min: 4, max: 6 }).withMessage('OTP must be between 4 and 6 characters'),
+    handleValidation
+];
+const passwordValidation = [
+    (0, express_validator_1.body)('email').isEmail().normalizeEmail().withMessage('Please provide a valid email address'),
+    (0, express_validator_1.body)('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
+    handleValidation
+];
+const emailValidation = [
+    (0, express_validator_1.body)('email').isEmail().normalizeEmail().withMessage('Please provide a valid email address'),
+    handleValidation
+];
+router.post('/register', rateLimiter_1.authLimiter, registerValidation, async (req, res) => {
     try {
         const { firstName, lastName, email } = req.body;
         const existingUser = await models_1.User.findOne({ email });
@@ -54,7 +91,7 @@ router.post('/register', rateLimiter_1.authLimiter, (0, validation_1.validate)(v
         });
     }
 });
-router.post('/verify-otp', rateLimiter_1.authLimiter, (0, validation_1.validate)(validation_1.verifyOTPSchema), async (req, res) => {
+router.post('/verify-otp', rateLimiter_1.authLimiter, otpValidation, async (req, res) => {
     try {
         const { email, otp } = req.body;
         const otpResult = await models_1.OTP.verifyOTP(email, otp, 'email_verification');
@@ -96,7 +133,7 @@ router.post('/verify-otp', rateLimiter_1.authLimiter, (0, validation_1.validate)
         });
     }
 });
-router.post('/set-password', rateLimiter_1.authLimiter, (0, validation_1.validate)(validation_1.setPasswordSchema), async (req, res) => {
+router.post('/set-password', rateLimiter_1.authLimiter, passwordValidation, async (req, res) => {
     try {
         const { email, password } = req.body;
         const user = await models_1.User.findOne({ email }).select('+password');
@@ -142,7 +179,7 @@ router.post('/set-password', rateLimiter_1.authLimiter, (0, validation_1.validat
         });
     }
 });
-router.post('/login', rateLimiter_1.authLimiter, (0, validation_1.validate)(validation_1.loginSchema), async (req, res) => {
+router.post('/login', rateLimiter_1.authLimiter, loginValidation, async (req, res) => {
     try {
         const { email, password } = req.body;
         const user = await models_1.User.findOne({ email }).select('+password');
@@ -200,7 +237,7 @@ router.post('/login', rateLimiter_1.authLimiter, (0, validation_1.validate)(vali
         });
     }
 });
-router.post('/forgot-password', rateLimiter_1.passwordResetLimiter, (0, validation_1.validate)(validation_1.forgotPasswordSchema), async (req, res) => {
+router.post('/forgot-password', rateLimiter_1.passwordResetLimiter, emailValidation, async (req, res) => {
     try {
         const { email } = req.body;
         const user = await models_1.User.findOne({ email });
@@ -237,7 +274,7 @@ router.post('/forgot-password', rateLimiter_1.passwordResetLimiter, (0, validati
         });
     }
 });
-router.post('/verify-reset-otp', rateLimiter_1.authLimiter, (0, validation_1.validate)(validation_1.verifyOTPSchema), async (req, res) => {
+router.post('/verify-reset-otp', rateLimiter_1.authLimiter, otpValidation, async (req, res) => {
     try {
         const { email, otp } = req.body;
         const otpResult = await models_1.OTP.verifyOTP(email, otp, 'password_reset');
@@ -264,7 +301,7 @@ router.post('/verify-reset-otp', rateLimiter_1.authLimiter, (0, validation_1.val
         });
     }
 });
-router.post('/reset-password', rateLimiter_1.authLimiter, (0, validation_1.validate)(validation_1.setPasswordSchema), async (req, res) => {
+router.post('/reset-password', rateLimiter_1.authLimiter, passwordValidation, async (req, res) => {
     try {
         const { email, password } = req.body;
         const user = await models_1.User.findOne({ email }).select('+password');
@@ -290,7 +327,7 @@ router.post('/reset-password', rateLimiter_1.authLimiter, (0, validation_1.valid
         });
     }
 });
-router.post('/resend-otp', rateLimiter_1.otpLimiter, (0, validation_1.validate)(validation_1.resendOTPSchema), async (req, res) => {
+router.post('/resend-otp', rateLimiter_1.otpLimiter, emailValidation, async (req, res) => {
     try {
         const { email } = req.body;
         const user = await models_1.User.findOne({ email });

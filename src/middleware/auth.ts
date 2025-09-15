@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken, JWTPayload } from '../utils/jwt';
 import { User } from '../models';
+import { AuthenticatedRequest } from '../types';
 
 // Extend Request interface to include user
 declare global {
@@ -81,7 +82,7 @@ export const requireCompleteProfile = (req: Request, res: Response, next: NextFu
 
 // Role-based access control
 export const requireRole = (allowedRoles: string | string[]) => {
-  return (req: Request, res: Response, next: NextFunction): void => {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
     const userRole = req.user?.role || 'contestant';
     const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
     

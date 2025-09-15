@@ -9,6 +9,7 @@ export interface JWTPayload {
   email: string;
   isEmailVerified: boolean;
   isPasswordSet: boolean;
+  role: string;
 }
 
 export const generateToken = (user: IUser): string => {
@@ -16,7 +17,8 @@ export const generateToken = (user: IUser): string => {
     userId: user._id.toString(),
     email: user.email,
     isEmailVerified: user.isEmailVerified,
-    isPasswordSet: user.isPasswordSet
+    isPasswordSet: user.isPasswordSet,
+    role: user.role
   };
 
   return jwt.sign(payload, JWT_SECRET, {

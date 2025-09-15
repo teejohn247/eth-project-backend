@@ -4,6 +4,7 @@ export interface JWTPayload {
     email: string;
     isEmailVerified: boolean;
     isPasswordSet: boolean;
+    role: string;
 }
 export declare const generateToken: (user: IUser) => string;
 export declare const verifyToken: (token: string) => JWTPayload;
