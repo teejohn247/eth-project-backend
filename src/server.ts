@@ -52,9 +52,37 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 // Swagger Documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, {
+let swaggerDocument = swaggerSpecs;
+
+// Try to use static swagger file in production if available
+if (process.env.NODE_ENV === 'production') {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const staticSwaggerPath = path.join(__dirname, '..', 'swagger-output.json');
+    if (fs.existsSync(staticSwaggerPath)) {
+      swaggerDocument = JSON.parse(fs.readFileSync(staticSwaggerPath, 'utf8'));
+      console.log('📚 Using static Swagger documentation from swagger-output.json');
+    }
+  } catch (error) {
+    console.log('📚 Using dynamic Swagger documentation (static file not found)');
+  }
+}
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
   customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'Edo Talent Hunt API Documentation'
+  customSiteTitle: 'Edo Talent Hunt API Documentation',
+  swaggerOptions: {
+    docExpansion: 'list', // Expand operations list by default
+    defaultModelsExpandDepth: 1,
+    defaultModelExpandDepth: 1,
+    tagsSorter: 'alpha',
+    operationsSorter: 'alpha',
+    filter: true,
+    tryItOutEnabled: true,
+    showExtensions: true,
+    showCommonExtensions: true
+  }
 }));
 
 // Debug endpoint to view Swagger JSON spec
