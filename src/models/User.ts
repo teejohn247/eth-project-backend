@@ -31,6 +31,11 @@ const UserSchema: Schema = new Schema({
     minlength: [6, 'Password must be at least 6 characters long'],
     select: false // Don't include password in queries by default
   },
+  role: {
+    type: String,
+    enum: ['contestant', 'admin', 'judge'],
+    default: 'contestant'
+  },
   isEmailVerified: {
     type: Boolean,
     default: false
@@ -38,6 +43,14 @@ const UserSchema: Schema = new Schema({
   isPasswordSet: {
     type: Boolean,
     default: false
+  },
+  emailVerificationToken: String,
+  passwordResetToken: String,
+  passwordResetExpires: Date,
+  lastLogin: Date,
+  isActive: {
+    type: Boolean,
+    default: true
   }
 }, {
   timestamps: true

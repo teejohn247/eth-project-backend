@@ -5,8 +5,14 @@ export interface IUser extends Document {
   lastName: string;
   email: string;
   password?: string;
+  role: 'contestant' | 'admin' | 'judge';
   isEmailVerified: boolean;
   isPasswordSet: boolean;
+  emailVerificationToken?: string;
+  passwordResetToken?: string;
+  passwordResetExpires?: Date;
+  lastLogin?: Date;
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;

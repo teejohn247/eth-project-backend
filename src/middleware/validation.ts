@@ -1,153 +1,373 @@
 import { Request, Response, NextFunction } from 'express';
-import Joi from 'joi';
+import { body, validationResult } from 'express-validator';
 
-// Validation schemas
-export const registerSchema = Joi.object({
-  firstName: Joi.string()
-    .trim()
-    .min(2)
-    .max(50)
-    .pattern(/^[a-zA-Z\s]+$/)
-    .required()
-    .messages({
-      'string.empty': 'First name is required',
-      'string.min': 'First name must be at least 2 characters long',
-      'string.max': 'First name cannot exceed 50 characters',
-      'string.pattern.base': 'First name can only contain letters and spaces'
-    }),
-  lastName: Joi.string()
-    .trim()
-    .min(2)
-    .max(50)
-    .pattern(/^[a-zA-Z\s]+$/)
-    .required()
-    .messages({
-      'string.empty': 'Last name is required',
-      'string.min': 'Last name must be at least 2 characters long',
-      'string.max': 'Last name cannot exceed 50 characters',
-      'string.pattern.base': 'Last name can only contain letters and spaces'
-    }),
-  email: Joi.string()
-    .email()
-    .lowercase()
-    .trim()
-    .required()
-    .messages({
-      'string.empty': 'Email is required',
-      'string.email': 'Please enter a valid email address'
-    })
-});
-
-export const loginSchema = Joi.object({
-  email: Joi.string()
-    .email()
-    .lowercase()
-    .trim()
-    .required()
-    .messages({
-      'string.empty': 'Email is required',
-      'string.email': 'Please enter a valid email address'
-    }),
-  password: Joi.string()
-    .min(6)
-    .required()
-    .messages({
-      'string.empty': 'Password is required',
-      'string.min': 'Password must be at least 6 characters long'
-    })
-});
-
-export const verifyOTPSchema = Joi.object({
-  email: Joi.string()
-    .email()
-    .lowercase()
-    .trim()
-    .required()
-    .messages({
-      'string.empty': 'Email is required',
-      'string.email': 'Please enter a valid email address'
-    }),
-  otp: Joi.string()
-    .length(4)
-    .pattern(/^\d{4}$/)
-    .required()
-    .messages({
-      'string.empty': 'OTP is required',
-      'string.length': 'OTP must be exactly 4 digits',
-      'string.pattern.base': 'OTP must contain only numbers'
-    })
-});
-
-export const setPasswordSchema = Joi.object({
-  email: Joi.string()
-    .email()
-    .lowercase()
-    .trim()
-    .required()
-    .messages({
-      'string.empty': 'Email is required',
-      'string.email': 'Please enter a valid email address'
-    }),
-  password: Joi.string()
-    .min(6)
-    .max(128)
-    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .required()
-    .messages({
-      'string.empty': 'Password is required',
-      'string.min': 'Password must be at least 6 characters long',
-      'string.max': 'Password cannot exceed 128 characters',
-      'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, and one number'
-    })
-});
-
-export const forgotPasswordSchema = Joi.object({
-  email: Joi.string()
-    .email()
-    .lowercase()
-    .trim()
-    .required()
-    .messages({
-      'string.empty': 'Email is required',
-      'string.email': 'Please enter a valid email address'
-    })
-});
-
-export const resendOTPSchema = Joi.object({
-  email: Joi.string()
-    .email()
-    .lowercase()
-    .trim()
-    .required()
-    .messages({
-      'string.empty': 'Email is required',
-      'string.email': 'Please enter a valid email address'
-    })
-});
-
-// Validation middleware factory
-export const validate = (schema: Joi.ObjectSchema) => {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    const { error, value } = schema.validate(req.body, {
-      abortEarly: false,
-      stripUnknown: true
+// Handle validation errors
+export const handleValidationErrors = (req: Request, res: Response, next: NextFunction): void => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    res.status(400).json({
+      success: false,
+      message: 'Validation failed',
+      errors: errors.array()
     });
-
-    if (error) {
-      const errors = error.details.map(detail => ({
-        field: detail.path.join('.'),
-        message: detail.message
-      }));
-
-      res.status(400).json({
-        success: false,
-        message: 'Validation failed',
-        errors
-      });
-      return;
-    }
-
-    req.body = value;
-    next();
-  };
+    return;
+  }
+  next();
 };
+
+// Registration validation
+export const validateRegistration = [
+  body('registrationType')
+    .isIn(['individual', 'group'])
+    .withMessage('Registration type must be either individual or group'),
+  handleValidationErrors
+];
+
+// Personal information validation
+export const validatePersonalInfo = [
+  body('firstName')
+    .trim()
+    .isLength({ min: 2, max: 50 })
+    .withMessage('First name must be between 2 and 50 characters'),
+  
+  body('lastName')
+    .trim()
+    .isLength({ min: 2, max: 50 })
+    .withMessage('Last name must be between 2 and 50 characters'),
+  
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email address'),
+  
+  body('phoneNo')
+    .matches(/^(\+234|0)[789]\d{9}$/)
+    .withMessage('Please provide a valid Nigerian phone number'),
+  
+  body('dateOfBirth')
+    .isISO8601()
+    .withMessage('Please provide a valid date of birth')
+    .custom((value) => {
+      const birthDate = new Date(value);
+      const today = new Date();
+      const age = today.getFullYear() - birthDate.getFullYear();
+      
+      if (age < 5 || age > 40) {
+        throw new Error('Age must be between 5 and 40 years');
+      }
+      return true;
+    }),
+  
+  body('gender')
+    .isIn(['Male', 'Female'])
+    .withMessage('Gender must be either Male or Female'),
+  
+  body('address')
+    .optional()
+    .trim()
+    .isLength({ max: 200 })
+    .withMessage('Address cannot exceed 200 characters'),
+  
+  body('state')
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage('State cannot exceed 50 characters'),
+  
+  body('lga')
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage('LGA cannot exceed 50 characters'),
+  
+  handleValidationErrors
+];
+
+// Talent information validation
+export const validateTalentInfo = [
+  body('talentCategory')
+    .isIn(['Singing', 'Dancing', 'Acting', 'Comedy', 'Drama', 'Instrumental', 'Other'])
+    .withMessage('Please select a valid talent category'),
+  
+  body('otherTalentCategory')
+    .if(body('talentCategory').equals('Other'))
+    .notEmpty()
+    .withMessage('Please specify other talent category')
+    .isLength({ max: 50 })
+    .withMessage('Other talent category cannot exceed 50 characters'),
+  
+  body('skillLevel')
+    .isIn(['Beginner', 'Intermediate', 'Advanced'])
+    .withMessage('Please select a valid skill level'),
+  
+  body('stageName')
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage('Stage name cannot exceed 50 characters'),
+  
+  body('previouslyParticipated')
+    .optional()
+    .isIn(['Yes', 'No'])
+    .withMessage('Previously participated must be Yes or No'),
+  
+  handleValidationErrors
+];
+
+// Group information validation
+export const validateGroupInfo = [
+  body('groupName')
+    .if(body('registrationType').equals('group'))
+    .notEmpty()
+    .withMessage('Group name is required for group registrations')
+    .isLength({ max: 100 })
+    .withMessage('Group name cannot exceed 100 characters'),
+  
+  body('noOfGroupMembers')
+    .if(body('registrationType').equals('group'))
+    .isInt({ min: 2, max: 5 })
+    .withMessage('Number of group members must be between 2 and 5'),
+  
+  body('members')
+    .if(body('registrationType').equals('group'))
+    .isArray({ min: 2, max: 5 })
+    .withMessage('Group must have between 2 and 5 members'),
+  
+  body('members.*.firstName')
+    .if(body('registrationType').equals('group'))
+    .trim()
+    .isLength({ min: 2, max: 50 })
+    .withMessage('Member first name must be between 2 and 50 characters'),
+  
+  body('members.*.lastName')
+    .if(body('registrationType').equals('group'))
+    .trim()
+    .isLength({ min: 2, max: 50 })
+    .withMessage('Member last name must be between 2 and 50 characters'),
+  
+  body('members.*.dateOfBirth')
+    .if(body('registrationType').equals('group'))
+    .isISO8601()
+    .withMessage('Member date of birth must be valid'),
+  
+  body('members.*.gender')
+    .if(body('registrationType').equals('group'))
+    .isIn(['Male', 'Female'])
+    .withMessage('Member gender must be Male or Female'),
+  
+  body('members.*.tshirtSize')
+    .if(body('registrationType').equals('group'))
+    .isIn(['XS', 'S', 'M', 'L', 'XL', 'XXL'])
+    .withMessage('Member t-shirt size must be valid'),
+  
+  handleValidationErrors
+];
+
+// Guardian information validation (for contestants under 16)
+export const validateGuardianInfo = [
+  body('title')
+    .optional()
+    .isIn(['Mr', 'Mrs', 'Miss'])
+    .withMessage('Guardian title must be Mr, Mrs, or Miss'),
+  
+  body('guardianName')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Guardian name must be between 2 and 100 characters'),
+  
+  body('relationship')
+    .optional()
+    .isIn(['Father', 'Mother', 'Aunt', 'Uncle', 'Brother', 'Sister', 'Other'])
+    .withMessage('Please select a valid relationship'),
+  
+  body('otherRelationship')
+    .if(body('relationship').equals('Other'))
+    .notEmpty()
+    .withMessage('Please specify other relationship')
+    .isLength({ max: 50 })
+    .withMessage('Other relationship cannot exceed 50 characters'),
+  
+  body('guardianEmail')
+    .optional()
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid guardian email address'),
+  
+  body('guardianPhoneNo')
+    .optional()
+    .matches(/^(\+234|0)[789]\d{9}$/)
+    .withMessage('Please provide a valid guardian phone number'),
+  
+  handleValidationErrors
+];
+
+// Audition information validation
+export const validateAuditionInfo = [
+  body('auditionLocation')
+    .isIn(['Lagos', 'Benin'])
+    .withMessage('Audition location must be Lagos or Benin'),
+  
+  body('auditionDate')
+    .isISO8601()
+    .withMessage('Please provide a valid audition date')
+    .custom((value) => {
+      const auditionDate = new Date(value);
+      const today = new Date();
+      
+      if (auditionDate <= today) {
+        throw new Error('Audition date must be in the future');
+      }
+      return true;
+    }),
+  
+  body('auditionTime')
+    .matches(/^([01]\d|2[0-3]):([0-5]\d)$/)
+    .withMessage('Please provide a valid audition time in HH:mm format'),
+  
+  body('auditionRequirement')
+    .optional()
+    .isIn(['Microphone', 'Guitar', 'Bass', 'Drum', 'BackgroundMusic', 'StageLighting', 'Projector', 'Other'])
+    .withMessage('Please select a valid audition requirement'),
+  
+  body('otherRequirement')
+    .if(body('auditionRequirement').equals('Other'))
+    .notEmpty()
+    .withMessage('Please specify other requirement')
+    .isLength({ max: 100 })
+    .withMessage('Other requirement cannot exceed 100 characters'),
+  
+  body('hasInstrument')
+    .optional()
+    .isIn(['Yes', 'No'])
+    .withMessage('Has instrument must be Yes or No'),
+  
+  handleValidationErrors
+];
+
+// Terms and conditions validation
+export const validateTermsConditions = [
+  body('rulesAcceptance')
+    .isBoolean()
+    .custom((value) => {
+      if (!value) {
+        throw new Error('You must accept the competition rules');
+      }
+      return true;
+    }),
+  
+  body('promotionalAcceptance')
+    .isBoolean()
+    .custom((value) => {
+      if (!value) {
+        throw new Error('You must accept promotional terms');
+      }
+      return true;
+    }),
+  
+  body('contestantSignature')
+    .notEmpty()
+    .withMessage('Contestant signature is required'),
+  
+  body('guardianSignature')
+    .optional()
+    .custom((value, { req }) => {
+      // Check if guardian signature is required (contestant under 16)
+      const personalInfo = req.body.personalInfo;
+      if (personalInfo && personalInfo.dateOfBirth) {
+        const age = new Date().getFullYear() - new Date(personalInfo.dateOfBirth).getFullYear();
+        if (age < 16 && !value) {
+          throw new Error('Guardian signature is required for contestants under 16');
+        }
+      }
+      return true;
+    }),
+  
+  handleValidationErrors
+];
+
+// Payment validation
+export const validatePayment = [
+  body('amount')
+    .isNumeric()
+    .custom((value) => {
+      if (value !== 1090) {
+        throw new Error('Registration fee must be ₦1,090');
+      }
+      return true;
+    }),
+  
+  body('currency')
+    .optional()
+    .equals('NGN')
+    .withMessage('Currency must be NGN'),
+  
+  handleValidationErrors
+];
+
+// File upload validation
+export const validateFileUpload = [
+  body('fileType')
+    .isIn(['image', 'video'])
+    .withMessage('File type must be image or video'),
+  
+  handleValidationErrors
+];
+
+// Admin validation for registration status updates
+export const validateRegistrationStatusUpdate = [
+  body('status')
+    .isIn(['under_review', 'approved', 'rejected', 'qualified', 'disqualified'])
+    .withMessage('Invalid status value'),
+  
+  body('reviewNotes')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Review notes cannot exceed 500 characters'),
+  
+  handleValidationErrors
+];
+
+// Evaluation validation
+export const validateEvaluation = [
+  body('scores.talent')
+    .isFloat({ min: 0, max: 10 })
+    .withMessage('Talent score must be between 0 and 10'),
+  
+  body('scores.presentation')
+    .isFloat({ min: 0, max: 10 })
+    .withMessage('Presentation score must be between 0 and 10'),
+  
+  body('scores.creativity')
+    .isFloat({ min: 0, max: 10 })
+    .withMessage('Creativity score must be between 0 and 10'),
+  
+  body('scores.overall')
+    .isFloat({ min: 0, max: 10 })
+    .withMessage('Overall score must be between 0 and 10'),
+  
+  body('recommendation')
+    .isIn(['advance', 'eliminate', 'callback'])
+    .withMessage('Recommendation must be advance, eliminate, or callback'),
+  
+  body('feedback.strengths')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Strengths feedback cannot exceed 500 characters'),
+  
+  body('feedback.areasForImprovement')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Areas for improvement cannot exceed 500 characters'),
+  
+  body('feedback.generalComments')
+    .optional()
+    .trim()
+    .isLength({ max: 1000 })
+    .withMessage('General comments cannot exceed 1000 characters'),
+  
+  handleValidationErrors
+];
