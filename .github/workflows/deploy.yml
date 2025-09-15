@@ -70,14 +70,13 @@ jobs:
           --region $REGION \
           --platform managed \
           --allow-unauthenticated \
-          --port 3001 \
           --memory 512Mi \
           --cpu 1 \
           --max-instances 10 \
           --min-instances 0 \
           --concurrency 80 \
           --timeout 300 \
-          --set-env-vars="NODE_ENV=production,PORT=3001" \
+          --set-env-vars="NODE_ENV=production" \
           --set-secrets="JWT_SECRET=jwt-secret:latest,MONGODB_URI=mongodb-uri:latest,EMAIL_HOST=email-host:latest,EMAIL_PORT=email-port:latest,EMAIL_USER=email-user:latest,EMAIL_PASS=email-pass:latest,EMAIL_FROM=email-from:latest"
 
     - name: Get service URL
