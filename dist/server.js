@@ -46,6 +46,10 @@ app.use('/api-docs', swagger_ui_express_1.default.serve, swagger_ui_express_1.de
     customCss: '.swagger-ui .topbar { display: none }',
     customSiteTitle: 'Edo Talent Hunt API Documentation'
 }));
+app.get('/api-docs.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.json(swagger_1.default);
+});
 app.use('/api/v1', routes_1.default);
 app.get('/', (req, res) => {
     res.json({
