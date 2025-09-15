@@ -26,10 +26,10 @@ export interface IRegistration extends Document {
         stageName?: string;
         previouslyParticipated?: 'Yes' | 'No';
         previousParticipation?: {
-            category?: 'Singing' | 'Dancing' | 'Acting' | 'Comedy' | 'Drama' | 'Instrumental' | 'Other';
-            otherCategory?: string;
+            previousParticipationCategory?: 'Singing' | 'Dancing' | 'Acting' | 'Comedy' | 'Drama' | 'Instrumental' | 'Other';
+            previousParticipationOtherCategory?: string;
             competitionName?: string;
-            position?: string;
+            participationPosition?: string;
         };
     };
     groupInfo?: {

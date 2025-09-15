@@ -29,10 +29,10 @@ export interface IRegistration extends Document {
     stageName?: string;
     previouslyParticipated?: 'Yes' | 'No';
     previousParticipation?: {
-      category?: 'Singing' | 'Dancing' | 'Acting' | 'Comedy' | 'Drama' | 'Instrumental' | 'Other';
-      otherCategory?: string;
+      previousParticipationCategory?: 'Singing' | 'Dancing' | 'Acting' | 'Comedy' | 'Drama' | 'Instrumental' | 'Other';
+      previousParticipationOtherCategory?: string;
       competitionName?: string;
-      position?: string;
+      participationPosition?: string;
     };
   };
 
@@ -149,10 +149,10 @@ const RegistrationSchema = new Schema<IRegistration>({
     stageName: String,
     previouslyParticipated: { type: String, enum: ['Yes', 'No'] },
     previousParticipation: {
-      category: { type: String, enum: ['Singing', 'Dancing', 'Acting', 'Comedy', 'Drama', 'Instrumental', 'Other'] },
-      otherCategory: String,
+      previousParticipationCategory: { type: String, enum: ['Singing', 'Dancing', 'Acting', 'Comedy', 'Drama', 'Instrumental', 'Other'] },
+      previousParticipationOtherCategory: String,
       competitionName: String,
-      position: String
+      participationPosition: String
     }
   },
 

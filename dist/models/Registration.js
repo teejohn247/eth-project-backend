@@ -65,10 +65,10 @@ const RegistrationSchema = new mongoose_1.Schema({
         stageName: String,
         previouslyParticipated: { type: String, enum: ['Yes', 'No'] },
         previousParticipation: {
-            category: { type: String, enum: ['Singing', 'Dancing', 'Acting', 'Comedy', 'Drama', 'Instrumental', 'Other'] },
-            otherCategory: String,
+            previousParticipationCategory: { type: String, enum: ['Singing', 'Dancing', 'Acting', 'Comedy', 'Drama', 'Instrumental', 'Other'] },
+            previousParticipationOtherCategory: String,
             competitionName: String,
-            position: String
+            participationPosition: String
         }
     },
     groupInfo: {

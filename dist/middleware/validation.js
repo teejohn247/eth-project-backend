@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.validateEvaluation = exports.validateRegistrationStatusUpdate = exports.validateFileUpload = exports.validatePayment = exports.validateTermsConditions = exports.validateAuditionInfo = exports.validateGuardianInfo = exports.validateGroupInfo = exports.validateTalentInfo = exports.validatePersonalInfo = exports.validateRegistration = exports.handleValidationErrors = void 0;
+exports.validateEvaluation = exports.validateRegistrationStatusUpdate = exports.validateFileUpload = exports.validateMediaInfo = exports.validatePayment = exports.validateTermsConditions = exports.validateAuditionInfo = exports.validateGuardianInfo = exports.validateGroupInfo = exports.validateTalentInfo = exports.validatePersonalInfo = exports.validateRegistration = exports.handleValidationErrors = void 0;
 const express_validator_1 = require("express-validator");
 const handleValidationErrors = (req, res, next) => {
     const errors = (0, express_validator_1.validationResult)(req);
@@ -108,6 +108,28 @@ exports.validateTalentInfo = [
         .optional()
         .isIn(['Yes', 'No'])
         .withMessage('Previously participated must be Yes or No'),
+    (0, express_validator_1.body)('previousParticipationCategory')
+        .if((0, express_validator_1.body)('previouslyParticipated').equals('Yes'))
+        .isIn(['Singing', 'Dancing', 'Acting', 'Comedy', 'Drama', 'Instrumental', 'Other'])
+        .withMessage('Please select a valid previous participation category'),
+    (0, express_validator_1.body)('previousParticipationOtherCategory')
+        .if((0, express_validator_1.body)('previouslyParticipated').equals('Yes'))
+        .if((0, express_validator_1.body)('previousParticipationCategory').equals('Other'))
+        .notEmpty()
+        .withMessage('Please specify other participation category')
+        .isLength({ max: 50 })
+        .withMessage('Other participation category cannot exceed 50 characters'),
+    (0, express_validator_1.body)('competitionName')
+        .if((0, express_validator_1.body)('previouslyParticipated').equals('Yes'))
+        .notEmpty()
+        .withMessage('Competition name is required for previous participation')
+        .isLength({ max: 100 })
+        .withMessage('Competition name cannot exceed 100 characters'),
+    (0, express_validator_1.body)('participationPosition')
+        .if((0, express_validator_1.body)('previouslyParticipated').equals('Yes'))
+        .optional()
+        .isLength({ max: 50 })
+        .withMessage('Position cannot exceed 50 characters'),
     exports.handleValidationErrors
 ];
 exports.validateGroupInfo = [
@@ -261,6 +283,37 @@ exports.validatePayment = [
         .optional()
         .equals('NGN')
         .withMessage('Currency must be NGN'),
+    exports.handleValidationErrors
+];
+exports.validateMediaInfo = [
+    (0, express_validator_1.body)('profilePhoto.originalName')
+        .optional()
+        .isLength({ max: 255 })
+        .withMessage('Profile photo filename cannot exceed 255 characters'),
+    (0, express_validator_1.body)('profilePhoto.size')
+        .optional()
+        .isInt({ max: 2097152 })
+        .withMessage('Profile photo size cannot exceed 2MB'),
+    (0, express_validator_1.body)('profilePhoto.mimetype')
+        .optional()
+        .isIn(['image/jpeg', 'image/png', 'image/jpg'])
+        .withMessage('Profile photo must be JPEG or PNG format'),
+    (0, express_validator_1.body)('videoUpload.originalName')
+        .optional()
+        .isLength({ max: 255 })
+        .withMessage('Video filename cannot exceed 255 characters'),
+    (0, express_validator_1.body)('videoUpload.size')
+        .optional()
+        .isInt({ max: 10485760 })
+        .withMessage('Video size cannot exceed 10MB'),
+    (0, express_validator_1.body)('videoUpload.mimetype')
+        .optional()
+        .isIn(['video/mp4', 'video/avi', 'video/mov', 'video/wmv'])
+        .withMessage('Video must be MP4, AVI, MOV, or WMV format'),
+    (0, express_validator_1.body)('videoUpload.duration')
+        .optional()
+        .isInt({ max: 180 })
+        .withMessage('Video duration cannot exceed 3 minutes'),
     exports.handleValidationErrors
 ];
 exports.validateFileUpload = [
