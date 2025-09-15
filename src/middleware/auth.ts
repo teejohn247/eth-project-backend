@@ -78,3 +78,26 @@ export const requireCompleteProfile = (req: Request, res: Response, next: NextFu
   }
   next();
 };
+
+// Role-based access control
+export const requireRole = (allowedRoles: string | string[]) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const userRole = req.user?.role || 'contestant';
+    const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
+    
+    if (!roles.includes(userRole)) {
+      res.status(403).json({
+        success: false,
+        message: `Access denied. Required role(s): ${roles.join(', ')}`
+      });
+      return;
+    }
+    next();
+  };
+};
+
+// Admin only access
+export const requireAdmin = requireRole('admin');
+
+// Judge or admin access
+export const requireJudgeOrAdmin = requireRole(['judge', 'admin']);

@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import authRoutes from './auth';
 import userRoutes from './user';
+import registrationRoutes from './registration';
+import paymentRoutes from './payment';
 
 const router = Router();
 
@@ -39,12 +41,21 @@ router.get('/health', (req, res) => {
     success: true,
     message: 'Edo Talent Hunt API is running',
     timestamp: new Date().toISOString(),
-    version: '1.0.0'
+    version: '1.0.0',
+    endpoints: {
+      authentication: '/api/v1/auth',
+      user: '/api/v1/user',
+      registrations: '/api/v1/registrations',
+      payments: '/api/v1/payments',
+      documentation: '/api-docs'
+    }
   });
 });
 
 // Mount route modules
 router.use('/auth', authRoutes);
 router.use('/user', userRoutes);
+router.use('/registrations', registrationRoutes);
+router.use('/payments', paymentRoutes);
 
 export default router;
