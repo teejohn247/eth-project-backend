@@ -5,16 +5,18 @@ import { AuthRequest } from '../types';
 
 interface AuthenticatedRequest extends AuthRequest {
   user?: {
-    id: string;
+    userId: string;
     email: string;
-    role: string;
+    role?: string;
+    isEmailVerified: boolean;
+    isPasswordSet: boolean;
   };
 }
 
 // Get user's registrations
 export const getUserRegistrations = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const registrations = await Registration.find({ userId: req.user?.id })
+    const registrations = await Registration.find({ userId: req.user?.userId })
       .sort({ createdAt: -1 })
       .select('-paymentInfo.paymentResponse');
 
@@ -40,7 +42,7 @@ export const createRegistration = async (req: AuthenticatedRequest, res: Respons
 
     // Check if user already has an active registration
     const existingRegistration = await Registration.findOne({
-      userId: req.user?.id,
+      userId: req.user?.userId,
       status: { $in: ['draft', 'submitted', 'under_review', 'approved'] }
     });
 
@@ -53,15 +55,16 @@ export const createRegistration = async (req: AuthenticatedRequest, res: Respons
     }
 
     const registration = new Registration({
-      userId: req.user?.id,
+      userId: req.user?.userId,
       registrationType,
       personalInfo: {
-        firstName: '',
-        lastName: '',
+        firstName: 'Draft',
+        lastName: 'User',
         email: req.user?.email || '',
-        phoneNo: '',
+        phoneNo: '00000000000',
         dateOfBirth: new Date(),
-        gender: 'Male'
+        gender: 'Male',
+        tshirtSize: 'M'
       },
       talentInfo: {
         talentCategory: 'Singing',
@@ -77,8 +80,8 @@ export const createRegistration = async (req: AuthenticatedRequest, res: Respons
         promotionalAcceptance: false
       },
       paymentInfo: {
-        amount: 1090,
-        currency: 'NGN',
+        amount: process.env.REGISTRATION_FEE ? parseInt(process.env.REGISTRATION_FEE) : 1090,
+        currency: process.env.PAYMENT_CURRENCY || 'NGN',
         paymentStatus: 'pending'
       }
     });
@@ -107,7 +110,7 @@ export const getRegistration = async (req: AuthenticatedRequest, res: Response):
     
     const registration = await Registration.findOne({
       _id: id,
-      userId: req.user?.id
+      userId: req.user?.userId
     }).select('-paymentInfo.paymentResponse');
 
     if (!registration) {
@@ -141,7 +144,7 @@ export const updateRegistration = async (req: AuthenticatedRequest, res: Respons
 
     const registration = await Registration.findOne({
       _id: id,
-      userId: req.user?.id
+      userId: req.user?.userId
     });
 
     if (!registration) {
@@ -187,7 +190,7 @@ export const submitRegistration = async (req: AuthenticatedRequest, res: Respons
 
     const registration = await Registration.findOne({
       _id: id,
-      userId: req.user?.id
+      userId: req.user?.userId
     });
 
     if (!registration) {
@@ -206,12 +209,17 @@ export const submitRegistration = async (req: AuthenticatedRequest, res: Respons
       return;
     }
 
-    // Validate required fields
-    const requiredSteps = 6; // personal, talent, group/guardian, audition, terms, payment
-    if (registration.completedSteps.length < requiredSteps) {
+    // Validate required fields based on registration type
+    const requiredSteps = registration.registrationType === 'individual' ? 
+      [1, 2, 4, 5, 6] : // personal, talent, guardian, audition, terms for individual
+      [1, 2, 3, 5, 6];  // personal, talent, group, audition, terms for group
+    
+    const missingSteps = requiredSteps.filter(step => !registration.completedSteps.includes(step));
+    if (missingSteps.length > 0) {
       res.status(400).json({
         success: false,
-        message: 'Please complete all required steps before submission'
+        message: 'Please complete all required steps before submission',
+        missingSteps
       });
       return;
     }
@@ -251,11 +259,11 @@ export const updatePersonalInfo = async (req: AuthenticatedRequest, res: Respons
     const personalInfo = req.body;
 
     const registration = await Registration.findOneAndUpdate(
-      { _id: id, userId: req.user?.id },
+      { _id: id, userId: req.user?.userId },
       { 
         personalInfo,
         $addToSet: { completedSteps: 1 },
-        currentStep: Math.max(1, (await Registration.findById(id))?.currentStep || 0)
+        currentStep: 1
       },
       { new: true }
     );
@@ -290,11 +298,11 @@ export const updateTalentInfo = async (req: AuthenticatedRequest, res: Response)
     const talentInfo = req.body;
 
     const registration = await Registration.findOneAndUpdate(
-      { _id: id, userId: req.user?.id },
+      { _id: id, userId: req.user?.userId },
       { 
         talentInfo,
         $addToSet: { completedSteps: 2 },
-        currentStep: Math.max(2, (await Registration.findById(id))?.currentStep || 0)
+        currentStep: 2
       },
       { new: true }
     );
@@ -329,11 +337,11 @@ export const updateGroupInfo = async (req: AuthenticatedRequest, res: Response):
     const groupInfo = req.body;
 
     const registration = await Registration.findOneAndUpdate(
-      { _id: id, userId: req.user?.id },
+      { _id: id, userId: req.user?.userId },
       { 
         groupInfo,
         $addToSet: { completedSteps: 3 },
-        currentStep: Math.max(3, (await Registration.findById(id))?.currentStep || 0)
+        currentStep: 3
       },
       { new: true }
     );
@@ -368,11 +376,11 @@ export const updateGuardianInfo = async (req: AuthenticatedRequest, res: Respons
     const guardianInfo = req.body;
 
     const registration = await Registration.findOneAndUpdate(
-      { _id: id, userId: req.user?.id },
+      { _id: id, userId: req.user?.userId },
       { 
         guardianInfo,
         $addToSet: { completedSteps: 4 },
-        currentStep: Math.max(4, (await Registration.findById(id))?.currentStep || 0)
+        currentStep: 4
       },
       { new: true }
     );
@@ -424,11 +432,11 @@ export const updateAuditionInfo = async (req: AuthenticatedRequest, res: Respons
     }
 
     const registration = await Registration.findOneAndUpdate(
-      { _id: id, userId: req.user?.id },
+      { _id: id, userId: req.user?.userId },
       { 
         auditionInfo,
         $addToSet: { completedSteps: 5 },
-        currentStep: Math.max(5, (await Registration.findById(id))?.currentStep || 0)
+        currentStep: 5
       },
       { new: true }
     );
@@ -463,14 +471,14 @@ export const updateTermsConditions = async (req: AuthenticatedRequest, res: Resp
     const termsConditions = req.body;
 
     const registration = await Registration.findOneAndUpdate(
-      { _id: id, userId: req.user?.id },
+      { _id: id, userId: req.user?.userId },
       { 
         termsConditions: {
           ...termsConditions,
           signedAt: new Date()
         },
         $addToSet: { completedSteps: 6 },
-        currentStep: Math.max(6, (await Registration.findById(id))?.currentStep || 0)
+        currentStep: 6
       },
       { new: true }
     );
@@ -505,7 +513,7 @@ export const getRegistrationStatus = async (req: AuthenticatedRequest, res: Resp
     
     const registration = await Registration.findOne({
       _id: id,
-      userId: req.user?.id
+      userId: req.user?.userId
     }).select('status currentStep completedSteps paymentInfo.paymentStatus submittedAt reviewNotes');
 
     if (!registration) {
@@ -538,7 +546,7 @@ export const deleteRegistration = async (req: AuthenticatedRequest, res: Respons
 
     const registration = await Registration.findOne({
       _id: id,
-      userId: req.user?.id
+      userId: req.user?.userId
     });
 
     if (!registration) {

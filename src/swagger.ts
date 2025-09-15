@@ -19,8 +19,8 @@ const options: swaggerJsdoc.Options = {
     servers: [
       {
         url: process.env.NODE_ENV === 'production' 
-          ? 'https://api.edotalenthunt.com/api/v1' 
-          : 'http://localhost:3001/api/v1',
+          ? 'https://api.edotalenthunt.com' 
+          : 'http://localhost:3001',
         description: process.env.NODE_ENV === 'production' ? 'Production server' : 'Development server'
       }
     ],

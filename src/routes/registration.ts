@@ -249,21 +249,69 @@ router.post('/:id/submit', authenticateToken, submitRegistration);
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - firstName
+ *               - lastName
+ *               - email
+ *               - phoneNo
+ *               - dateOfBirth
+ *               - gender
+ *               - tshirtSize
  *             properties:
  *               firstName:
  *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 50
+ *                 example: "John"
  *               lastName:
  *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 50
+ *                 example: "Doe"
  *               email:
  *                 type: string
+ *                 format: email
+ *                 example: "john.doe@example.com"
  *               phoneNo:
  *                 type: string
+ *                 pattern: "^(\\+234|0)[789]\\d{9}$"
+ *                 example: "08012345678"
  *               dateOfBirth:
  *                 type: string
  *                 format: date
+ *                 example: "1995-05-15"
+ *               placeOfBirth:
+ *                 type: string
+ *                 maxLength: 100
+ *                 example: "Lagos"
  *               gender:
  *                 type: string
  *                 enum: [Male, Female]
+ *                 example: "Male"
+ *               maritalStatus:
+ *                 type: string
+ *                 enum: [Single, Married]
+ *                 example: "Single"
+ *               address:
+ *                 type: string
+ *                 maxLength: 200
+ *                 example: "123 Main Street, Victoria Island"
+ *               state:
+ *                 type: string
+ *                 maxLength: 50
+ *                 example: "Lagos"
+ *               lga:
+ *                 type: string
+ *                 maxLength: 50
+ *                 example: "Ikeja"
+ *               nationality:
+ *                 type: string
+ *                 maxLength: 50
+ *                 example: "Nigerian"
+ *               tshirtSize:
+ *                 type: string
+ *                 enum: [XS, S, M, L, XL, XXL]
+ *                 example: "M"
  *     responses:
  *       200:
  *         description: Personal information updated successfully

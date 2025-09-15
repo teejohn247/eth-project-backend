@@ -7,7 +7,7 @@ const router = Router();
 
 /**
  * @swagger
- * /user/profile:
+ * /api/v1/user/profile:
  *   get:
  *     tags: [User]
  *     summary: Get user profile
@@ -78,7 +78,7 @@ router.get('/profile', authenticateToken, async (req: Request, res: Response): P
 
 /**
  * @swagger
- * /user/dashboard:
+ * /api/v1/user/dashboard:
  *   get:
  *     tags: [User]
  *     summary: Access user dashboard

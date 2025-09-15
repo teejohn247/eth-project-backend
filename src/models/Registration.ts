@@ -19,6 +19,7 @@ export interface IRegistration extends Document {
     state?: string;
     lga?: string;
     nationality?: string;
+    tshirtSize: 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL';
   };
 
   talentInfo: {
@@ -133,7 +134,8 @@ const RegistrationSchema = new Schema<IRegistration>({
     address: String,
     state: String,
     lga: String,
-    nationality: String
+    nationality: String,
+    tshirtSize: { type: String, enum: ['XS', 'S', 'M', 'L', 'XL', 'XXL'], required: true }
   },
 
   talentInfo: {
