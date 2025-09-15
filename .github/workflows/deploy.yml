@@ -75,7 +75,7 @@ jobs:
           --max-instances 10 \
           --min-instances 0 \
           --concurrency 80 \
-          --timeout 300 \
+          --timeout 600 \
           --set-env-vars="NODE_ENV=production" \
           --set-secrets="JWT_SECRET=jwt-secret:latest,MONGODB_URI=mongodb-uri:latest,EMAIL_HOST=email-host:latest,EMAIL_PORT=email-port:latest,EMAIL_USER=email-user:latest,EMAIL_PASS=email-pass:latest,EMAIL_FROM=email-from:latest"
 

@@ -6,9 +6,12 @@ export const connectDatabase = async (): Promise<void> => {
   try {
     const options = {
       maxPoolSize: 10,
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 30000, // Extended to 30 seconds for Cloud Run
       socketTimeoutMS: 45000,
-      bufferCommands: false
+      connectTimeoutMS: 30000,
+      bufferCommands: false,
+      retryWrites: true,
+      retryReads: true
     };
 
     await mongoose.connect(MONGODB_URI, options);
