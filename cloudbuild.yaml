@@ -21,8 +21,6 @@ steps:
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
-      - '--port'
-      - '3001'
       - '--memory'
       - '512Mi'
       - '--cpu'

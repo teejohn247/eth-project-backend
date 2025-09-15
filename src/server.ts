@@ -13,7 +13,7 @@ import emailService from './services/emailService';
 import swaggerSpecs from './swagger';
 
 const app: Application = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 // Security middleware
 app.use(helmet({
