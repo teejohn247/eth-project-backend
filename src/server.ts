@@ -196,23 +196,23 @@ const createGracefulShutdown = (server: any) => (signal: string) => {
 // Start server
 const startServer = async () => {
   try {
-    // Connect to database
-    await connectDatabase();
-    
-    // Verify email service (optional, won't stop server if fails)
-    try {
-      await emailService.verifyConnection();
-    } catch (error) {
-      console.warn('⚠️ Email service verification failed. Email features may not work properly.');
-    }
-    
-    // Start HTTP server
+    // Start HTTP server immediately for Cloud Run health checks
     const server = app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📱 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🌐 API Base URL: http://localhost:${PORT}/api/v1`);
       console.log(`📚 Interactive API Documentation: http://localhost:${PORT}/api-docs`);
       console.log(`🔍 Health Check: http://localhost:${PORT}/api/v1/health`);
+    });
+    
+    // Connect to database in background (non-blocking)
+    connectDatabase().catch((error) => {
+      console.error('❌ Failed to connect to MongoDB on startup, will retry:', error);
+    });
+    
+    // Verify email service (optional, won't stop server if fails)
+    emailService.verifyConnection().catch((error) => {
+      console.warn('⚠️ Email service verification failed. Email features may not work properly.');
     });
     
     // Handle graceful shutdown

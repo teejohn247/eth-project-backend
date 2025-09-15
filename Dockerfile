@@ -42,8 +42,8 @@ USER nodejs
 # Expose port (Cloud Run will set PORT environment variable)
 EXPOSE 8080
 
-# Health check - use PORT environment variable
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+# Health check - extended timeout for MongoDB connection
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT:-8080}/api/v1/health || exit 1
 
 # Start the application
