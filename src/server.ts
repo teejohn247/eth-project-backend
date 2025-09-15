@@ -57,6 +57,12 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, {
   customSiteTitle: 'Edo Talent Hunt API Documentation'
 }));
 
+// Debug endpoint to view Swagger JSON spec
+app.get('/api-docs.json', (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.json(swaggerSpecs);
+});
+
 // API routes
 app.use('/api/v1', routes);
 
