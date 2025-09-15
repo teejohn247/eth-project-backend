@@ -1,11 +1,18 @@
 import { Document } from 'mongoose';
+import { Request } from 'express';
 export interface IUser extends Document {
     firstName: string;
     lastName: string;
     email: string;
     password?: string;
+    role: 'contestant' | 'admin' | 'judge';
     isEmailVerified: boolean;
     isPasswordSet: boolean;
+    emailVerificationToken?: string;
+    passwordResetToken?: string;
+    passwordResetExpires?: Date;
+    lastLogin?: Date;
+    isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
     comparePassword(candidatePassword: string): Promise<boolean>;
@@ -67,6 +74,15 @@ export interface OTPResponse {
     data?: {
         email: string;
         expiresAt: Date;
+    };
+}
+export interface AuthenticatedRequest extends Request {
+    user?: {
+        userId: string;
+        email: string;
+        role: string;
+        isEmailVerified: boolean;
+        isPasswordSet: boolean;
     };
 }
 //# sourceMappingURL=index.d.ts.map

@@ -2,16 +2,7 @@ import { Request, Response } from 'express';
 import Registration from '../models/Registration';
 import PaymentTransaction from '../models/PaymentTransaction';
 import crypto from 'crypto';
-
-interface AuthenticatedRequest extends Request {
-  user?: {
-    userId: string;
-    email: string;
-    role?: string;
-    isEmailVerified: boolean;
-    isPasswordSet: boolean;
-  };
-}
+import { AuthenticatedRequest } from '../types';
 
 // Initialize payment
 export const initializePayment = async (req: AuthenticatedRequest, res: Response): Promise<void> => {

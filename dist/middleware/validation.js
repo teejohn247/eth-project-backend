@@ -1,148 +1,316 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.validate = exports.resendOTPSchema = exports.forgotPasswordSchema = exports.setPasswordSchema = exports.verifyOTPSchema = exports.loginSchema = exports.registerSchema = void 0;
-const joi_1 = __importDefault(require("joi"));
-exports.registerSchema = joi_1.default.object({
-    firstName: joi_1.default.string()
-        .trim()
-        .min(2)
-        .max(50)
-        .pattern(/^[a-zA-Z\s]+$/)
-        .required()
-        .messages({
-        'string.empty': 'First name is required',
-        'string.min': 'First name must be at least 2 characters long',
-        'string.max': 'First name cannot exceed 50 characters',
-        'string.pattern.base': 'First name can only contain letters and spaces'
-    }),
-    lastName: joi_1.default.string()
-        .trim()
-        .min(2)
-        .max(50)
-        .pattern(/^[a-zA-Z\s]+$/)
-        .required()
-        .messages({
-        'string.empty': 'Last name is required',
-        'string.min': 'Last name must be at least 2 characters long',
-        'string.max': 'Last name cannot exceed 50 characters',
-        'string.pattern.base': 'Last name can only contain letters and spaces'
-    }),
-    email: joi_1.default.string()
-        .email()
-        .lowercase()
-        .trim()
-        .required()
-        .messages({
-        'string.empty': 'Email is required',
-        'string.email': 'Please enter a valid email address'
-    })
-});
-exports.loginSchema = joi_1.default.object({
-    email: joi_1.default.string()
-        .email()
-        .lowercase()
-        .trim()
-        .required()
-        .messages({
-        'string.empty': 'Email is required',
-        'string.email': 'Please enter a valid email address'
-    }),
-    password: joi_1.default.string()
-        .min(6)
-        .required()
-        .messages({
-        'string.empty': 'Password is required',
-        'string.min': 'Password must be at least 6 characters long'
-    })
-});
-exports.verifyOTPSchema = joi_1.default.object({
-    email: joi_1.default.string()
-        .email()
-        .lowercase()
-        .trim()
-        .required()
-        .messages({
-        'string.empty': 'Email is required',
-        'string.email': 'Please enter a valid email address'
-    }),
-    otp: joi_1.default.string()
-        .length(4)
-        .pattern(/^\d{4}$/)
-        .required()
-        .messages({
-        'string.empty': 'OTP is required',
-        'string.length': 'OTP must be exactly 4 digits',
-        'string.pattern.base': 'OTP must contain only numbers'
-    })
-});
-exports.setPasswordSchema = joi_1.default.object({
-    email: joi_1.default.string()
-        .email()
-        .lowercase()
-        .trim()
-        .required()
-        .messages({
-        'string.empty': 'Email is required',
-        'string.email': 'Please enter a valid email address'
-    }),
-    password: joi_1.default.string()
-        .min(6)
-        .max(128)
-        .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-        .required()
-        .messages({
-        'string.empty': 'Password is required',
-        'string.min': 'Password must be at least 6 characters long',
-        'string.max': 'Password cannot exceed 128 characters',
-        'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, and one number'
-    })
-});
-exports.forgotPasswordSchema = joi_1.default.object({
-    email: joi_1.default.string()
-        .email()
-        .lowercase()
-        .trim()
-        .required()
-        .messages({
-        'string.empty': 'Email is required',
-        'string.email': 'Please enter a valid email address'
-    })
-});
-exports.resendOTPSchema = joi_1.default.object({
-    email: joi_1.default.string()
-        .email()
-        .lowercase()
-        .trim()
-        .required()
-        .messages({
-        'string.empty': 'Email is required',
-        'string.email': 'Please enter a valid email address'
-    })
-});
-const validate = (schema) => {
-    return (req, res, next) => {
-        const { error, value } = schema.validate(req.body, {
-            abortEarly: false,
-            stripUnknown: true
+exports.validateEvaluation = exports.validateRegistrationStatusUpdate = exports.validateFileUpload = exports.validatePayment = exports.validateTermsConditions = exports.validateAuditionInfo = exports.validateGuardianInfo = exports.validateGroupInfo = exports.validateTalentInfo = exports.validatePersonalInfo = exports.validateRegistration = exports.handleValidationErrors = void 0;
+const express_validator_1 = require("express-validator");
+const handleValidationErrors = (req, res, next) => {
+    const errors = (0, express_validator_1.validationResult)(req);
+    if (!errors.isEmpty()) {
+        res.status(400).json({
+            success: false,
+            message: 'Validation failed',
+            errors: errors.array()
         });
-        if (error) {
-            const errors = error.details.map(detail => ({
-                field: detail.path.join('.'),
-                message: detail.message
-            }));
-            res.status(400).json({
-                success: false,
-                message: 'Validation failed',
-                errors
-            });
-            return;
-        }
-        req.body = value;
-        next();
-    };
+        return;
+    }
+    next();
 };
-exports.validate = validate;
+exports.handleValidationErrors = handleValidationErrors;
+exports.validateRegistration = [
+    (0, express_validator_1.body)('registrationType')
+        .isIn(['individual', 'group'])
+        .withMessage('Registration type must be either individual or group'),
+    exports.handleValidationErrors
+];
+exports.validatePersonalInfo = [
+    (0, express_validator_1.body)('firstName')
+        .trim()
+        .isLength({ min: 2, max: 50 })
+        .withMessage('First name must be between 2 and 50 characters'),
+    (0, express_validator_1.body)('lastName')
+        .trim()
+        .isLength({ min: 2, max: 50 })
+        .withMessage('Last name must be between 2 and 50 characters'),
+    (0, express_validator_1.body)('email')
+        .isEmail()
+        .normalizeEmail()
+        .withMessage('Please provide a valid email address'),
+    (0, express_validator_1.body)('phoneNo')
+        .matches(/^(\+234|0)[789]\d{9}$/)
+        .withMessage('Please provide a valid Nigerian phone number'),
+    (0, express_validator_1.body)('dateOfBirth')
+        .isISO8601()
+        .withMessage('Please provide a valid date of birth')
+        .custom((value) => {
+        const birthDate = new Date(value);
+        const today = new Date();
+        const age = today.getFullYear() - birthDate.getFullYear();
+        if (age < 5 || age > 40) {
+            throw new Error('Age must be between 5 and 40 years');
+        }
+        return true;
+    }),
+    (0, express_validator_1.body)('gender')
+        .isIn(['Male', 'Female'])
+        .withMessage('Gender must be either Male or Female'),
+    (0, express_validator_1.body)('placeOfBirth')
+        .optional()
+        .trim()
+        .isLength({ max: 100 })
+        .withMessage('Place of birth cannot exceed 100 characters'),
+    (0, express_validator_1.body)('maritalStatus')
+        .optional()
+        .isIn(['Single', 'Married'])
+        .withMessage('Marital status must be either Single or Married'),
+    (0, express_validator_1.body)('address')
+        .optional()
+        .trim()
+        .isLength({ max: 200 })
+        .withMessage('Address cannot exceed 200 characters'),
+    (0, express_validator_1.body)('state')
+        .optional()
+        .trim()
+        .isLength({ max: 50 })
+        .withMessage('State cannot exceed 50 characters'),
+    (0, express_validator_1.body)('lga')
+        .optional()
+        .trim()
+        .isLength({ max: 50 })
+        .withMessage('LGA cannot exceed 50 characters'),
+    (0, express_validator_1.body)('nationality')
+        .optional()
+        .trim()
+        .isLength({ max: 50 })
+        .withMessage('Nationality cannot exceed 50 characters'),
+    (0, express_validator_1.body)('tshirtSize')
+        .isIn(['XS', 'S', 'M', 'L', 'XL', 'XXL'])
+        .withMessage('T-shirt size must be one of: XS, S, M, L, XL, XXL'),
+    exports.handleValidationErrors
+];
+exports.validateTalentInfo = [
+    (0, express_validator_1.body)('talentCategory')
+        .isIn(['Singing', 'Dancing', 'Acting', 'Comedy', 'Drama', 'Instrumental', 'Other'])
+        .withMessage('Please select a valid talent category'),
+    (0, express_validator_1.body)('otherTalentCategory')
+        .if((0, express_validator_1.body)('talentCategory').equals('Other'))
+        .notEmpty()
+        .withMessage('Please specify other talent category')
+        .isLength({ max: 50 })
+        .withMessage('Other talent category cannot exceed 50 characters'),
+    (0, express_validator_1.body)('skillLevel')
+        .isIn(['Beginner', 'Intermediate', 'Advanced'])
+        .withMessage('Please select a valid skill level'),
+    (0, express_validator_1.body)('stageName')
+        .optional()
+        .trim()
+        .isLength({ max: 50 })
+        .withMessage('Stage name cannot exceed 50 characters'),
+    (0, express_validator_1.body)('previouslyParticipated')
+        .optional()
+        .isIn(['Yes', 'No'])
+        .withMessage('Previously participated must be Yes or No'),
+    exports.handleValidationErrors
+];
+exports.validateGroupInfo = [
+    (0, express_validator_1.body)('groupName')
+        .if((0, express_validator_1.body)('registrationType').equals('group'))
+        .notEmpty()
+        .withMessage('Group name is required for group registrations')
+        .isLength({ max: 100 })
+        .withMessage('Group name cannot exceed 100 characters'),
+    (0, express_validator_1.body)('noOfGroupMembers')
+        .if((0, express_validator_1.body)('registrationType').equals('group'))
+        .isInt({ min: 2, max: 5 })
+        .withMessage('Number of group members must be between 2 and 5'),
+    (0, express_validator_1.body)('members')
+        .if((0, express_validator_1.body)('registrationType').equals('group'))
+        .isArray({ min: 2, max: 5 })
+        .withMessage('Group must have between 2 and 5 members'),
+    (0, express_validator_1.body)('members.*.firstName')
+        .if((0, express_validator_1.body)('registrationType').equals('group'))
+        .trim()
+        .isLength({ min: 2, max: 50 })
+        .withMessage('Member first name must be between 2 and 50 characters'),
+    (0, express_validator_1.body)('members.*.lastName')
+        .if((0, express_validator_1.body)('registrationType').equals('group'))
+        .trim()
+        .isLength({ min: 2, max: 50 })
+        .withMessage('Member last name must be between 2 and 50 characters'),
+    (0, express_validator_1.body)('members.*.dateOfBirth')
+        .if((0, express_validator_1.body)('registrationType').equals('group'))
+        .isISO8601()
+        .withMessage('Member date of birth must be valid'),
+    (0, express_validator_1.body)('members.*.gender')
+        .if((0, express_validator_1.body)('registrationType').equals('group'))
+        .isIn(['Male', 'Female'])
+        .withMessage('Member gender must be Male or Female'),
+    (0, express_validator_1.body)('members.*.tshirtSize')
+        .if((0, express_validator_1.body)('registrationType').equals('group'))
+        .isIn(['XS', 'S', 'M', 'L', 'XL', 'XXL'])
+        .withMessage('Member t-shirt size must be valid'),
+    exports.handleValidationErrors
+];
+exports.validateGuardianInfo = [
+    (0, express_validator_1.body)('title')
+        .optional()
+        .isIn(['Mr', 'Mrs', 'Miss'])
+        .withMessage('Guardian title must be Mr, Mrs, or Miss'),
+    (0, express_validator_1.body)('guardianName')
+        .optional()
+        .trim()
+        .isLength({ min: 2, max: 100 })
+        .withMessage('Guardian name must be between 2 and 100 characters'),
+    (0, express_validator_1.body)('relationship')
+        .optional()
+        .isIn(['Father', 'Mother', 'Aunt', 'Uncle', 'Brother', 'Sister', 'Other'])
+        .withMessage('Please select a valid relationship'),
+    (0, express_validator_1.body)('otherRelationship')
+        .if((0, express_validator_1.body)('relationship').equals('Other'))
+        .notEmpty()
+        .withMessage('Please specify other relationship')
+        .isLength({ max: 50 })
+        .withMessage('Other relationship cannot exceed 50 characters'),
+    (0, express_validator_1.body)('guardianEmail')
+        .optional()
+        .isEmail()
+        .normalizeEmail()
+        .withMessage('Please provide a valid guardian email address'),
+    (0, express_validator_1.body)('guardianPhoneNo')
+        .optional()
+        .matches(/^(\+234|0)[789]\d{9}$/)
+        .withMessage('Please provide a valid guardian phone number'),
+    exports.handleValidationErrors
+];
+exports.validateAuditionInfo = [
+    (0, express_validator_1.body)('auditionLocation')
+        .isIn(['Lagos', 'Benin'])
+        .withMessage('Audition location must be Lagos or Benin'),
+    (0, express_validator_1.body)('auditionDate')
+        .isISO8601()
+        .withMessage('Please provide a valid audition date')
+        .custom((value) => {
+        const auditionDate = new Date(value);
+        const today = new Date();
+        if (auditionDate <= today) {
+            throw new Error('Audition date must be in the future');
+        }
+        return true;
+    }),
+    (0, express_validator_1.body)('auditionTime')
+        .matches(/^([01]\d|2[0-3]):([0-5]\d)$/)
+        .withMessage('Please provide a valid audition time in HH:mm format'),
+    (0, express_validator_1.body)('auditionRequirement')
+        .optional()
+        .isIn(['Microphone', 'Guitar', 'Bass', 'Drum', 'BackgroundMusic', 'StageLighting', 'Projector', 'Other'])
+        .withMessage('Please select a valid audition requirement'),
+    (0, express_validator_1.body)('otherRequirement')
+        .if((0, express_validator_1.body)('auditionRequirement').equals('Other'))
+        .notEmpty()
+        .withMessage('Please specify other requirement')
+        .isLength({ max: 100 })
+        .withMessage('Other requirement cannot exceed 100 characters'),
+    (0, express_validator_1.body)('hasInstrument')
+        .optional()
+        .isIn(['Yes', 'No'])
+        .withMessage('Has instrument must be Yes or No'),
+    exports.handleValidationErrors
+];
+exports.validateTermsConditions = [
+    (0, express_validator_1.body)('rulesAcceptance')
+        .isBoolean()
+        .custom((value) => {
+        if (!value) {
+            throw new Error('You must accept the competition rules');
+        }
+        return true;
+    }),
+    (0, express_validator_1.body)('promotionalAcceptance')
+        .isBoolean()
+        .custom((value) => {
+        if (!value) {
+            throw new Error('You must accept promotional terms');
+        }
+        return true;
+    }),
+    (0, express_validator_1.body)('contestantSignature')
+        .notEmpty()
+        .withMessage('Contestant signature is required'),
+    (0, express_validator_1.body)('guardianSignature')
+        .optional()
+        .custom((value, { req }) => {
+        const personalInfo = req.body.personalInfo;
+        if (personalInfo && personalInfo.dateOfBirth) {
+            const age = new Date().getFullYear() - new Date(personalInfo.dateOfBirth).getFullYear();
+            if (age < 16 && !value) {
+                throw new Error('Guardian signature is required for contestants under 16');
+            }
+        }
+        return true;
+    }),
+    exports.handleValidationErrors
+];
+exports.validatePayment = [
+    (0, express_validator_1.body)('amount')
+        .isNumeric()
+        .custom((value) => {
+        if (value !== 1090) {
+            throw new Error('Registration fee must be ₦1,090');
+        }
+        return true;
+    }),
+    (0, express_validator_1.body)('currency')
+        .optional()
+        .equals('NGN')
+        .withMessage('Currency must be NGN'),
+    exports.handleValidationErrors
+];
+exports.validateFileUpload = [
+    (0, express_validator_1.body)('fileType')
+        .isIn(['image', 'video'])
+        .withMessage('File type must be image or video'),
+    exports.handleValidationErrors
+];
+exports.validateRegistrationStatusUpdate = [
+    (0, express_validator_1.body)('status')
+        .isIn(['under_review', 'approved', 'rejected', 'qualified', 'disqualified'])
+        .withMessage('Invalid status value'),
+    (0, express_validator_1.body)('reviewNotes')
+        .optional()
+        .trim()
+        .isLength({ max: 500 })
+        .withMessage('Review notes cannot exceed 500 characters'),
+    exports.handleValidationErrors
+];
+exports.validateEvaluation = [
+    (0, express_validator_1.body)('scores.talent')
+        .isFloat({ min: 0, max: 10 })
+        .withMessage('Talent score must be between 0 and 10'),
+    (0, express_validator_1.body)('scores.presentation')
+        .isFloat({ min: 0, max: 10 })
+        .withMessage('Presentation score must be between 0 and 10'),
+    (0, express_validator_1.body)('scores.creativity')
+        .isFloat({ min: 0, max: 10 })
+        .withMessage('Creativity score must be between 0 and 10'),
+    (0, express_validator_1.body)('scores.overall')
+        .isFloat({ min: 0, max: 10 })
+        .withMessage('Overall score must be between 0 and 10'),
+    (0, express_validator_1.body)('recommendation')
+        .isIn(['advance', 'eliminate', 'callback'])
+        .withMessage('Recommendation must be advance, eliminate, or callback'),
+    (0, express_validator_1.body)('feedback.strengths')
+        .optional()
+        .trim()
+        .isLength({ max: 500 })
+        .withMessage('Strengths feedback cannot exceed 500 characters'),
+    (0, express_validator_1.body)('feedback.areasForImprovement')
+        .optional()
+        .trim()
+        .isLength({ max: 500 })
+        .withMessage('Areas for improvement cannot exceed 500 characters'),
+    (0, express_validator_1.body)('feedback.generalComments')
+        .optional()
+        .trim()
+        .isLength({ max: 1000 })
+        .withMessage('General comments cannot exceed 1000 characters'),
+    exports.handleValidationErrors
+];
 //# sourceMappingURL=validation.js.map

@@ -67,6 +67,11 @@ const UserSchema = new mongoose_1.Schema({
         minlength: [6, 'Password must be at least 6 characters long'],
         select: false
     },
+    role: {
+        type: String,
+        enum: ['contestant', 'admin', 'judge'],
+        default: 'contestant'
+    },
     isEmailVerified: {
         type: Boolean,
         default: false
@@ -74,6 +79,14 @@ const UserSchema = new mongoose_1.Schema({
     isPasswordSet: {
         type: Boolean,
         default: false
+    },
+    emailVerificationToken: String,
+    passwordResetToken: String,
+    passwordResetExpires: Date,
+    lastLogin: Date,
+    isActive: {
+        type: Boolean,
+        default: true
     }
 }, {
     timestamps: true

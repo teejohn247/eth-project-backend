@@ -1,4 +1,5 @@
 import { Document } from 'mongoose';
+import { Request } from 'express';
 
 export interface IUser extends Document {
   firstName: string;
@@ -80,5 +81,15 @@ export interface OTPResponse {
   data?: {
     email: string;
     expiresAt: Date;
+  };
+}
+
+export interface AuthenticatedRequest extends Request {
+  user?: {
+    userId: string;
+    email: string;
+    role: string;
+    isEmailVerified: boolean;
+    isPasswordSet: boolean;
   };
 }

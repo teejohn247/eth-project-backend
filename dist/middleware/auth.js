@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.requireCompleteProfile = exports.requirePasswordSet = exports.requireEmailVerification = exports.authenticateToken = void 0;
+exports.requireJudgeOrAdmin = exports.requireAdmin = exports.requireRole = exports.requireCompleteProfile = exports.requirePasswordSet = exports.requireEmailVerification = exports.authenticateToken = void 0;
 const jwt_1 = require("../utils/jwt");
 const models_1 = require("../models");
 const authenticateToken = async (req, res, next) => {
@@ -67,4 +67,21 @@ const requireCompleteProfile = (req, res, next) => {
     next();
 };
 exports.requireCompleteProfile = requireCompleteProfile;
+const requireRole = (allowedRoles) => {
+    return (req, res, next) => {
+        const userRole = req.user?.role || 'contestant';
+        const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
+        if (!roles.includes(userRole)) {
+            res.status(403).json({
+                success: false,
+                message: `Access denied. Required role(s): ${roles.join(', ')}`
+            });
+            return;
+        }
+        next();
+    };
+};
+exports.requireRole = requireRole;
+exports.requireAdmin = (0, exports.requireRole)('admin');
+exports.requireJudgeOrAdmin = (0, exports.requireRole)(['judge', 'admin']);
 //# sourceMappingURL=auth.js.map

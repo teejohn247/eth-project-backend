@@ -1,17 +1,7 @@
 import { Request, Response } from 'express';
 import Registration from '../models/Registration';
 import AuditionSchedule from '../models/AuditionSchedule';
-import { AuthRequest } from '../types';
-
-interface AuthenticatedRequest extends AuthRequest {
-  user?: {
-    userId: string;
-    email: string;
-    role?: string;
-    isEmailVerified: boolean;
-    isPasswordSet: boolean;
-  };
-}
+import { AuthenticatedRequest } from '../types';
 
 // Get user's registrations
 export const getUserRegistrations = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
