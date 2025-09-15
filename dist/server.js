@@ -67,6 +67,24 @@ app.get('/', (req, res) => {
             user: {
                 profile: 'GET /api/v1/user/profile',
                 dashboard: 'GET /api/v1/user/dashboard'
+            },
+            registrations: {
+                create: 'POST /api/v1/registrations',
+                list: 'GET /api/v1/registrations',
+                get: 'GET /api/v1/registrations/{id}',
+                updatePersonalInfo: 'PUT /api/v1/registrations/{id}/personal-info',
+                updateTalentInfo: 'PUT /api/v1/registrations/{id}/talent-info',
+                updateGroupInfo: 'PUT /api/v1/registrations/{id}/group-info',
+                updateGuardianInfo: 'PUT /api/v1/registrations/{id}/guardian-info',
+                updateMediaInfo: 'PUT /api/v1/registrations/{id}/media-info',
+                updateAuditionInfo: 'PUT /api/v1/registrations/{id}/audition-info',
+                updateTermsConditions: 'PUT /api/v1/registrations/{id}/terms-conditions',
+                submit: 'POST /api/v1/registrations/{id}/submit'
+            },
+            payments: {
+                initialize: 'POST /api/v1/payments/initialize/{registrationId}',
+                verify: 'POST /api/v1/payments/verify/{reference}',
+                webhook: 'POST /api/v1/payments/webhook'
             }
         }
     });
