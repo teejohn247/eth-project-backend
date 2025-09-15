@@ -30,6 +30,7 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
+COPY debug-env.js ./
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
@@ -47,4 +48,5 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT:-8080}/api/v1/health || exit 1
 
 # Start the application
-CMD ["node", "dist/server.js"]
+# Temporarily use debug script to test environment
+CMD ["node", "debug-env.js"]
