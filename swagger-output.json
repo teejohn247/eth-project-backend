@@ -15,6 +15,10 @@
   },
   "servers": [
     {
+      "url": "https://eth-project-backend-1086159474664.europe-west1.run.app",
+      "description": "Production server (Google Cloud Run)"
+    },
+    {
       "url": "http://localhost:3001",
       "description": "Development server"
     }
@@ -115,6 +119,134 @@
               }
             },
             "description": "Validation errors (if applicable)"
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "User email address",
+            "example": "john.doe@example.com"
+          },
+          "password": {
+            "type": "string",
+            "description": "User password",
+            "example": "SecurePass123!"
+          }
+        }
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "required": [
+          "firstName",
+          "lastName",
+          "email"
+        ],
+        "properties": {
+          "firstName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 50,
+            "description": "User first name",
+            "example": "John"
+          },
+          "lastName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 50,
+            "description": "User last name",
+            "example": "Doe"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "User email address",
+            "example": "john.doe@example.com"
+          }
+        }
+      },
+      "VerifyOTPRequest": {
+        "type": "object",
+        "required": [
+          "email",
+          "otp"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "User email address",
+            "example": "john.doe@example.com"
+          },
+          "otp": {
+            "type": "string",
+            "minLength": 4,
+            "maxLength": 6,
+            "description": "OTP code",
+            "example": "1234"
+          }
+        }
+      },
+      "SetPasswordRequest": {
+        "type": "object",
+        "required": [
+          "email",
+          "password",
+          "confirmPassword"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "User email address",
+            "example": "john.doe@example.com"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 6,
+            "description": "New password (minimum 6 characters)",
+            "example": "SecurePass123!"
+          },
+          "confirmPassword": {
+            "type": "string",
+            "minLength": 6,
+            "description": "Confirm password (must match password)",
+            "example": "SecurePass123!"
+          }
+        }
+      },
+      "OTPResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Operation success status"
+          },
+          "message": {
+            "type": "string",
+            "description": "Response message"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "email": {
+                "type": "string",
+                "format": "email",
+                "description": "Email address where OTP was sent"
+              },
+              "expiresAt": {
+                "type": "string",
+                "format": "date-time",
+                "description": "OTP expiration timestamp"
+              }
+            }
           }
         }
       },
