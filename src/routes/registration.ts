@@ -9,13 +9,14 @@ import {
   updateTalentInfo,
   updateGroupInfo,
   updateGuardianInfo,
+  updateMediaInfo,
   updateAuditionInfo,
   updateTermsConditions,
   getRegistrationStatus,
   deleteRegistration
 } from '../controllers/registrationController';
 import { authenticateToken } from '../middleware/auth';
-import { validateRegistration, validatePersonalInfo, validateTalentInfo } from '../middleware/validation';
+import { validateRegistration, validatePersonalInfo, validateTalentInfo, validateMediaInfo } from '../middleware/validation';
 
 const router = express.Router();
 
@@ -338,13 +339,53 @@ router.put('/:id/personal-info', authenticateToken, validatePersonalInfo, update
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - talentCategory
+ *               - skillLevel
  *             properties:
  *               talentCategory:
  *                 type: string
  *                 enum: [Singing, Dancing, Acting, Comedy, Drama, Instrumental, Other]
+ *                 example: "Singing"
+ *               otherTalentCategory:
+ *                 type: string
+ *                 maxLength: 50
+ *                 description: "Required when talentCategory is 'Other'"
+ *                 example: "Stand-up Comedy"
  *               skillLevel:
  *                 type: string
  *                 enum: [Beginner, Intermediate, Advanced]
+ *                 example: "Intermediate"
+ *               stageName:
+ *                 type: string
+ *                 maxLength: 50
+ *                 description: "Optional stage name"
+ *                 example: "Starlight"
+ *               previouslyParticipated:
+ *                 type: string
+ *                 enum: [Yes, No]
+ *                 description: "Whether user has previously participated in talent hunts"
+ *                 example: "Yes"
+ *               previousParticipationCategory:
+ *                 type: string
+ *                 enum: [Singing, Dancing, Acting, Comedy, Drama, Instrumental, Other]
+ *                 description: "Required when previouslyParticipated is 'Yes'"
+ *                 example: "Dancing"
+ *               previousParticipationOtherCategory:
+ *                 type: string
+ *                 maxLength: 50
+ *                 description: "Required when previousParticipationCategory is 'Other'"
+ *                 example: "Breakdancing"
+ *               competitionName:
+ *                 type: string
+ *                 maxLength: 100
+ *                 description: "Required when previouslyParticipated is 'Yes'"
+ *                 example: "Nigeria's Got Talent 2023"
+ *               participationPosition:
+ *                 type: string
+ *                 maxLength: 50
+ *                 description: "Position achieved in competition"
+ *                 example: "Second Runner-up"
  *     responses:
  *       200:
  *         description: Talent information updated successfully
@@ -390,6 +431,49 @@ router.put('/:id/group-info', authenticateToken, updateGroupInfo);
  *         description: Guardian information updated successfully
  */
 router.put('/:id/guardian-info', authenticateToken, updateGuardianInfo);
+
+/**
+ * @swagger
+ * /api/v1/registrations/{id}/media-info:
+ *   put:
+ *     summary: Update media information step (profile photo and video upload)
+ *     tags: [Registration Steps]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               profilePhoto:
+ *                 type: string
+ *                 description: "Base64 encoded profile photo (data URL format)"
+ *                 example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD..."
+ *               videoUpload:
+ *                 type: string
+ *                 description: "Base64 encoded audition video (data URL format)"
+ *                 example: "data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28y..."
+ *     responses:
+ *       200:
+ *         description: Media information updated successfully
+ *       400:
+ *         description: Validation error (file size, format, etc.)
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Registration not found
+ *       500:
+ *         description: Internal server error
+ */
+router.put('/:id/media-info', authenticateToken, validateMediaInfo, updateMediaInfo);
 
 /**
  * @swagger

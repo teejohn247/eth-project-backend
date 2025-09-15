@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteRegistration = exports.getRegistrationStatus = exports.updateTermsConditions = exports.updateAuditionInfo = exports.updateGuardianInfo = exports.updateGroupInfo = exports.updateTalentInfo = exports.updatePersonalInfo = exports.submitRegistration = exports.updateRegistration = exports.getRegistration = exports.createRegistration = exports.getUserRegistrations = void 0;
+exports.deleteRegistration = exports.getRegistrationStatus = exports.updateTermsConditions = exports.updateAuditionInfo = exports.updateMediaInfo = exports.updateGuardianInfo = exports.updateGroupInfo = exports.updateTalentInfo = exports.updatePersonalInfo = exports.submitRegistration = exports.updateRegistration = exports.getRegistration = exports.createRegistration = exports.getUserRegistrations = void 0;
 const Registration_1 = __importDefault(require("../models/Registration"));
 const AuditionSchedule_1 = __importDefault(require("../models/AuditionSchedule"));
 const getUserRegistrations = async (req, res) => {
@@ -346,6 +346,38 @@ const updateGuardianInfo = async (req, res) => {
     }
 };
 exports.updateGuardianInfo = updateGuardianInfo;
+const updateMediaInfo = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const mediaInfo = req.body;
+        const registration = await Registration_1.default.findOneAndUpdate({ _id: id, userId: req.user?.userId }, {
+            mediaInfo,
+            $addToSet: { completedSteps: 5 },
+            currentStep: 5
+        }, { new: true });
+        if (!registration) {
+            res.status(404).json({
+                success: false,
+                message: 'Registration not found'
+            });
+            return;
+        }
+        res.status(200).json({
+            success: true,
+            message: 'Media information updated successfully',
+            data: registration
+        });
+    }
+    catch (error) {
+        console.error('Update media info error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update media information',
+            error: process.env.NODE_ENV === 'development' ? error : undefined
+        });
+    }
+};
+exports.updateMediaInfo = updateMediaInfo;
 const updateAuditionInfo = async (req, res) => {
     try {
         const { id } = req.params;

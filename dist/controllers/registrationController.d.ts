@@ -9,6 +9,7 @@ export declare const updatePersonalInfo: (req: AuthenticatedRequest, res: Respon
 export declare const updateTalentInfo: (req: AuthenticatedRequest, res: Response) => Promise<void>;
 export declare const updateGroupInfo: (req: AuthenticatedRequest, res: Response) => Promise<void>;
 export declare const updateGuardianInfo: (req: AuthenticatedRequest, res: Response) => Promise<void>;
+export declare const updateMediaInfo: (req: AuthenticatedRequest, res: Response) => Promise<void>;
 export declare const updateAuditionInfo: (req: AuthenticatedRequest, res: Response) => Promise<void>;
 export declare const updateTermsConditions: (req: AuthenticatedRequest, res: Response) => Promise<void>;
 export declare const getRegistrationStatus: (req: AuthenticatedRequest, res: Response) => Promise<void>;

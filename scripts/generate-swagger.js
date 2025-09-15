@@ -240,6 +240,21 @@ const options = {
               }
             }
           }
+        },
+        MediaInfo: {
+          type: 'object',
+          properties: {
+            profilePhoto: {
+              type: 'string',
+              description: 'Base64 encoded profile photo (data URL format)',
+              example: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD...'
+            },
+            videoUpload: {
+              type: 'string',
+              description: 'Base64 encoded audition video (data URL format)',
+              example: 'data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28y...'
+            }
+          }
         }
       }
     },

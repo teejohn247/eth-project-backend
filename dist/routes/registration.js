@@ -18,6 +18,7 @@ router.put('/:id/personal-info', auth_1.authenticateToken, validation_1.validate
 router.put('/:id/talent-info', auth_1.authenticateToken, validation_1.validateTalentInfo, registrationController_1.updateTalentInfo);
 router.put('/:id/group-info', auth_1.authenticateToken, registrationController_1.updateGroupInfo);
 router.put('/:id/guardian-info', auth_1.authenticateToken, registrationController_1.updateGuardianInfo);
+router.put('/:id/media-info', auth_1.authenticateToken, validation_1.validateMediaInfo, registrationController_1.updateMediaInfo);
 router.put('/:id/audition-info', auth_1.authenticateToken, registrationController_1.updateAuditionInfo);
 router.put('/:id/terms', auth_1.authenticateToken, registrationController_1.updateTermsConditions);
 router.get('/:id/status', auth_1.authenticateToken, registrationController_1.getRegistrationStatus);

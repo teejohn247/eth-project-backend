@@ -398,6 +398,45 @@ export const updateGuardianInfo = async (req: AuthenticatedRequest, res: Respons
   }
 };
 
+// Update media information
+export const updateMediaInfo = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const mediaInfo = req.body;
+
+    const registration = await Registration.findOneAndUpdate(
+      { _id: id, userId: req.user?.userId },
+      { 
+        mediaInfo,
+        $addToSet: { completedSteps: 5 },
+        currentStep: 5
+      },
+      { new: true }
+    );
+
+    if (!registration) {
+      res.status(404).json({
+        success: false,
+        message: 'Registration not found'
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Media information updated successfully',
+      data: registration
+    });
+  } catch (error) {
+    console.error('Update media info error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update media information',
+      error: process.env.NODE_ENV === 'development' ? error : undefined
+    });
+  }
+};
+
 // Update audition information
 export const updateAuditionInfo = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {

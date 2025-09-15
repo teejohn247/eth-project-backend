@@ -132,6 +132,33 @@ export const validateTalentInfo = [
     .isIn(['Yes', 'No'])
     .withMessage('Previously participated must be Yes or No'),
   
+  // Previous participation details (required if previouslyParticipated = 'Yes')
+  body('previousParticipationCategory')
+    .if(body('previouslyParticipated').equals('Yes'))
+    .isIn(['Singing', 'Dancing', 'Acting', 'Comedy', 'Drama', 'Instrumental', 'Other'])
+    .withMessage('Please select a valid previous participation category'),
+  
+  body('previousParticipationOtherCategory')
+    .if(body('previouslyParticipated').equals('Yes'))
+    .if(body('previousParticipationCategory').equals('Other'))
+    .notEmpty()
+    .withMessage('Please specify other participation category')
+    .isLength({ max: 50 })
+    .withMessage('Other participation category cannot exceed 50 characters'),
+  
+  body('competitionName')
+    .if(body('previouslyParticipated').equals('Yes'))
+    .notEmpty()
+    .withMessage('Competition name is required for previous participation')
+    .isLength({ max: 100 })
+    .withMessage('Competition name cannot exceed 100 characters'),
+  
+  body('participationPosition')
+    .if(body('previouslyParticipated').equals('Yes'))
+    .optional()
+    .isLength({ max: 50 })
+    .withMessage('Position cannot exceed 50 characters'),
+  
   handleValidationErrors
 ];
 
@@ -322,6 +349,33 @@ export const validatePayment = [
     .optional()
     .equals('NGN')
     .withMessage('Currency must be NGN'),
+  
+  handleValidationErrors
+];
+
+// Media information validation
+export const validateMediaInfo = [
+  body('profilePhoto')
+    .optional()
+    .isString()
+    .withMessage('Profile photo must be a valid base64 string')
+    .custom((value) => {
+      if (value && !value.startsWith('data:image/')) {
+        throw new Error('Profile photo must be a valid base64 image data URL');
+      }
+      return true;
+    }),
+  
+  body('videoUpload')
+    .optional()
+    .isString()
+    .withMessage('Video upload must be a valid base64 string')
+    .custom((value) => {
+      if (value && !value.startsWith('data:video/')) {
+        throw new Error('Video upload must be a valid base64 video data URL');
+      }
+      return true;
+    }),
   
   handleValidationErrors
 ];

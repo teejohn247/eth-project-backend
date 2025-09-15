@@ -8,6 +8,7 @@ export declare const validateGuardianInfo: (import("express-validator").Validati
 export declare const validateAuditionInfo: (import("express-validator").ValidationChain | ((req: Request, res: Response, next: NextFunction) => void))[];
 export declare const validateTermsConditions: (import("express-validator").ValidationChain | ((req: Request, res: Response, next: NextFunction) => void))[];
 export declare const validatePayment: (import("express-validator").ValidationChain | ((req: Request, res: Response, next: NextFunction) => void))[];
+export declare const validateMediaInfo: (import("express-validator").ValidationChain | ((req: Request, res: Response, next: NextFunction) => void))[];
 export declare const validateFileUpload: (import("express-validator").ValidationChain | ((req: Request, res: Response, next: NextFunction) => void))[];
 export declare const validateRegistrationStatusUpdate: (import("express-validator").ValidationChain | ((req: Request, res: Response, next: NextFunction) => void))[];
 export declare const validateEvaluation: (import("express-validator").ValidationChain | ((req: Request, res: Response, next: NextFunction) => void))[];
