@@ -13,8 +13,8 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build the TypeScript code
-RUN npm run build
+# Build the TypeScript code and generate Swagger documentation
+RUN npm run build:full
 
 # Production stage
 FROM node:20-alpine AS production
@@ -33,6 +33,9 @@ COPY --from=builder /app/dist ./dist
 
 # Copy source files for Swagger documentation
 COPY --from=builder /app/src ./src
+
+# Copy static Swagger documentation
+COPY --from=builder /app/swagger-output.json ./swagger-output.json
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
