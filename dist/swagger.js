@@ -23,9 +23,9 @@ const options = {
         servers: [
             {
                 url: process.env.NODE_ENV === 'production'
-                    ? 'https://api.edotalenthunt.com'
+                    ? 'https://eth-project-backend-1086159474664.europe-west1.run.app'
                     : 'http://localhost:3001',
-                description: process.env.NODE_ENV === 'production' ? 'Production server' : 'Development server'
+                description: process.env.NODE_ENV === 'production' ? 'Production server (Google Cloud Run)' : 'Development server'
             }
         ],
         components: {
@@ -261,6 +261,18 @@ const options = {
             {
                 name: 'User',
                 description: 'User profile and management endpoints'
+            },
+            {
+                name: 'Registration Steps',
+                description: 'Multi-step talent registration process endpoints'
+            },
+            {
+                name: 'Registration Management',
+                description: 'Registration CRUD operations and management'
+            },
+            {
+                name: 'Payment',
+                description: 'Payment processing and transaction management'
             }
         ]
     },
