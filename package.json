@@ -6,7 +6,6 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/server.js",
-    "debug": "node debug-env.js",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "test": "jest",
     "lint": "echo 'Linting not configured yet'",
