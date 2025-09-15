@@ -5,9 +5,11 @@ import crypto from 'crypto';
 
 interface AuthenticatedRequest extends Request {
   user?: {
-    id: string;
+    userId: string;
     email: string;
-    role: string;
+    role?: string;
+    isEmailVerified: boolean;
+    isPasswordSet: boolean;
   };
 }
 
@@ -20,7 +22,7 @@ export const initializePayment = async (req: AuthenticatedRequest, res: Response
     // Find registration
     const registration = await Registration.findOne({
       _id: registrationId,
-      userId: req.user?.id
+      userId: req.user?.userId
     });
 
     if (!registration) {
@@ -46,7 +48,7 @@ export const initializePayment = async (req: AuthenticatedRequest, res: Response
     // Create payment transaction record
     const transaction = new PaymentTransaction({
       registrationId,
-      userId: req.user?.id,
+      userId: req.user?.userId,
       reference,
       amount,
       currency,
@@ -72,7 +74,7 @@ export const initializePayment = async (req: AuthenticatedRequest, res: Response
       callback_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/callback`,
       metadata: {
         registrationId,
-        userId: req.user?.id
+        userId: req.user?.userId
       }
     };
 
@@ -266,7 +268,7 @@ export const getPaymentStatus = async (req: AuthenticatedRequest, res: Response)
 
     const registration = await Registration.findOne({
       _id: registrationId,
-      userId: req.user?.id
+      userId: req.user?.userId
     }).select('paymentInfo');
 
     if (!registration) {
@@ -279,7 +281,7 @@ export const getPaymentStatus = async (req: AuthenticatedRequest, res: Response)
 
     const transaction = await PaymentTransaction.findOne({
       registrationId,
-      userId: req.user?.id
+      userId: req.user?.userId
     }).sort({ createdAt: -1 });
 
     res.status(200).json({

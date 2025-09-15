@@ -8,7 +8,7 @@ const router = Router();
 
 /**
  * @swagger
- * /health:
+ * /api/v1/health:
  *   get:
  *     tags: [Health]
  *     summary: Health Check

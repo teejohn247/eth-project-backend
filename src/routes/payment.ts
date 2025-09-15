@@ -95,7 +95,7 @@ const router = express.Router();
  *       404:
  *         description: Registration not found
  */
-router.post('/initialize/:registrationId', authenticateToken, validatePayment, initializePayment);
+router.post('/initialize/:registrationId', authenticateToken, initializePayment);
 
 /**
  * @swagger

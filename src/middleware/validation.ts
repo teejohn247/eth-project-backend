@@ -62,6 +62,17 @@ export const validatePersonalInfo = [
     .isIn(['Male', 'Female'])
     .withMessage('Gender must be either Male or Female'),
   
+  body('placeOfBirth')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Place of birth cannot exceed 100 characters'),
+  
+  body('maritalStatus')
+    .optional()
+    .isIn(['Single', 'Married'])
+    .withMessage('Marital status must be either Single or Married'),
+  
   body('address')
     .optional()
     .trim()
@@ -79,6 +90,16 @@ export const validatePersonalInfo = [
     .trim()
     .isLength({ max: 50 })
     .withMessage('LGA cannot exceed 50 characters'),
+  
+  body('nationality')
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage('Nationality cannot exceed 50 characters'),
+  
+  body('tshirtSize')
+    .isIn(['XS', 'S', 'M', 'L', 'XL', 'XXL'])
+    .withMessage('T-shirt size must be one of: XS, S, M, L, XL, XXL'),
   
   handleValidationErrors
 ];
