@@ -41,6 +41,7 @@ const otpValidation = [
 const passwordValidation = [
     (0, express_validator_1.body)('email').isEmail().normalizeEmail().withMessage('Please provide a valid email address'),
     (0, express_validator_1.body)('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
+    (0, express_validator_1.body)('otp').optional().isLength({ min: 4, max: 6 }).withMessage('OTP must be between 4 and 6 characters'),
     handleValidation
 ];
 const emailValidation = [
@@ -135,7 +136,7 @@ router.post('/verify-otp', rateLimiter_1.authLimiter, otpValidation, async (req,
 });
 router.post('/set-password', rateLimiter_1.authLimiter, passwordValidation, async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { email, password, otp } = req.body;
         const user = await models_1.User.findOne({ email }).select('+password');
         if (!user) {
             res.status(404).json({
@@ -144,20 +145,40 @@ router.post('/set-password', rateLimiter_1.authLimiter, passwordValidation, asyn
             });
             return;
         }
-        if (!user.isEmailVerified) {
-            res.status(400).json({
-                success: false,
-                message: 'Email verification required before setting password'
-            });
-            return;
+        if (otp) {
+            const otpType = user.isEmailVerified ? 'password_reset' : 'email_verification';
+            const otpResult = await models_1.OTP.verifyOTP(email, otp, otpType);
+            if (!otpResult.valid) {
+                res.status(400).json({
+                    success: false,
+                    message: otpResult.message
+                });
+                return;
+            }
+            if (otpType === 'email_verification') {
+                user.isEmailVerified = true;
+            }
+        }
+        else {
+            if (!user.isEmailVerified) {
+                res.status(400).json({
+                    success: false,
+                    message: 'Email verification required before setting password. Please provide OTP.'
+                });
+                return;
+            }
         }
         user.password = password;
         user.isPasswordSet = true;
         await user.save();
         const token = (0, jwt_1.generateToken)(user);
+        const isPasswordReset = user.isPasswordSet && otp;
+        const message = isPasswordReset
+            ? 'Password reset successfully. You can now login with your new password.'
+            : 'Password set successfully. You can now login.';
         res.json({
             success: true,
-            message: 'Password set successfully. You can now login.',
+            message,
             data: {
                 token,
                 user: {
@@ -271,59 +292,6 @@ router.post('/forgot-password', rateLimiter_1.passwordResetLimiter, emailValidat
         res.status(500).json({
             success: false,
             message: 'Failed to send password reset OTP. Please try again.'
-        });
-    }
-});
-router.post('/verify-reset-otp', rateLimiter_1.authLimiter, otpValidation, async (req, res) => {
-    try {
-        const { email, otp } = req.body;
-        const otpResult = await models_1.OTP.verifyOTP(email, otp, 'password_reset');
-        if (!otpResult.valid) {
-            res.status(400).json({
-                success: false,
-                message: otpResult.message
-            });
-            return;
-        }
-        res.json({
-            success: true,
-            message: 'OTP verified successfully. You can now reset your password.',
-            data: {
-                email
-            }
-        });
-    }
-    catch (error) {
-        console.error('Reset OTP verification error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'OTP verification failed. Please try again.'
-        });
-    }
-});
-router.post('/reset-password', rateLimiter_1.authLimiter, passwordValidation, async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        const user = await models_1.User.findOne({ email }).select('+password');
-        if (!user) {
-            res.status(404).json({
-                success: false,
-                message: 'User not found'
-            });
-            return;
-        }
-        user.password = password;
-        await user.save();
-        res.json({
-            success: true,
-            message: 'Password reset successfully. You can now login with your new password.'
-        });
-    }
-    catch (error) {
-        console.error('Reset password error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to reset password. Please try again.'
         });
     }
 });

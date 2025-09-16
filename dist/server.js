@@ -27,12 +27,12 @@ app.use((0, helmet_1.default)({
     },
 }));
 app.use((0, cors_1.default)({
-    origin: process.env.NODE_ENV === 'production'
-        ? (process.env.ALLOWED_ORIGINS?.split(',') || ['https://yourdomain.com'])
-        : ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000'],
+    origin: true,
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+    exposedHeaders: ['Content-Length', 'X-Foo', 'X-Bar'],
+    maxAge: 86400
 }));
 app.use(express_1.default.json({ limit: '10mb' }));
 app.use(express_1.default.urlencoded({ extended: true, limit: '10mb' }));
