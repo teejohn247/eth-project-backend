@@ -134,41 +134,43 @@ exports.validateTalentInfo = [
 ];
 exports.validateGroupInfo = [
     (0, express_validator_1.body)('groupName')
-        .if((0, express_validator_1.body)('registrationType').equals('group'))
         .notEmpty()
-        .withMessage('Group name is required for group registrations')
+        .withMessage('Group name is required')
         .isLength({ max: 100 })
         .withMessage('Group name cannot exceed 100 characters'),
     (0, express_validator_1.body)('noOfGroupMembers')
-        .if((0, express_validator_1.body)('registrationType').equals('group'))
-        .isInt({ min: 2, max: 5 })
-        .withMessage('Number of group members must be between 2 and 5'),
+        .custom((value) => {
+        const num = parseInt(value, 10);
+        if (isNaN(num) || num < 2 || num > 5) {
+            throw new Error('Number of group members must be between 2 and 5');
+        }
+        return true;
+    }),
     (0, express_validator_1.body)('members')
-        .if((0, express_validator_1.body)('registrationType').equals('group'))
         .isArray({ min: 2, max: 5 })
         .withMessage('Group must have between 2 and 5 members'),
     (0, express_validator_1.body)('members.*.firstName')
-        .if((0, express_validator_1.body)('registrationType').equals('group'))
         .trim()
         .isLength({ min: 2, max: 50 })
         .withMessage('Member first name must be between 2 and 50 characters'),
     (0, express_validator_1.body)('members.*.lastName')
-        .if((0, express_validator_1.body)('registrationType').equals('group'))
         .trim()
         .isLength({ min: 2, max: 50 })
         .withMessage('Member last name must be between 2 and 50 characters'),
     (0, express_validator_1.body)('members.*.dateOfBirth')
-        .if((0, express_validator_1.body)('registrationType').equals('group'))
         .isISO8601()
         .withMessage('Member date of birth must be valid'),
     (0, express_validator_1.body)('members.*.gender')
-        .if((0, express_validator_1.body)('registrationType').equals('group'))
         .isIn(['Male', 'Female'])
         .withMessage('Member gender must be Male or Female'),
     (0, express_validator_1.body)('members.*.tshirtSize')
-        .if((0, express_validator_1.body)('registrationType').equals('group'))
-        .isIn(['XS', 'S', 'M', 'L', 'XL', 'XXL'])
-        .withMessage('Member t-shirt size must be valid'),
+        .custom((value) => {
+        const validSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+        if (!validSizes.includes(value.toUpperCase())) {
+            throw new Error('Member t-shirt size must be one of: XS, S, M, L, XL, XXL');
+        }
+        return true;
+    }),
     exports.handleValidationErrors
 ];
 exports.validateGuardianInfo = [
@@ -218,14 +220,26 @@ exports.validateAuditionInfo = [
         return true;
     }),
     (0, express_validator_1.body)('auditionTime')
-        .matches(/^([01]\d|2[0-3]):([0-5]\d)$/)
-        .withMessage('Please provide a valid audition time in HH:mm format'),
+        .custom((value) => {
+        const format24h = /^([01]\d|2[0-3]):([0-5]\d)$/.test(value);
+        const format12h = /^(1[0-2]|0?[1-9]):([0-5]\d)\s?(AM|PM)$/i.test(value);
+        if (!format24h && !format12h) {
+            throw new Error('Please provide a valid audition time (e.g., "9:29 AM" or "09:29")');
+        }
+        return true;
+    }),
     (0, express_validator_1.body)('auditionRequirement')
         .optional()
         .isIn(['Microphone', 'Guitar', 'Bass', 'Drum', 'BackgroundMusic', 'StageLighting', 'Projector', 'Other'])
         .withMessage('Please select a valid audition requirement'),
+    (0, express_validator_1.body)('audtionRequirement')
+        .optional()
+        .isIn(['Microphone', 'Guitar', 'Bass', 'Drum', 'BackgroundMusic', 'StageLighting', 'Projector', 'Other'])
+        .withMessage('Please select a valid audition requirement'),
     (0, express_validator_1.body)('otherRequirement')
-        .if((0, express_validator_1.body)('auditionRequirement').equals('Other'))
+        .if((value, { req }) => {
+        return req.body.auditionRequirement === 'Other' || req.body.audtionRequirement === 'Other';
+    })
         .notEmpty()
         .withMessage('Please specify other requirement')
         .isLength({ max: 100 })
@@ -254,17 +268,20 @@ exports.validateTermsConditions = [
         return true;
     }),
     (0, express_validator_1.body)('contestantSignature')
+        .isString()
         .notEmpty()
-        .withMessage('Contestant signature is required'),
+        .withMessage('Contestant signature is required')
+        .custom((value) => {
+        if (value && !value.startsWith('data:image/')) {
+            throw new Error('Contestant signature must be a valid base64 image data URL');
+        }
+        return true;
+    }),
     (0, express_validator_1.body)('guardianSignature')
         .optional()
         .custom((value, { req }) => {
-        const personalInfo = req.body.personalInfo;
-        if (personalInfo && personalInfo.dateOfBirth) {
-            const age = new Date().getFullYear() - new Date(personalInfo.dateOfBirth).getFullYear();
-            if (age < 16 && !value) {
-                throw new Error('Guardian signature is required for contestants under 16');
-            }
+        if (value && !value.startsWith('data:image/')) {
+            throw new Error('Guardian signature must be a valid base64 image data URL');
         }
         return true;
     }),
@@ -286,34 +303,26 @@ exports.validatePayment = [
     exports.handleValidationErrors
 ];
 exports.validateMediaInfo = [
-    (0, express_validator_1.body)('profilePhoto.originalName')
+    (0, express_validator_1.body)('profilePhoto')
         .optional()
-        .isLength({ max: 255 })
-        .withMessage('Profile photo filename cannot exceed 255 characters'),
-    (0, express_validator_1.body)('profilePhoto.size')
+        .isString()
+        .withMessage('Profile photo must be a valid base64 string')
+        .custom((value) => {
+        if (value && !value.startsWith('data:image/')) {
+            throw new Error('Profile photo must be a valid base64 image data URL');
+        }
+        return true;
+    }),
+    (0, express_validator_1.body)('videoUpload')
         .optional()
-        .isInt({ max: 2097152 })
-        .withMessage('Profile photo size cannot exceed 2MB'),
-    (0, express_validator_1.body)('profilePhoto.mimetype')
-        .optional()
-        .isIn(['image/jpeg', 'image/png', 'image/jpg'])
-        .withMessage('Profile photo must be JPEG or PNG format'),
-    (0, express_validator_1.body)('videoUpload.originalName')
-        .optional()
-        .isLength({ max: 255 })
-        .withMessage('Video filename cannot exceed 255 characters'),
-    (0, express_validator_1.body)('videoUpload.size')
-        .optional()
-        .isInt({ max: 10485760 })
-        .withMessage('Video size cannot exceed 10MB'),
-    (0, express_validator_1.body)('videoUpload.mimetype')
-        .optional()
-        .isIn(['video/mp4', 'video/avi', 'video/mov', 'video/wmv'])
-        .withMessage('Video must be MP4, AVI, MOV, or WMV format'),
-    (0, express_validator_1.body)('videoUpload.duration')
-        .optional()
-        .isInt({ max: 180 })
-        .withMessage('Video duration cannot exceed 3 minutes'),
+        .isString()
+        .withMessage('Video upload must be a valid base64 string')
+        .custom((value) => {
+        if (value && !value.startsWith('data:video/')) {
+            throw new Error('Video upload must be a valid base64 video data URL');
+        }
+        return true;
+    }),
     exports.handleValidationErrors
 ];
 exports.validateFileUpload = [

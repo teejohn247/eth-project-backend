@@ -285,7 +285,16 @@ exports.updateTalentInfo = updateTalentInfo;
 const updateGroupInfo = async (req, res) => {
     try {
         const { id } = req.params;
-        const groupInfo = req.body;
+        let groupInfo = req.body;
+        if (groupInfo.members && Array.isArray(groupInfo.members)) {
+            groupInfo.members = groupInfo.members.map((member) => ({
+                ...member,
+                tshirtSize: member.tshirtSize ? member.tshirtSize.toUpperCase() : member.tshirtSize
+            }));
+        }
+        if (groupInfo.noOfGroupMembers && typeof groupInfo.noOfGroupMembers === 'string') {
+            groupInfo.noOfGroupMembers = parseInt(groupInfo.noOfGroupMembers, 10);
+        }
         const registration = await Registration_1.default.findOneAndUpdate({ _id: id, userId: req.user?.userId }, {
             groupInfo,
             $addToSet: { completedSteps: 3 },
@@ -381,7 +390,11 @@ exports.updateMediaInfo = updateMediaInfo;
 const updateAuditionInfo = async (req, res) => {
     try {
         const { id } = req.params;
-        const auditionInfo = req.body;
+        let auditionInfo = req.body;
+        if (auditionInfo.audtionRequirement && !auditionInfo.auditionRequirement) {
+            auditionInfo.auditionRequirement = auditionInfo.audtionRequirement;
+            delete auditionInfo.audtionRequirement;
+        }
         const schedule = await AuditionSchedule_1.default.findOne({
             location: auditionInfo.auditionLocation,
             date: auditionInfo.auditionDate

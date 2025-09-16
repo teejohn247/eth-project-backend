@@ -16,11 +16,11 @@ router.delete('/:id', auth_1.authenticateToken, registrationController_1.deleteR
 router.post('/:id/submit', auth_1.authenticateToken, registrationController_1.submitRegistration);
 router.put('/:id/personal-info', auth_1.authenticateToken, validation_1.validatePersonalInfo, registrationController_1.updatePersonalInfo);
 router.put('/:id/talent-info', auth_1.authenticateToken, validation_1.validateTalentInfo, registrationController_1.updateTalentInfo);
-router.put('/:id/group-info', auth_1.authenticateToken, registrationController_1.updateGroupInfo);
+router.put('/:id/group-info', auth_1.authenticateToken, validation_1.validateGroupInfo, registrationController_1.updateGroupInfo);
 router.put('/:id/guardian-info', auth_1.authenticateToken, registrationController_1.updateGuardianInfo);
 router.put('/:id/media-info', auth_1.authenticateToken, validation_1.validateMediaInfo, registrationController_1.updateMediaInfo);
-router.put('/:id/audition-info', auth_1.authenticateToken, registrationController_1.updateAuditionInfo);
-router.put('/:id/terms', auth_1.authenticateToken, registrationController_1.updateTermsConditions);
+router.put('/:id/audition-info', auth_1.authenticateToken, validation_1.validateAuditionInfo, registrationController_1.updateAuditionInfo);
+router.put('/:id/terms', auth_1.authenticateToken, validation_1.validateTermsConditions, registrationController_1.updateTermsConditions);
 router.get('/:id/status', auth_1.authenticateToken, registrationController_1.getRegistrationStatus);
 exports.default = router;
 //# sourceMappingURL=registration.js.map

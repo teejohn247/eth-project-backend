@@ -16,7 +16,7 @@ import {
   deleteRegistration
 } from '../controllers/registrationController';
 import { authenticateToken } from '../middleware/auth';
-import { validateRegistration, validatePersonalInfo, validateTalentInfo, validateMediaInfo } from '../middleware/validation';
+import { validateRegistration, validatePersonalInfo, validateTalentInfo, validateMediaInfo, validateAuditionInfo, validateTermsConditions, validateGroupInfo } from '../middleware/validation';
 
 const router = express.Router();
 
@@ -396,7 +396,7 @@ router.put('/:id/talent-info', authenticateToken, validateTalentInfo, updateTale
  * @swagger
  * /api/v1/registrations/{id}/group-info:
  *   put:
- *     summary: Update group information step
+ *     summary: Update group information step (for group registrations)
  *     tags: [Registration Steps]
  *     security:
  *       - bearerAuth: []
@@ -406,11 +406,76 @@ router.put('/:id/talent-info', authenticateToken, validateTalentInfo, updateTale
  *         required: true
  *         schema:
  *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - groupName
+ *               - noOfGroupMembers
+ *               - members
+ *             properties:
+ *               groupName:
+ *                 type: string
+ *                 maxLength: 100
+ *                 description: "Name of the group"
+ *                 example: "hjds"
+ *               noOfGroupMembers:
+ *                 type: string
+ *                 description: "Number of group members (2-5)"
+ *                 example: "3"
+ *               members:
+ *                 type: array
+ *                 minItems: 2
+ *                 maxItems: 5
+ *                 description: "Array of group members"
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - firstName
+ *                     - lastName
+ *                     - dateOfBirth
+ *                     - gender
+ *                     - tshirtSize
+ *                   properties:
+ *                     firstName:
+ *                       type: string
+ *                       minLength: 2
+ *                       maxLength: 50
+ *                       example: "hsdjh"
+ *                     lastName:
+ *                       type: string
+ *                       minLength: 2
+ *                       maxLength: 50
+ *                       example: "dsjhhjs"
+ *                     dateOfBirth:
+ *                       type: string
+ *                       format: date-time
+ *                       example: "2022-09-15T23:00:00.000Z"
+ *                     gender:
+ *                       type: string
+ *                       enum: [Male, Female]
+ *                       example: "Male"
+ *                     tshirtSize:
+ *                       type: string
+ *                       enum: [XS, S, M, L, XL, XXL, xs, s, m, l, xl, xxl]
+ *                       description: "T-shirt size (case-insensitive)"
+ *                       example: "xl"
  *     responses:
  *       200:
  *         description: Group information updated successfully
+ *       400:
+ *         description: Validation error (invalid group data)
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Registration not found
+ *       500:
+ *         description: Internal server error
  */
-router.put('/:id/group-info', authenticateToken, updateGroupInfo);
+router.put('/:id/group-info', authenticateToken, validateGroupInfo, updateGroupInfo);
 
 /**
  * @swagger
@@ -489,19 +554,66 @@ router.put('/:id/media-info', authenticateToken, validateMediaInfo, updateMediaI
  *         required: true
  *         schema:
  *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - auditionLocation
+ *               - auditionDate
+ *               - auditionTime
+ *             properties:
+ *               auditionLocation:
+ *                 type: string
+ *                 enum: [Lagos, Benin]
+ *                 description: "Location for audition"
+ *                 example: "Benin"
+ *               auditionDate:
+ *                 type: string
+ *                 format: date-time
+ *                 description: "Date for audition (must be in the future)"
+ *                 example: "2025-09-15T23:00:00.000Z"
+ *               auditionTime:
+ *                 type: string
+ *                 pattern: "^([01]\\d|2[0-3]):([0-5]\\d)$"
+ *                 description: "Time for audition in HH:mm format"
+ *                 example: "9:29 AM"
+ *               auditionRequirement:
+ *                 type: string
+ *                 enum: [Microphone, Guitar, Bass, Drum, BackgroundMusic, StageLighting, Projector, Other]
+ *                 description: "Equipment/requirement needed for audition"
+ *                 example: "Other"
+ *               otherRequirement:
+ *                 type: string
+ *                 maxLength: 100
+ *                 description: "Required when auditionRequirement is 'Other'"
+ *                 example: "Special lighting setup"
+ *               hasInstrument:
+ *                 type: string
+ *                 enum: [Yes, No]
+ *                 description: "Whether the participant has their own instrument"
+ *                 example: "Yes"
  *     responses:
  *       200:
  *         description: Audition information updated successfully
  *       400:
- *         description: Audition time slot not available
+ *         description: Validation error or audition time slot not available
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Registration not found
+ *       500:
+ *         description: Internal server error
  */
-router.put('/:id/audition-info', authenticateToken, updateAuditionInfo);
+router.put('/:id/audition-info', authenticateToken, validateAuditionInfo, updateAuditionInfo);
 
 /**
  * @swagger
  * /api/v1/registrations/{id}/terms:
  *   put:
- *     summary: Update terms and conditions step
+ *     summary: Update terms and conditions step (final step with signatures)
  *     tags: [Registration Steps]
  *     security:
  *       - bearerAuth: []
@@ -511,11 +623,46 @@ router.put('/:id/audition-info', authenticateToken, updateAuditionInfo);
  *         required: true
  *         schema:
  *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - rulesAcceptance
+ *               - promotionalAcceptance
+ *               - contestantSignature
+ *             properties:
+ *               rulesAcceptance:
+ *                 type: boolean
+ *                 description: "Must be true - acceptance of competition rules"
+ *                 example: true
+ *               promotionalAcceptance:
+ *                 type: boolean
+ *                 description: "Must be true - acceptance of promotional terms"
+ *                 example: true
+ *               contestantSignature:
+ *                 type: string
+ *                 description: "Base64 encoded contestant signature (data URL format)"
+ *                 example: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASw..."
+ *               guardianSignature:
+ *                 type: string
+ *                 description: "Base64 encoded guardian signature (required for contestants under 16)"
+ *                 example: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASw..."
  *     responses:
  *       200:
  *         description: Terms and conditions updated successfully
+ *       400:
+ *         description: Validation error (missing acceptance or signature)
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Registration not found
+ *       500:
+ *         description: Internal server error
  */
-router.put('/:id/terms', authenticateToken, updateTermsConditions);
+router.put('/:id/terms', authenticateToken, validateTermsConditions, updateTermsConditions);
 
 /**
  * @swagger
