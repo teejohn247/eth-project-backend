@@ -3,6 +3,7 @@ import authRoutes from './auth';
 import userRoutes from './user';
 import registrationRoutes from './registration';
 import paymentRoutes from './payment';
+import locationRoutes from './location';
 
 const router = Router();
 
@@ -47,6 +48,7 @@ router.get('/health', (req, res) => {
       user: '/api/v1/user',
       registrations: '/api/v1/registrations',
       payments: '/api/v1/payments',
+      locations: '/api/v1/locations',
       documentation: '/api-docs'
     }
   });
@@ -57,5 +59,6 @@ router.use('/auth', authRoutes);
 router.use('/user', userRoutes);
 router.use('/registrations', registrationRoutes);
 router.use('/payments', paymentRoutes);
+router.use('/locations', locationRoutes);
 
 export default router;

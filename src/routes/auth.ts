@@ -45,6 +45,7 @@ const otpValidation = [
 const passwordValidation = [
   body('email').isEmail().normalizeEmail().withMessage('Please provide a valid email address'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
+  body('otp').optional().isLength({ min: 4, max: 6 }).withMessage('OTP must be between 4 and 6 characters'),
   handleValidation
 ];
 
@@ -238,8 +239,8 @@ router.post('/verify-otp', authLimiter, otpValidation, async (req: Request, res:
  * /api/v1/auth/set-password:
  *   post:
  *     tags: [Authentication]
- *     summary: Set password after email verification
- *     description: Set user password after email verification is completed
+ *     summary: Set password (initial setup or reset)
+ *     description: Set user password after email verification OR reset password with OTP. Supports both initial password setup and password reset flows.
  *     requestBody:
  *       required: true
  *       content:
@@ -254,7 +255,7 @@ router.post('/verify-otp', authLimiter, otpValidation, async (req: Request, res:
  *               email:
  *                 type: string
  *                 format: email
- *                 description: Verified email address
+ *                 description: User email address
  *                 example: john.doe@example.com
  *               password:
  *                 type: string
@@ -266,15 +267,21 @@ router.post('/verify-otp', authLimiter, otpValidation, async (req: Request, res:
  *                 minLength: 6
  *                 description: Confirm password (must match password)
  *                 example: securePassword123
+ *               otp:
+ *                 type: string
+ *                 minLength: 4
+ *                 maxLength: 6
+ *                 description: OTP for verification (required for password reset, optional for initial setup if email already verified)
+ *                 example: "123456"
  *     responses:
  *       200:
- *         description: Password set successfully
+ *         description: Password set/reset successfully
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/AuthResponse'
  *       400:
- *         description: Validation error or password mismatch
+ *         description: Validation error, invalid OTP, or email not verified
  *         content:
  *           application/json:
  *             schema:
@@ -300,9 +307,9 @@ router.post('/verify-otp', authLimiter, otpValidation, async (req: Request, res:
  */
 router.post('/set-password', authLimiter, passwordValidation, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password } = req.body;
+    const { email, password, otp } = req.body;
 
-    // Find user and verify email is verified
+    // Find user
     const user = await User.findOne({ email }).select('+password');
     if (!user) {
       res.status(404).json({
@@ -312,12 +319,34 @@ router.post('/set-password', authLimiter, passwordValidation, async (req: Reques
       return;
     }
 
-    if (!user.isEmailVerified) {
-      res.status(400).json({
-        success: false,
-        message: 'Email verification required before setting password'
-      } as AuthResponse);
-      return;
+    // Handle OTP verification if provided (for password reset flow)
+    if (otp) {
+      // Determine OTP type based on user status
+      const otpType = user.isEmailVerified ? 'password_reset' : 'email_verification';
+      
+      // Verify OTP
+      const otpResult = await OTP.verifyOTP(email, otp, otpType);
+      if (!otpResult.valid) {
+        res.status(400).json({
+          success: false,
+          message: otpResult.message
+        } as AuthResponse);
+        return;
+      }
+
+      // Mark email as verified if it was email verification OTP
+      if (otpType === 'email_verification') {
+        user.isEmailVerified = true;
+      }
+    } else {
+      // Original flow: check if email is already verified
+      if (!user.isEmailVerified) {
+        res.status(400).json({
+          success: false,
+          message: 'Email verification required before setting password. Please provide OTP.'
+        } as AuthResponse);
+        return;
+      }
     }
 
     // Set password
@@ -328,9 +357,15 @@ router.post('/set-password', authLimiter, passwordValidation, async (req: Reques
     // Generate JWT token
     const token = generateToken(user);
 
+    // Determine response message based on context
+    const isPasswordReset = user.isPasswordSet && otp;
+    const message = isPasswordReset 
+      ? 'Password reset successfully. You can now login with your new password.'
+      : 'Password set successfully. You can now login.';
+
     res.json({
       success: true,
-      message: 'Password set successfully. You can now login.',
+      message,
       data: {
         token,
         user: {
@@ -457,6 +492,45 @@ router.post('/login', authLimiter, loginValidation, async (req: Request, res: Re
   }
 });
 
+/**
+ * @swagger
+ * /api/v1/auth/forgot-password:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Forgot password - Send OTP
+ *     description: Send password reset OTP to user's verified email address
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: "User's registered email address"
+ *                 example: "john.doe@example.com"
+ *     responses:
+ *       200:
+ *         description: Password reset OTP sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/OTPResponse'
+ *       400:
+ *         description: Email not verified or validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       429:
+ *         description: Too many requests
+ *       500:
+ *         description: Internal server error
+ */
 // Forgot password - Send OTP
 router.post('/forgot-password', passwordResetLimiter, emailValidation, async (req: Request, res: Response): Promise<void> => {
   try {
@@ -503,71 +577,48 @@ router.post('/forgot-password', passwordResetLimiter, emailValidation, async (re
   }
 });
 
-// Verify password reset OTP
-router.post('/verify-reset-otp', authLimiter, otpValidation, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { email, otp } = req.body;
+// Note: verify-reset-otp and reset-password endpoints have been removed.
+// Use the unified set-password endpoint with OTP parameter for password reset flow.
 
-    // Verify OTP
-    const otpResult = await OTP.verifyOTP(email, otp, 'password_reset');
-    if (!otpResult.valid) {
-      res.status(400).json({
-        success: false,
-        message: otpResult.message
-      } as AuthResponse);
-      return;
-    }
-
-    res.json({
-      success: true,
-      message: 'OTP verified successfully. You can now reset your password.',
-      data: {
-        email
-      }
-    } as AuthResponse);
-
-  } catch (error: any) {
-    console.error('Reset OTP verification error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'OTP verification failed. Please try again.'
-    } as AuthResponse);
-  }
-});
-
-// Reset password after OTP verification
-router.post('/reset-password', authLimiter, passwordValidation, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { email, password } = req.body;
-
-    // Find user
-    const user = await User.findOne({ email }).select('+password');
-    if (!user) {
-      res.status(404).json({
-        success: false,
-        message: 'User not found'
-      } as AuthResponse);
-      return;
-    }
-
-    // Set new password
-    user.password = password;
-    await user.save();
-
-    res.json({
-      success: true,
-      message: 'Password reset successfully. You can now login with your new password.'
-    } as AuthResponse);
-
-  } catch (error: any) {
-    console.error('Reset password error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to reset password. Please try again.'
-    } as AuthResponse);
-  }
-});
-
+/**
+ * @swagger
+ * /api/v1/auth/resend-otp:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Resend OTP
+ *     description: Resend OTP for email verification or password reset based on user status
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: "User's registered email address"
+ *                 example: "john.doe@example.com"
+ *     responses:
+ *       200:
+ *         description: OTP resent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/OTPResponse'
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       429:
+ *         description: Too many requests
+ *       500:
+ *         description: Internal server error
+ */
 // Resend OTP
 router.post('/resend-otp', otpLimiter, emailValidation, async (req: Request, res: Response): Promise<void> => {
   try {

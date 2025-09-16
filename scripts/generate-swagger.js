@@ -210,6 +210,13 @@ const options = {
               minLength: 6,
               description: 'Confirm password (must match password)',
               example: 'SecurePass123!'
+            },
+            otp: {
+              type: 'string',
+              minLength: 4,
+              maxLength: 6,
+              description: 'OTP for verification (required for password reset, optional for initial setup)',
+              example: '123456'
             }
           }
         },
@@ -238,6 +245,18 @@ const options = {
                   description: 'OTP expiration timestamp'
                 }
               }
+            }
+          }
+        },
+        ForgotPasswordRequest: {
+          type: 'object',
+          required: ['email'],
+          properties: {
+            email: {
+              type: 'string',
+              format: 'email',
+              description: 'User email address for password reset',
+              example: 'john.doe@example.com'
             }
           }
         },
@@ -365,11 +384,16 @@ const options = {
       {
         name: 'Payment',
         description: 'Payment processing and transaction management'
+      },
+      {
+        name: 'Locations',
+        description: 'Nigerian states and LGAs location data endpoints'
       }
     ]
   },
   apis: [
     './src/routes/*.ts',
+    './dist/routes/*.js',
     './src/server.ts'
   ]
 };

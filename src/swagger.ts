@@ -269,6 +269,10 @@ const options: swaggerJsdoc.Options = {
       {
         name: 'Payment',
         description: 'Payment processing and transaction management'
+      },
+      {
+        name: 'Locations',
+        description: 'Nigerian states and LGAs location data endpoints'
       }
     ]
   },
