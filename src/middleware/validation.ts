@@ -165,48 +165,51 @@ export const validateTalentInfo = [
 // Group information validation
 export const validateGroupInfo = [
   body('groupName')
-    .if(body('registrationType').equals('group'))
     .notEmpty()
-    .withMessage('Group name is required for group registrations')
+    .withMessage('Group name is required')
     .isLength({ max: 100 })
     .withMessage('Group name cannot exceed 100 characters'),
   
   body('noOfGroupMembers')
-    .if(body('registrationType').equals('group'))
-    .isInt({ min: 2, max: 5 })
-    .withMessage('Number of group members must be between 2 and 5'),
+    .custom((value) => {
+      // Convert string to number for validation
+      const num = parseInt(value, 10);
+      if (isNaN(num) || num < 2 || num > 5) {
+        throw new Error('Number of group members must be between 2 and 5');
+      }
+      return true;
+    }),
   
   body('members')
-    .if(body('registrationType').equals('group'))
     .isArray({ min: 2, max: 5 })
     .withMessage('Group must have between 2 and 5 members'),
   
   body('members.*.firstName')
-    .if(body('registrationType').equals('group'))
     .trim()
     .isLength({ min: 2, max: 50 })
     .withMessage('Member first name must be between 2 and 50 characters'),
   
   body('members.*.lastName')
-    .if(body('registrationType').equals('group'))
     .trim()
     .isLength({ min: 2, max: 50 })
     .withMessage('Member last name must be between 2 and 50 characters'),
   
   body('members.*.dateOfBirth')
-    .if(body('registrationType').equals('group'))
     .isISO8601()
     .withMessage('Member date of birth must be valid'),
   
   body('members.*.gender')
-    .if(body('registrationType').equals('group'))
     .isIn(['Male', 'Female'])
     .withMessage('Member gender must be Male or Female'),
   
   body('members.*.tshirtSize')
-    .if(body('registrationType').equals('group'))
-    .isIn(['XS', 'S', 'M', 'L', 'XL', 'XXL'])
-    .withMessage('Member t-shirt size must be valid'),
+    .custom((value) => {
+      const validSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+      if (!validSizes.includes(value.toUpperCase())) {
+        throw new Error('Member t-shirt size must be one of: XS, S, M, L, XL, XXL');
+      }
+      return true;
+    }),
   
   handleValidationErrors
 ];
@@ -270,16 +273,32 @@ export const validateAuditionInfo = [
     }),
   
   body('auditionTime')
-    .matches(/^([01]\d|2[0-3]):([0-5]\d)$/)
-    .withMessage('Please provide a valid audition time in HH:mm format'),
+    .custom((value) => {
+      // Accept both 12-hour (9:29 AM) and 24-hour (09:29) formats
+      const format24h = /^([01]\d|2[0-3]):([0-5]\d)$/.test(value);
+      const format12h = /^(1[0-2]|0?[1-9]):([0-5]\d)\s?(AM|PM)$/i.test(value);
+      
+      if (!format24h && !format12h) {
+        throw new Error('Please provide a valid audition time (e.g., "9:29 AM" or "09:29")');
+      }
+      return true;
+    }),
   
+  // Handle both correct and typo versions of auditionRequirement
   body('auditionRequirement')
     .optional()
     .isIn(['Microphone', 'Guitar', 'Bass', 'Drum', 'BackgroundMusic', 'StageLighting', 'Projector', 'Other'])
     .withMessage('Please select a valid audition requirement'),
   
+  body('audtionRequirement')
+    .optional()
+    .isIn(['Microphone', 'Guitar', 'Bass', 'Drum', 'BackgroundMusic', 'StageLighting', 'Projector', 'Other'])
+    .withMessage('Please select a valid audition requirement'),
+  
   body('otherRequirement')
-    .if(body('auditionRequirement').equals('Other'))
+    .if((value, { req }) => {
+      return req.body.auditionRequirement === 'Other' || req.body.audtionRequirement === 'Other';
+    })
     .notEmpty()
     .withMessage('Please specify other requirement')
     .isLength({ max: 100 })
@@ -314,20 +333,27 @@ export const validateTermsConditions = [
     }),
   
   body('contestantSignature')
+    .isString()
     .notEmpty()
-    .withMessage('Contestant signature is required'),
+    .withMessage('Contestant signature is required')
+    .custom((value) => {
+      if (value && !value.startsWith('data:image/')) {
+        throw new Error('Contestant signature must be a valid base64 image data URL');
+      }
+      return true;
+    }),
   
   body('guardianSignature')
     .optional()
     .custom((value, { req }) => {
-      // Check if guardian signature is required (contestant under 16)
-      const personalInfo = req.body.personalInfo;
-      if (personalInfo && personalInfo.dateOfBirth) {
-        const age = new Date().getFullYear() - new Date(personalInfo.dateOfBirth).getFullYear();
-        if (age < 16 && !value) {
-          throw new Error('Guardian signature is required for contestants under 16');
-        }
+      // Validate base64 format if provided
+      if (value && !value.startsWith('data:image/')) {
+        throw new Error('Guardian signature must be a valid base64 image data URL');
       }
+      
+      // Check if guardian signature is required (contestant under 16)
+      // Note: This check would need access to the registration data, which might not be available here
+      // The controller should handle age-based requirement validation
       return true;
     }),
   

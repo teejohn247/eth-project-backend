@@ -255,6 +255,89 @@ const options = {
               example: 'data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28y...'
             }
           }
+        },
+        TermsConditions: {
+          type: 'object',
+          required: ['rulesAcceptance', 'promotionalAcceptance', 'contestantSignature'],
+          properties: {
+            rulesAcceptance: {
+              type: 'boolean',
+              description: 'Must be true - acceptance of competition rules',
+              example: true
+            },
+            promotionalAcceptance: {
+              type: 'boolean',
+              description: 'Must be true - acceptance of promotional terms',
+              example: true
+            },
+            contestantSignature: {
+              type: 'string',
+              description: 'Base64 encoded contestant signature (data URL format)',
+              example: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASw...'
+            },
+            guardianSignature: {
+              type: 'string',
+              description: 'Base64 encoded guardian signature (required for contestants under 16)',
+              example: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASw...'
+            }
+          }
+        },
+        GroupInfo: {
+          type: 'object',
+          required: ['groupName', 'noOfGroupMembers', 'members'],
+          properties: {
+            groupName: {
+              type: 'string',
+              maxLength: 100,
+              description: 'Name of the group',
+              example: 'hjds'
+            },
+            noOfGroupMembers: {
+              type: 'string',
+              description: 'Number of group members (2-5)',
+              example: '3'
+            },
+            members: {
+              type: 'array',
+              minItems: 2,
+              maxItems: 5,
+              description: 'Array of group members',
+              items: {
+                type: 'object',
+                required: ['firstName', 'lastName', 'dateOfBirth', 'gender', 'tshirtSize'],
+                properties: {
+                  firstName: {
+                    type: 'string',
+                    minLength: 2,
+                    maxLength: 50,
+                    example: 'hsdjh'
+                  },
+                  lastName: {
+                    type: 'string',
+                    minLength: 2,
+                    maxLength: 50,
+                    example: 'dsjhhjs'
+                  },
+                  dateOfBirth: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2022-09-15T23:00:00.000Z'
+                  },
+                  gender: {
+                    type: 'string',
+                    enum: ['Male', 'Female'],
+                    example: 'Male'
+                  },
+                  tshirtSize: {
+                    type: 'string',
+                    enum: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'xs', 's', 'm', 'l', 'xl', 'xxl'],
+                    description: 'T-shirt size (case-insensitive)',
+                    example: 'xl'
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },

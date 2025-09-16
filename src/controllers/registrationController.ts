@@ -324,7 +324,20 @@ export const updateTalentInfo = async (req: AuthenticatedRequest, res: Response)
 export const updateGroupInfo = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const groupInfo = req.body;
+    let groupInfo = req.body;
+
+    // Normalize T-shirt sizes to uppercase and convert noOfGroupMembers to number
+    if (groupInfo.members && Array.isArray(groupInfo.members)) {
+      groupInfo.members = groupInfo.members.map((member: any) => ({
+        ...member,
+        tshirtSize: member.tshirtSize ? member.tshirtSize.toUpperCase() : member.tshirtSize
+      }));
+    }
+
+    // Convert noOfGroupMembers from string to number
+    if (groupInfo.noOfGroupMembers && typeof groupInfo.noOfGroupMembers === 'string') {
+      groupInfo.noOfGroupMembers = parseInt(groupInfo.noOfGroupMembers, 10);
+    }
 
     const registration = await Registration.findOneAndUpdate(
       { _id: id, userId: req.user?.userId },
@@ -441,7 +454,13 @@ export const updateMediaInfo = async (req: AuthenticatedRequest, res: Response):
 export const updateAuditionInfo = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const auditionInfo = req.body;
+    let auditionInfo = req.body;
+
+    // Handle frontend typo: map 'audtionRequirement' to 'auditionRequirement'
+    if (auditionInfo.audtionRequirement && !auditionInfo.auditionRequirement) {
+      auditionInfo.auditionRequirement = auditionInfo.audtionRequirement;
+      delete auditionInfo.audtionRequirement;
+    }
 
     // Validate audition slot availability
     const schedule = await AuditionSchedule.findOne({
