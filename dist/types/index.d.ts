@@ -32,6 +32,10 @@ export interface IOTPModel {
         valid: boolean;
         message: string;
     }>;
+    checkOTP(email: string, otp: string, type: 'email_verification' | 'password_reset'): Promise<{
+        valid: boolean;
+        message: string;
+    }>;
 }
 export interface AuthRequest {
     email: string;
@@ -63,9 +67,24 @@ export interface AuthResponse {
             firstName: string;
             lastName: string;
             email: string;
+            role: string;
             isEmailVerified: boolean;
             isPasswordSet: boolean;
+            registrationInfo?: {
+                currentStep: number;
+                currentStepName: string;
+                lastStep: number;
+                lastStepName: string;
+                registrationComplete: boolean;
+                registrationStatus: string | null;
+                paymentStatus: string | null;
+                completedSteps: number[];
+                registrationNumber: string | null;
+                registrationType: string | null;
+            };
         };
+        otpType?: string;
+        nextStep?: string;
     };
 }
 export interface OTPResponse {

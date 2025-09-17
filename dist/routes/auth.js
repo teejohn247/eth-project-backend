@@ -36,6 +36,7 @@ const loginValidation = [
 const otpValidation = [
     (0, express_validator_1.body)('email').isEmail().normalizeEmail().withMessage('Please provide a valid email address'),
     (0, express_validator_1.body)('otp').isLength({ min: 4, max: 6 }).withMessage('OTP must be between 4 and 6 characters'),
+    (0, express_validator_1.body)('type').optional().isIn(['email_verification', 'password_reset']).withMessage('Type must be either "email_verification" or "password_reset"'),
     handleValidation
 ];
 const passwordValidation = [
@@ -94,8 +95,36 @@ router.post('/register', rateLimiter_1.authLimiter, registerValidation, async (r
 });
 router.post('/verify-otp', rateLimiter_1.authLimiter, otpValidation, async (req, res) => {
     try {
-        const { email, otp } = req.body;
-        const otpResult = await models_1.OTP.verifyOTP(email, otp, 'email_verification');
+        const { email, otp, type } = req.body;
+        const user = await models_1.User.findOne({ email });
+        if (!user) {
+            res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+            return;
+        }
+        let otpType;
+        if (type) {
+            if (type !== 'email_verification' && type !== 'password_reset') {
+                res.status(400).json({
+                    success: false,
+                    message: 'Invalid OTP type. Must be either "email_verification" or "password_reset"'
+                });
+                return;
+            }
+            otpType = type;
+        }
+        else {
+            otpType = user.isEmailVerified ? 'password_reset' : 'email_verification';
+        }
+        let otpResult;
+        if (otpType === 'password_reset') {
+            otpResult = await models_1.OTP.checkOTP(email, otp, otpType);
+        }
+        else {
+            otpResult = await models_1.OTP.verifyOTP(email, otp, otpType);
+        }
         if (!otpResult.valid) {
             res.status(400).json({
                 success: false,
@@ -103,8 +132,19 @@ router.post('/verify-otp', rateLimiter_1.authLimiter, otpValidation, async (req,
             });
             return;
         }
-        const user = await models_1.User.findOneAndUpdate({ email }, { isEmailVerified: true }, { new: true });
-        if (!user) {
+        let updatedUser = user;
+        let message = '';
+        let nextStep = '';
+        if (otpType === 'email_verification') {
+            updatedUser = await models_1.User.findOneAndUpdate({ email }, { isEmailVerified: true }, { new: true });
+            message = 'Email verified successfully. Please set your password.';
+            nextStep = 'set-password';
+        }
+        else {
+            message = 'OTP verified successfully. You can now reset your password.';
+            nextStep = 'set-password';
+        }
+        if (!updatedUser) {
             res.status(404).json({
                 success: false,
                 message: 'User not found'
@@ -113,15 +153,18 @@ router.post('/verify-otp', rateLimiter_1.authLimiter, otpValidation, async (req,
         }
         res.json({
             success: true,
-            message: 'Email verified successfully. Please set your password.',
+            message,
             data: {
+                otpType,
+                nextStep,
                 user: {
-                    id: user._id.toString(),
-                    firstName: user.firstName,
-                    lastName: user.lastName,
-                    email: user.email,
-                    isEmailVerified: user.isEmailVerified,
-                    isPasswordSet: user.isPasswordSet
+                    id: updatedUser._id.toString(),
+                    firstName: updatedUser.firstName,
+                    lastName: updatedUser.lastName,
+                    email: updatedUser.email,
+                    role: updatedUser.role,
+                    isEmailVerified: updatedUser.isEmailVerified,
+                    isPasswordSet: updatedUser.isPasswordSet
                 }
             }
         });
@@ -186,6 +229,7 @@ router.post('/set-password', rateLimiter_1.authLimiter, passwordValidation, asyn
                     firstName: user.firstName,
                     lastName: user.lastName,
                     email: user.email,
+                    role: user.role,
                     isEmailVerified: user.isEmailVerified,
                     isPasswordSet: user.isPasswordSet
                 }
@@ -234,19 +278,75 @@ router.post('/login', rateLimiter_1.authLimiter, loginValidation, async (req, re
             return;
         }
         const token = (0, jwt_1.generateToken)(user);
+        const userResponse = {
+            id: user._id.toString(),
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email,
+            role: user.role,
+            isEmailVerified: user.isEmailVerified,
+            isPasswordSet: user.isPasswordSet
+        };
+        if (user.role === 'contestant') {
+            const registration = await models_1.Registration.findOne({ userId: user._id });
+            if (registration) {
+                const stepNames = {
+                    0: 'not_started',
+                    1: 'personal_info',
+                    2: 'talent_info',
+                    3: 'group_info',
+                    4: 'guardian_info',
+                    5: 'media_info',
+                    6: 'audition_info',
+                    7: 'terms_conditions',
+                    8: 'payment'
+                };
+                const requiredSteps = registration.registrationType === 'individual' ?
+                    [1, 2, 4, 5, 6, 7, 8] :
+                    [1, 2, 3, 5, 6, 7, 8];
+                const allRequiredStepsCompleted = requiredSteps.every(step => registration.completedSteps.includes(step));
+                const registrationComplete = allRequiredStepsCompleted &&
+                    registration.status === 'submitted' &&
+                    registration.paymentInfo.paymentStatus === 'completed';
+                const completedSteps = registration.completedSteps.sort((a, b) => b - a);
+                const lastStep = completedSteps.length > 0 ? completedSteps[0] : 0;
+                const lastStepName = stepNames[lastStep] || 'unknown';
+                const currentStep = registration.currentStep;
+                const currentStepName = stepNames[currentStep] || 'unknown';
+                userResponse.registrationInfo = {
+                    currentStep,
+                    currentStepName,
+                    lastStep,
+                    lastStepName,
+                    registrationComplete,
+                    registrationStatus: registration.status,
+                    paymentStatus: registration.paymentInfo.paymentStatus,
+                    completedSteps: registration.completedSteps,
+                    registrationNumber: registration.registrationNumber,
+                    registrationType: registration.registrationType
+                };
+            }
+            else {
+                userResponse.registrationInfo = {
+                    currentStep: 0,
+                    currentStepName: 'not_started',
+                    lastStep: 0,
+                    lastStepName: 'not_started',
+                    registrationComplete: false,
+                    registrationStatus: null,
+                    paymentStatus: null,
+                    completedSteps: [],
+                    registrationNumber: null,
+                    registrationType: null
+                };
+            }
+        }
         res.json({
             success: true,
             message: 'Login successful',
             data: {
                 token,
-                user: {
-                    id: user._id.toString(),
-                    firstName: user.firstName,
-                    lastName: user.lastName,
-                    email: user.email,
-                    isEmailVerified: user.isEmailVerified,
-                    isPasswordSet: user.isPasswordSet
-                }
+                user: userResponse
             }
         });
     }

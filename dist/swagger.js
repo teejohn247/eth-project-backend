@@ -62,6 +62,12 @@ const options = {
                             description: 'User email address',
                             example: 'john.doe@example.com'
                         },
+                        role: {
+                            type: 'string',
+                            description: 'User role in the system',
+                            enum: ['contestant', 'admin', 'judge'],
+                            example: 'contestant'
+                        },
                         isEmailVerified: {
                             type: 'boolean',
                             description: 'Whether user email is verified',

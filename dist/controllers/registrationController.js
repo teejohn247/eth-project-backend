@@ -6,6 +6,33 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteRegistration = exports.getRegistrationStatus = exports.updateTermsConditions = exports.updateAuditionInfo = exports.updateMediaInfo = exports.updateGuardianInfo = exports.updateGroupInfo = exports.updateTalentInfo = exports.updatePersonalInfo = exports.submitRegistration = exports.updateRegistration = exports.getRegistration = exports.createRegistration = exports.getUserRegistrations = void 0;
 const Registration_1 = __importDefault(require("../models/Registration"));
 const AuditionSchedule_1 = __importDefault(require("../models/AuditionSchedule"));
+const mongoose_1 = __importDefault(require("mongoose"));
+const findRegistrationByIdOrUserId = async (idParam, userId) => {
+    const isValidObjectId = mongoose_1.default.Types.ObjectId.isValid(idParam);
+    let registration;
+    if (isValidObjectId) {
+        registration = await Registration_1.default.findOne({
+            _id: idParam,
+            userId: userId
+        });
+    }
+    if (!registration) {
+        if (mongoose_1.default.Types.ObjectId.isValid(idParam)) {
+            registration = await Registration_1.default.findOne({
+                userId: idParam
+            });
+            if (registration && registration.userId.toString() !== userId && idParam !== userId) {
+                return null;
+            }
+        }
+        else {
+            registration = await Registration_1.default.findOne({
+                userId: userId
+            });
+        }
+    }
+    return registration;
+};
 const getUserRegistrations = async (req, res) => {
     try {
         const registrations = await Registration_1.default.find({ userId: req.user?.userId })
@@ -92,10 +119,7 @@ exports.createRegistration = createRegistration;
 const getRegistration = async (req, res) => {
     try {
         const { id } = req.params;
-        const registration = await Registration_1.default.findOne({
-            _id: id,
-            userId: req.user?.userId
-        }).select('-paymentInfo.paymentResponse');
+        const registration = await findRegistrationByIdOrUserId(id, req.user?.userId);
         if (!registration) {
             res.status(404).json({
                 success: false,
@@ -103,10 +127,14 @@ const getRegistration = async (req, res) => {
             });
             return;
         }
+        const registrationData = registration.toObject();
+        if (registrationData.paymentInfo?.paymentResponse) {
+            delete registrationData.paymentInfo.paymentResponse;
+        }
         res.status(200).json({
             success: true,
             message: 'Registration retrieved successfully',
-            data: registration
+            data: registrationData
         });
     }
     catch (error) {
@@ -123,10 +151,7 @@ const updateRegistration = async (req, res) => {
     try {
         const { id } = req.params;
         const updateData = req.body;
-        const registration = await Registration_1.default.findOne({
-            _id: id,
-            userId: req.user?.userId
-        });
+        const registration = await findRegistrationByIdOrUserId(id, req.user?.userId);
         if (!registration) {
             res.status(404).json({
                 success: false,
@@ -162,10 +187,7 @@ exports.updateRegistration = updateRegistration;
 const submitRegistration = async (req, res) => {
     try {
         const { id } = req.params;
-        const registration = await Registration_1.default.findOne({
-            _id: id,
-            userId: req.user?.userId
-        });
+        const registration = await findRegistrationByIdOrUserId(id, req.user?.userId);
         if (!registration) {
             res.status(404).json({
                 success: false,
@@ -222,7 +244,15 @@ const updatePersonalInfo = async (req, res) => {
     try {
         const { id } = req.params;
         const personalInfo = req.body;
-        const registration = await Registration_1.default.findOneAndUpdate({ _id: id, userId: req.user?.userId }, {
+        const foundRegistration = await findRegistrationByIdOrUserId(id, req.user?.userId);
+        if (!foundRegistration) {
+            res.status(404).json({
+                success: false,
+                message: 'Registration not found'
+            });
+            return;
+        }
+        const registration = await Registration_1.default.findOneAndUpdate({ _id: foundRegistration._id, userId: req.user?.userId }, {
             personalInfo,
             $addToSet: { completedSteps: 1 },
             currentStep: 1
@@ -254,7 +284,15 @@ const updateTalentInfo = async (req, res) => {
     try {
         const { id } = req.params;
         const talentInfo = req.body;
-        const registration = await Registration_1.default.findOneAndUpdate({ _id: id, userId: req.user?.userId }, {
+        const foundRegistration = await findRegistrationByIdOrUserId(id, req.user?.userId);
+        if (!foundRegistration) {
+            res.status(404).json({
+                success: false,
+                message: 'Registration not found'
+            });
+            return;
+        }
+        const registration = await Registration_1.default.findOneAndUpdate({ _id: foundRegistration._id, userId: req.user?.userId }, {
             talentInfo,
             $addToSet: { completedSteps: 2 },
             currentStep: 2
@@ -295,7 +333,15 @@ const updateGroupInfo = async (req, res) => {
         if (groupInfo.noOfGroupMembers && typeof groupInfo.noOfGroupMembers === 'string') {
             groupInfo.noOfGroupMembers = parseInt(groupInfo.noOfGroupMembers, 10);
         }
-        const registration = await Registration_1.default.findOneAndUpdate({ _id: id, userId: req.user?.userId }, {
+        const foundRegistration = await findRegistrationByIdOrUserId(id, req.user?.userId);
+        if (!foundRegistration) {
+            res.status(404).json({
+                success: false,
+                message: 'Registration not found'
+            });
+            return;
+        }
+        const registration = await Registration_1.default.findOneAndUpdate({ _id: foundRegistration._id, userId: req.user?.userId }, {
             groupInfo,
             $addToSet: { completedSteps: 3 },
             currentStep: 3
@@ -327,7 +373,15 @@ const updateGuardianInfo = async (req, res) => {
     try {
         const { id } = req.params;
         const guardianInfo = req.body;
-        const registration = await Registration_1.default.findOneAndUpdate({ _id: id, userId: req.user?.userId }, {
+        const foundRegistration = await findRegistrationByIdOrUserId(id, req.user?.userId);
+        if (!foundRegistration) {
+            res.status(404).json({
+                success: false,
+                message: 'Registration not found'
+            });
+            return;
+        }
+        const registration = await Registration_1.default.findOneAndUpdate({ _id: foundRegistration._id, userId: req.user?.userId }, {
             guardianInfo,
             $addToSet: { completedSteps: 4 },
             currentStep: 4
@@ -359,7 +413,15 @@ const updateMediaInfo = async (req, res) => {
     try {
         const { id } = req.params;
         const mediaInfo = req.body;
-        const registration = await Registration_1.default.findOneAndUpdate({ _id: id, userId: req.user?.userId }, {
+        const foundRegistration = await findRegistrationByIdOrUserId(id, req.user?.userId);
+        if (!foundRegistration) {
+            res.status(404).json({
+                success: false,
+                message: 'Registration not found'
+            });
+            return;
+        }
+        const registration = await Registration_1.default.findOneAndUpdate({ _id: foundRegistration._id, userId: req.user?.userId }, {
             mediaInfo,
             $addToSet: { completedSteps: 5 },
             currentStep: 5
@@ -409,7 +471,15 @@ const updateAuditionInfo = async (req, res) => {
                 return;
             }
         }
-        const registration = await Registration_1.default.findOneAndUpdate({ _id: id, userId: req.user?.userId }, {
+        const foundRegistration = await findRegistrationByIdOrUserId(id, req.user?.userId);
+        if (!foundRegistration) {
+            res.status(404).json({
+                success: false,
+                message: 'Registration not found'
+            });
+            return;
+        }
+        const registration = await Registration_1.default.findOneAndUpdate({ _id: foundRegistration._id, userId: req.user?.userId }, {
             auditionInfo,
             $addToSet: { completedSteps: 5 },
             currentStep: 5
@@ -441,7 +511,15 @@ const updateTermsConditions = async (req, res) => {
     try {
         const { id } = req.params;
         const termsConditions = req.body;
-        const registration = await Registration_1.default.findOneAndUpdate({ _id: id, userId: req.user?.userId }, {
+        const foundRegistration = await findRegistrationByIdOrUserId(id, req.user?.userId);
+        if (!foundRegistration) {
+            res.status(404).json({
+                success: false,
+                message: 'Registration not found'
+            });
+            return;
+        }
+        const registration = await Registration_1.default.findOneAndUpdate({ _id: foundRegistration._id, userId: req.user?.userId }, {
             termsConditions: {
                 ...termsConditions,
                 signedAt: new Date()
@@ -505,10 +583,7 @@ exports.getRegistrationStatus = getRegistrationStatus;
 const deleteRegistration = async (req, res) => {
     try {
         const { id } = req.params;
-        const registration = await Registration_1.default.findOne({
-            _id: id,
-            userId: req.user?.userId
-        });
+        const registration = await findRegistrationByIdOrUserId(id, req.user?.userId);
         if (!registration) {
             res.status(404).json({
                 success: false,
