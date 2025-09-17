@@ -146,6 +146,7 @@ router.post('/', authenticateToken, validateRegistration, createRegistration);
  *         required: true
  *         schema:
  *           type: string
+ *         description: Registration ID or User ID (both are supported for convenience)
  *     responses:
  *       200:
  *         description: Registration retrieved successfully
@@ -168,6 +169,7 @@ router.get('/:id', authenticateToken, getRegistration);
  *         required: true
  *         schema:
  *           type: string
+ *         description: Registration ID or User ID (both are supported for convenience)
  *     requestBody:
  *       required: true
  *       content:
@@ -198,6 +200,7 @@ router.put('/:id', authenticateToken, updateRegistration);
  *         required: true
  *         schema:
  *           type: string
+ *         description: Registration ID or User ID (both are supported for convenience)
  *     responses:
  *       200:
  *         description: Registration deleted successfully
@@ -222,6 +225,7 @@ router.delete('/:id', authenticateToken, deleteRegistration);
  *         required: true
  *         schema:
  *           type: string
+ *         description: Registration ID or User ID (both are supported for convenience)
  *     responses:
  *       200:
  *         description: Registration submitted successfully
@@ -244,6 +248,7 @@ router.post('/:id/submit', authenticateToken, submitRegistration);
  *         required: true
  *         schema:
  *           type: string
+ *         description: Registration ID or User ID (both are supported for convenience)
  *     requestBody:
  *       required: true
  *       content:
@@ -333,6 +338,7 @@ router.put('/:id/personal-info', authenticateToken, validatePersonalInfo, update
  *         required: true
  *         schema:
  *           type: string
+ *         description: Registration ID or User ID (both are supported for convenience)
  *     requestBody:
  *       required: true
  *       content:
@@ -406,6 +412,7 @@ router.put('/:id/talent-info', authenticateToken, validateTalentInfo, updateTale
  *         required: true
  *         schema:
  *           type: string
+ *         description: Registration ID or User ID (both are supported for convenience)
  *     requestBody:
  *       required: true
  *       content:
@@ -491,6 +498,7 @@ router.put('/:id/group-info', authenticateToken, validateGroupInfo, updateGroupI
  *         required: true
  *         schema:
  *           type: string
+ *         description: Registration ID or User ID (both are supported for convenience)
  *     responses:
  *       200:
  *         description: Guardian information updated successfully
@@ -511,6 +519,7 @@ router.put('/:id/guardian-info', authenticateToken, updateGuardianInfo);
  *         required: true
  *         schema:
  *           type: string
+ *         description: Registration ID or User ID (both are supported for convenience)
  *     requestBody:
  *       required: true
  *       content:
@@ -554,6 +563,7 @@ router.put('/:id/media-info', authenticateToken, validateMediaInfo, updateMediaI
  *         required: true
  *         schema:
  *           type: string
+ *         description: Registration ID or User ID (both are supported for convenience)
  *     requestBody:
  *       required: true
  *       content:
@@ -623,6 +633,7 @@ router.put('/:id/audition-info', authenticateToken, validateAuditionInfo, update
  *         required: true
  *         schema:
  *           type: string
+ *         description: Registration ID or User ID (both are supported for convenience)
  *     requestBody:
  *       required: true
  *       content:
@@ -678,6 +689,7 @@ router.put('/:id/terms', authenticateToken, validateTermsConditions, updateTerms
  *         required: true
  *         schema:
  *           type: string
+ *         description: Registration ID or User ID (both are supported for convenience)
  *     responses:
  *       200:
  *         description: Registration status retrieved successfully

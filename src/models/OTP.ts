@@ -100,4 +100,25 @@ OTPSchema.statics.verifyOTP = async function(
   return { valid: true, message: 'OTP verified successfully' };
 };
 
+// Static method to check OTP validity without consuming it
+OTPSchema.statics.checkOTP = async function(
+  email: string,
+  otp: string,
+  type: 'email_verification' | 'password_reset'
+) {
+  const otpDoc = await this.findOne({
+    email,
+    otp,
+    type,
+    isUsed: false,
+    expiresAt: { $gt: new Date() }
+  });
+
+  if (!otpDoc) {
+    return { valid: false, message: 'Invalid or expired OTP' };
+  }
+
+  return { valid: true, message: 'OTP is valid' };
+};
+
 export default mongoose.model<IOTP, Model<IOTP> & IOTPModel>('OTP', OTPSchema);

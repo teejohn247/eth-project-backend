@@ -62,6 +62,12 @@ const options = {
               description: 'User email address',
               example: 'john.doe@example.com'
             },
+            role: {
+              type: 'string',
+              description: 'User role in the system',
+              enum: ['contestant', 'admin', 'judge'],
+              example: 'contestant'
+            },
             isEmailVerified: {
               type: 'boolean',
               description: 'Whether user email is verified',
@@ -71,6 +77,68 @@ const options = {
               type: 'boolean',
               description: 'Whether user has set a password',
               example: true
+            },
+            registrationInfo: {
+              type: 'object',
+              description: 'Registration progress information (only for contestants)',
+              properties: {
+                currentStep: {
+                  type: 'integer',
+                  description: 'Current registration step number',
+                  example: 3
+                },
+                currentStepName: {
+                  type: 'string',
+                  description: 'Current registration step name',
+                  example: 'group_info'
+                },
+                lastStep: {
+                  type: 'integer',
+                  description: 'Last completed registration step number',
+                  example: 2
+                },
+                lastStepName: {
+                  type: 'string',
+                  description: 'Last completed registration step name',
+                  example: 'talent_info'
+                },
+                registrationComplete: {
+                  type: 'boolean',
+                  description: 'Whether registration is fully complete',
+                  example: false
+                },
+                registrationStatus: {
+                  type: 'string',
+                  description: 'Current registration status',
+                  enum: ['draft', 'submitted', 'under_review', 'approved', 'rejected', 'qualified', 'disqualified'],
+                  example: 'draft'
+                },
+                paymentStatus: {
+                  type: 'string',
+                  description: 'Payment status',
+                  enum: ['pending', 'processing', 'completed', 'failed', 'refunded'],
+                  example: 'pending'
+                },
+                completedSteps: {
+                  type: 'array',
+                  items: {
+                    type: 'integer'
+                  },
+                  description: 'Array of completed step numbers',
+                  example: [1, 2]
+                },
+                registrationNumber: {
+                  type: 'string',
+                  description: 'Unique registration number',
+                  example: 'ETH2024001'
+                },
+                registrationType: {
+                  type: 'string',
+                  description: 'Type of registration',
+                  enum: ['individual', 'group'],
+                  example: 'individual'
+                }
+              }
             }
           }
         },

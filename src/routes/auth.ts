@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { User, OTP } from '../models';
+import { User, OTP, Registration } from '../models';
 import { generateToken } from '../utils/jwt';
 import emailService from '../services/emailService';
 import { body, validationResult } from 'express-validator';
@@ -39,6 +39,7 @@ const loginValidation = [
 const otpValidation = [
   body('email').isEmail().normalizeEmail().withMessage('Please provide a valid email address'),
   body('otp').isLength({ min: 4, max: 6 }).withMessage('OTP must be between 4 and 6 characters'),
+  body('type').optional().isIn(['email_verification', 'password_reset']).withMessage('Type must be either "email_verification" or "password_reset"'),
   handleValidation
 ];
 
@@ -152,21 +153,62 @@ router.post('/register', authLimiter, registerValidation, async (req: Request, r
  * /api/v1/auth/verify-otp:
  *   post:
  *     tags: [Authentication]
- *     summary: Verify email OTP
- *     description: Verify the OTP sent to user's email during registration
+ *     summary: Verify OTP (Email verification or Password reset)
+ *     description: Verify OTP for either email verification during registration or password reset. The type is auto-detected based on user status.
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/VerifyOTPRequest'
+ *             type: object
+ *             required:
+ *               - email
+ *               - otp
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: User email address
+ *                 example: john.doe@example.com
+ *               otp:
+ *                 type: string
+ *                 minLength: 4
+ *                 maxLength: 6
+ *                 description: OTP code received via email
+ *                 example: "123456"
+ *               type:
+ *                 type: string
+ *                 enum: [email_verification, password_reset]
+ *                 description: OTP type (optional - auto-detected if not provided)
+ *                 example: "email_verification"
  *     responses:
  *       200:
- *         description: Email verified successfully
+ *         description: OTP verified successfully
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/AuthResponse'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Email verified successfully. Please set your password."
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     otpType:
+ *                       type: string
+ *                       enum: [email_verification, password_reset]
+ *                       description: The type of OTP that was verified
+ *                       example: "email_verification"
+ *                     user:
+ *                       $ref: '#/components/schemas/User'
+ *                     nextStep:
+ *                       type: string
+ *                       description: What the user should do next
+ *                       example: "set-password"
  *       400:
  *         description: Invalid or expired OTP
  *         content:
@@ -183,10 +225,45 @@ router.post('/register', authLimiter, registerValidation, async (req: Request, r
 // Verify OTP
 router.post('/verify-otp', authLimiter, otpValidation, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, otp } = req.body;
+    const { email, otp, type } = req.body;
 
-    // Verify OTP
-    const otpResult = await OTP.verifyOTP(email, otp, 'email_verification');
+    // Find user to determine OTP type if not provided
+    const user = await User.findOne({ email });
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        message: 'User not found'
+      } as AuthResponse);
+      return;
+    }
+
+    // Auto-detect OTP type if not provided
+    let otpType: 'email_verification' | 'password_reset';
+    if (type) {
+      // Use provided type if valid
+      if (type !== 'email_verification' && type !== 'password_reset') {
+        res.status(400).json({
+          success: false,
+          message: 'Invalid OTP type. Must be either "email_verification" or "password_reset"'
+        } as AuthResponse);
+        return;
+      }
+      otpType = type;
+    } else {
+      // Auto-detect based on user status
+      otpType = user.isEmailVerified ? 'password_reset' : 'email_verification';
+    }
+
+    // Verify OTP - for password reset, just check validity without consuming
+    let otpResult;
+    if (otpType === 'password_reset') {
+      // Just check OTP validity without consuming it
+      otpResult = await OTP.checkOTP(email, otp, otpType);
+    } else {
+      // For email verification, consume the OTP
+      otpResult = await OTP.verifyOTP(email, otp, otpType);
+    }
+    
     if (!otpResult.valid) {
       res.status(400).json({
         success: false,
@@ -195,14 +272,27 @@ router.post('/verify-otp', authLimiter, otpValidation, async (req: Request, res:
       return;
     }
 
-    // Update user email verification status
-    const user = await User.findOneAndUpdate(
+    // Update user status based on OTP type
+    let updatedUser = user;
+    let message = '';
+    let nextStep = '';
+
+    if (otpType === 'email_verification') {
+      // Mark email as verified for new account
+      updatedUser = await User.findOneAndUpdate(
       { email },
       { isEmailVerified: true },
       { new: true }
     );
+      message = 'Email verified successfully. Please set your password.';
+      nextStep = 'set-password';
+    } else {
+      // Password reset OTP verified - user can now reset password
+      message = 'OTP verified successfully. You can now reset your password.';
+      nextStep = 'set-password';
+    }
 
-    if (!user) {
+    if (!updatedUser) {
       res.status(404).json({
         success: false,
         message: 'User not found'
@@ -212,15 +302,18 @@ router.post('/verify-otp', authLimiter, otpValidation, async (req: Request, res:
 
     res.json({
       success: true,
-      message: 'Email verified successfully. Please set your password.',
+      message,
       data: {
+        otpType,
+        nextStep,
         user: {
-          id: user._id.toString(),
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-          isEmailVerified: user.isEmailVerified,
-          isPasswordSet: user.isPasswordSet
+          id: updatedUser._id.toString(),
+          firstName: updatedUser.firstName,
+          lastName: updatedUser.lastName,
+          email: updatedUser.email,
+          role: updatedUser.role,
+          isEmailVerified: updatedUser.isEmailVerified,
+          isPasswordSet: updatedUser.isPasswordSet
         }
       }
     } as AuthResponse);
@@ -327,11 +420,11 @@ router.post('/set-password', authLimiter, passwordValidation, async (req: Reques
       // Verify OTP
       const otpResult = await OTP.verifyOTP(email, otp, otpType);
       if (!otpResult.valid) {
-        res.status(400).json({
-          success: false,
+      res.status(400).json({
+        success: false,
           message: otpResult.message
-        } as AuthResponse);
-        return;
+      } as AuthResponse);
+      return;
       }
 
       // Mark email as verified if it was email verification OTP
@@ -373,6 +466,7 @@ router.post('/set-password', authLimiter, passwordValidation, async (req: Reques
           firstName: user.firstName,
           lastName: user.lastName,
           email: user.email,
+          role: user.role,
           isEmailVerified: user.isEmailVerified,
           isPasswordSet: user.isPasswordSet
         }
@@ -467,19 +561,92 @@ router.post('/login', authLimiter, loginValidation, async (req: Request, res: Re
     // Generate JWT token
     const token = generateToken(user);
 
+    // Prepare user response object
+    const userResponse: any = {
+      id: user._id.toString(),
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      role: user.role,
+      isEmailVerified: user.isEmailVerified,
+      isPasswordSet: user.isPasswordSet
+    };
+
+    // For contestants, add registration information
+    if (user.role === 'contestant') {
+      const registration = await Registration.findOne({ userId: user._id });
+      
+      if (registration) {
+        // Define the step mapping
+        const stepNames = {
+          0: 'not_started',
+          1: 'personal_info',
+          2: 'talent_info', 
+          3: 'group_info',
+          4: 'guardian_info',
+          5: 'media_info',
+          6: 'audition_info',
+          7: 'terms_conditions',
+          8: 'payment'
+        };
+
+        // Determine required steps based on registration type
+        const requiredSteps = registration.registrationType === 'individual' ? 
+          [1, 2, 4, 5, 6, 7, 8] : // personal, talent, guardian, media, audition, terms, payment
+          [1, 2, 3, 5, 6, 7, 8];  // personal, talent, group, media, audition, terms, payment
+
+        // Check if registration is complete
+        const allRequiredStepsCompleted = requiredSteps.every(step => 
+          registration.completedSteps.includes(step)
+        );
+        const registrationComplete = allRequiredStepsCompleted && 
+          registration.status === 'submitted' && 
+          registration.paymentInfo.paymentStatus === 'completed';
+
+        // Determine last completed step
+        const completedSteps = registration.completedSteps.sort((a, b) => b - a);
+        const lastStep = completedSteps.length > 0 ? completedSteps[0] : 0;
+        const lastStepName = stepNames[lastStep as keyof typeof stepNames] || 'unknown';
+
+        // Determine current step (next step to complete)
+        const currentStep = registration.currentStep;
+        const currentStepName = stepNames[currentStep as keyof typeof stepNames] || 'unknown';
+
+        userResponse.registrationInfo = {
+          currentStep,
+          currentStepName,
+          lastStep,
+          lastStepName,
+          registrationComplete,
+          registrationStatus: registration.status,
+          paymentStatus: registration.paymentInfo.paymentStatus,
+          completedSteps: registration.completedSteps,
+          registrationNumber: registration.registrationNumber,
+          registrationType: registration.registrationType
+        };
+      } else {
+        // No registration found - user needs to start registration
+        userResponse.registrationInfo = {
+          currentStep: 0,
+          currentStepName: 'not_started',
+          lastStep: 0,
+          lastStepName: 'not_started', 
+          registrationComplete: false,
+          registrationStatus: null,
+          paymentStatus: null,
+          completedSteps: [],
+          registrationNumber: null,
+          registrationType: null
+        };
+      }
+    }
+
     res.json({
       success: true,
       message: 'Login successful',
       data: {
         token,
-        user: {
-          id: user._id.toString(),
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-          isEmailVerified: user.isEmailVerified,
-          isPasswordSet: user.isPasswordSet
-        }
+        user: userResponse
       }
     } as AuthResponse);
 

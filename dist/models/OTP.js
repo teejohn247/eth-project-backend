@@ -104,5 +104,18 @@ OTPSchema.statics.verifyOTP = async function (email, otp, type) {
     await otpDoc.save();
     return { valid: true, message: 'OTP verified successfully' };
 };
+OTPSchema.statics.checkOTP = async function (email, otp, type) {
+    const otpDoc = await this.findOne({
+        email,
+        otp,
+        type,
+        isUsed: false,
+        expiresAt: { $gt: new Date() }
+    });
+    if (!otpDoc) {
+        return { valid: false, message: 'Invalid or expired OTP' };
+    }
+    return { valid: true, message: 'OTP is valid' };
+};
 exports.default = mongoose_1.default.model('OTP', OTPSchema);
 //# sourceMappingURL=OTP.js.map
