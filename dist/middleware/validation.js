@@ -22,6 +22,10 @@ exports.validateRegistration = [
     exports.handleValidationErrors
 ];
 exports.validatePersonalInfo = [
+    (0, express_validator_1.body)('nextStep')
+        .optional()
+        .isInt({ min: 1, max: 8 })
+        .withMessage('Next step must be a number between 1 and 8'),
     (0, express_validator_1.body)('firstName')
         .trim()
         .isLength({ min: 2, max: 50 })
@@ -87,6 +91,10 @@ exports.validatePersonalInfo = [
     exports.handleValidationErrors
 ];
 exports.validateTalentInfo = [
+    (0, express_validator_1.body)('nextStep')
+        .optional()
+        .isInt({ min: 1, max: 8 })
+        .withMessage('Next step must be a number between 1 and 8'),
     (0, express_validator_1.body)('talentCategory')
         .isIn(['Singing', 'Dancing', 'Acting', 'Comedy', 'Drama', 'Instrumental', 'Other'])
         .withMessage('Please select a valid talent category'),
@@ -133,6 +141,10 @@ exports.validateTalentInfo = [
     exports.handleValidationErrors
 ];
 exports.validateGroupInfo = [
+    (0, express_validator_1.body)('nextStep')
+        .optional()
+        .isInt({ min: 1, max: 8 })
+        .withMessage('Next step must be a number between 1 and 8'),
     (0, express_validator_1.body)('groupName')
         .notEmpty()
         .withMessage('Group name is required')
@@ -205,6 +217,10 @@ exports.validateGuardianInfo = [
     exports.handleValidationErrors
 ];
 exports.validateAuditionInfo = [
+    (0, express_validator_1.body)('nextStep')
+        .optional()
+        .isInt({ min: 1, max: 8 })
+        .withMessage('Next step must be a number between 1 and 8'),
     (0, express_validator_1.body)('auditionLocation')
         .isIn(['Lagos', 'Benin'])
         .withMessage('Audition location must be Lagos or Benin'),
@@ -251,6 +267,10 @@ exports.validateAuditionInfo = [
     exports.handleValidationErrors
 ];
 exports.validateTermsConditions = [
+    (0, express_validator_1.body)('nextStep')
+        .optional()
+        .isInt({ min: 1, max: 8 })
+        .withMessage('Next step must be a number between 1 and 8'),
     (0, express_validator_1.body)('rulesAcceptance')
         .isBoolean()
         .custom((value) => {
@@ -303,6 +323,10 @@ exports.validatePayment = [
     exports.handleValidationErrors
 ];
 exports.validateMediaInfo = [
+    (0, express_validator_1.body)('nextStep')
+        .optional()
+        .isInt({ min: 1, max: 8 })
+        .withMessage('Next step must be a number between 1 and 8'),
     (0, express_validator_1.body)('profilePhoto')
         .optional()
         .isString()
