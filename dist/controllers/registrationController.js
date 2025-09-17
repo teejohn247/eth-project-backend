@@ -243,7 +243,7 @@ exports.submitRegistration = submitRegistration;
 const updatePersonalInfo = async (req, res) => {
     try {
         const { id } = req.params;
-        const personalInfo = req.body;
+        const { nextStep, ...personalInfo } = req.body;
         const foundRegistration = await findRegistrationByIdOrUserId(id, req.user?.userId);
         if (!foundRegistration) {
             res.status(404).json({
@@ -252,10 +252,11 @@ const updatePersonalInfo = async (req, res) => {
             });
             return;
         }
+        const currentStepToSet = nextStep || 1;
         const registration = await Registration_1.default.findOneAndUpdate({ _id: foundRegistration._id, userId: req.user?.userId }, {
             personalInfo,
             $addToSet: { completedSteps: 1 },
-            currentStep: 1
+            currentStep: currentStepToSet
         }, { new: true });
         if (!registration) {
             res.status(404).json({
@@ -283,7 +284,7 @@ exports.updatePersonalInfo = updatePersonalInfo;
 const updateTalentInfo = async (req, res) => {
     try {
         const { id } = req.params;
-        const talentInfo = req.body;
+        const { nextStep, ...talentInfo } = req.body;
         const foundRegistration = await findRegistrationByIdOrUserId(id, req.user?.userId);
         if (!foundRegistration) {
             res.status(404).json({
@@ -292,10 +293,11 @@ const updateTalentInfo = async (req, res) => {
             });
             return;
         }
+        const currentStepToSet = nextStep || 2;
         const registration = await Registration_1.default.findOneAndUpdate({ _id: foundRegistration._id, userId: req.user?.userId }, {
             talentInfo,
             $addToSet: { completedSteps: 2 },
-            currentStep: 2
+            currentStep: currentStepToSet
         }, { new: true });
         if (!registration) {
             res.status(404).json({
@@ -323,7 +325,8 @@ exports.updateTalentInfo = updateTalentInfo;
 const updateGroupInfo = async (req, res) => {
     try {
         const { id } = req.params;
-        let groupInfo = req.body;
+        const { nextStep, ...bodyData } = req.body;
+        let groupInfo = bodyData;
         if (groupInfo.members && Array.isArray(groupInfo.members)) {
             groupInfo.members = groupInfo.members.map((member) => ({
                 ...member,
@@ -341,10 +344,11 @@ const updateGroupInfo = async (req, res) => {
             });
             return;
         }
+        const currentStepToSet = nextStep || 3;
         const registration = await Registration_1.default.findOneAndUpdate({ _id: foundRegistration._id, userId: req.user?.userId }, {
             groupInfo,
             $addToSet: { completedSteps: 3 },
-            currentStep: 3
+            currentStep: currentStepToSet
         }, { new: true });
         if (!registration) {
             res.status(404).json({
@@ -372,7 +376,7 @@ exports.updateGroupInfo = updateGroupInfo;
 const updateGuardianInfo = async (req, res) => {
     try {
         const { id } = req.params;
-        const guardianInfo = req.body;
+        const { nextStep, ...guardianInfo } = req.body;
         const foundRegistration = await findRegistrationByIdOrUserId(id, req.user?.userId);
         if (!foundRegistration) {
             res.status(404).json({
@@ -384,7 +388,7 @@ const updateGuardianInfo = async (req, res) => {
         const registration = await Registration_1.default.findOneAndUpdate({ _id: foundRegistration._id, userId: req.user?.userId }, {
             guardianInfo,
             $addToSet: { completedSteps: 4 },
-            currentStep: 4
+            currentStep: nextStep || 4
         }, { new: true });
         if (!registration) {
             res.status(404).json({
@@ -412,7 +416,7 @@ exports.updateGuardianInfo = updateGuardianInfo;
 const updateMediaInfo = async (req, res) => {
     try {
         const { id } = req.params;
-        const mediaInfo = req.body;
+        const { nextStep, ...mediaInfo } = req.body;
         const foundRegistration = await findRegistrationByIdOrUserId(id, req.user?.userId);
         if (!foundRegistration) {
             res.status(404).json({
@@ -424,7 +428,7 @@ const updateMediaInfo = async (req, res) => {
         const registration = await Registration_1.default.findOneAndUpdate({ _id: foundRegistration._id, userId: req.user?.userId }, {
             mediaInfo,
             $addToSet: { completedSteps: 5 },
-            currentStep: 5
+            currentStep: nextStep || 5
         }, { new: true });
         if (!registration) {
             res.status(404).json({
@@ -452,7 +456,8 @@ exports.updateMediaInfo = updateMediaInfo;
 const updateAuditionInfo = async (req, res) => {
     try {
         const { id } = req.params;
-        let auditionInfo = req.body;
+        const { nextStep, ...bodyData } = req.body;
+        let auditionInfo = bodyData;
         if (auditionInfo.audtionRequirement && !auditionInfo.auditionRequirement) {
             auditionInfo.auditionRequirement = auditionInfo.audtionRequirement;
             delete auditionInfo.audtionRequirement;
@@ -481,8 +486,8 @@ const updateAuditionInfo = async (req, res) => {
         }
         const registration = await Registration_1.default.findOneAndUpdate({ _id: foundRegistration._id, userId: req.user?.userId }, {
             auditionInfo,
-            $addToSet: { completedSteps: 5 },
-            currentStep: 5
+            $addToSet: { completedSteps: 6 },
+            currentStep: nextStep || 6
         }, { new: true });
         if (!registration) {
             res.status(404).json({
@@ -510,7 +515,7 @@ exports.updateAuditionInfo = updateAuditionInfo;
 const updateTermsConditions = async (req, res) => {
     try {
         const { id } = req.params;
-        const termsConditions = req.body;
+        const { nextStep, ...termsConditions } = req.body;
         const foundRegistration = await findRegistrationByIdOrUserId(id, req.user?.userId);
         if (!foundRegistration) {
             res.status(404).json({
@@ -524,8 +529,8 @@ const updateTermsConditions = async (req, res) => {
                 ...termsConditions,
                 signedAt: new Date()
             },
-            $addToSet: { completedSteps: 6 },
-            currentStep: 6
+            $addToSet: { completedSteps: 7 },
+            currentStep: nextStep || 7
         }, { new: true });
         if (!registration) {
             res.status(404).json({

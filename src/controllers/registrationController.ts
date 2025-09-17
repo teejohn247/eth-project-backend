@@ -282,7 +282,7 @@ export const submitRegistration = async (req: AuthenticatedRequest, res: Respons
 export const updatePersonalInfo = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const personalInfo = req.body;
+    const { nextStep, ...personalInfo } = req.body;
 
     // First find the registration using our helper
     const foundRegistration = await findRegistrationByIdOrUserId(id, req.user?.userId!);
@@ -295,12 +295,15 @@ export const updatePersonalInfo = async (req: AuthenticatedRequest, res: Respons
       return;
     }
 
+    // Determine the current step to set (use nextStep from frontend or default to step 1)
+    const currentStepToSet = nextStep || 1;
+
     const registration = await Registration.findOneAndUpdate(
       { _id: foundRegistration._id, userId: req.user?.userId },
       { 
         personalInfo,
         $addToSet: { completedSteps: 1 },
-        currentStep: 1
+        currentStep: currentStepToSet
       },
       { new: true }
     );
@@ -332,7 +335,7 @@ export const updatePersonalInfo = async (req: AuthenticatedRequest, res: Respons
 export const updateTalentInfo = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const talentInfo = req.body;
+    const { nextStep, ...talentInfo } = req.body;
 
     // First find the registration using our helper
     const foundRegistration = await findRegistrationByIdOrUserId(id, req.user?.userId!);
@@ -345,12 +348,15 @@ export const updateTalentInfo = async (req: AuthenticatedRequest, res: Response)
       return;
     }
 
+    // Determine the current step to set (use nextStep from frontend or default to step 2)
+    const currentStepToSet = nextStep || 2;
+
     const registration = await Registration.findOneAndUpdate(
       { _id: foundRegistration._id, userId: req.user?.userId },
       { 
         talentInfo,
         $addToSet: { completedSteps: 2 },
-        currentStep: 2
+        currentStep: currentStepToSet
       },
       { new: true }
     );
@@ -382,7 +388,8 @@ export const updateTalentInfo = async (req: AuthenticatedRequest, res: Response)
 export const updateGroupInfo = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    let groupInfo = req.body;
+    const { nextStep, ...bodyData } = req.body;
+    let groupInfo = bodyData;
 
     // Normalize T-shirt sizes to uppercase and convert noOfGroupMembers to number
     if (groupInfo.members && Array.isArray(groupInfo.members)) {
@@ -408,12 +415,15 @@ export const updateGroupInfo = async (req: AuthenticatedRequest, res: Response):
       return;
     }
 
+    // Determine the current step to set (use nextStep from frontend or default to step 3)
+    const currentStepToSet = nextStep || 3;
+
     const registration = await Registration.findOneAndUpdate(
       { _id: foundRegistration._id, userId: req.user?.userId },
       { 
         groupInfo,
         $addToSet: { completedSteps: 3 },
-        currentStep: 3
+        currentStep: currentStepToSet
       },
       { new: true }
     );
@@ -445,7 +455,7 @@ export const updateGroupInfo = async (req: AuthenticatedRequest, res: Response):
 export const updateGuardianInfo = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const guardianInfo = req.body;
+    const { nextStep, ...guardianInfo } = req.body;
 
     // First find the registration using our helper
     const foundRegistration = await findRegistrationByIdOrUserId(id, req.user?.userId!);
@@ -463,7 +473,7 @@ export const updateGuardianInfo = async (req: AuthenticatedRequest, res: Respons
       { 
         guardianInfo,
         $addToSet: { completedSteps: 4 },
-        currentStep: 4
+        currentStep: nextStep || 4
       },
       { new: true }
     );
@@ -495,7 +505,7 @@ export const updateGuardianInfo = async (req: AuthenticatedRequest, res: Respons
 export const updateMediaInfo = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const mediaInfo = req.body;
+    const { nextStep, ...mediaInfo } = req.body;
 
     // First find the registration using our helper
     const foundRegistration = await findRegistrationByIdOrUserId(id, req.user?.userId!);
@@ -513,7 +523,7 @@ export const updateMediaInfo = async (req: AuthenticatedRequest, res: Response):
       { 
         mediaInfo,
         $addToSet: { completedSteps: 5 },
-        currentStep: 5
+        currentStep: nextStep || 5
       },
       { new: true }
     );
@@ -545,7 +555,8 @@ export const updateMediaInfo = async (req: AuthenticatedRequest, res: Response):
 export const updateAuditionInfo = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    let auditionInfo = req.body;
+    const { nextStep, ...bodyData } = req.body;
+    let auditionInfo = bodyData;
 
     // Handle frontend typo: map 'audtionRequirement' to 'auditionRequirement'
     if (auditionInfo.audtionRequirement && !auditionInfo.auditionRequirement) {
@@ -585,8 +596,8 @@ export const updateAuditionInfo = async (req: AuthenticatedRequest, res: Respons
       { _id: foundRegistration._id, userId: req.user?.userId },
       { 
         auditionInfo,
-        $addToSet: { completedSteps: 5 },
-        currentStep: 5
+        $addToSet: { completedSteps: 6 },
+        currentStep: nextStep || 6
       },
       { new: true }
     );
@@ -618,7 +629,7 @@ export const updateAuditionInfo = async (req: AuthenticatedRequest, res: Respons
 export const updateTermsConditions = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const termsConditions = req.body;
+    const { nextStep, ...termsConditions } = req.body;
 
     // First find the registration using our helper
     const foundRegistration = await findRegistrationByIdOrUserId(id, req.user?.userId!);
@@ -638,8 +649,8 @@ export const updateTermsConditions = async (req: AuthenticatedRequest, res: Resp
           ...termsConditions,
           signedAt: new Date()
         },
-        $addToSet: { completedSteps: 6 },
-        currentStep: 6
+        $addToSet: { completedSteps: 7 },
+        currentStep: nextStep || 7
       },
       { new: true }
     );

@@ -25,6 +25,11 @@ export const validateRegistration = [
 
 // Personal information validation
 export const validatePersonalInfo = [
+  body('nextStep')
+    .optional()
+    .isInt({ min: 1, max: 8 })
+    .withMessage('Next step must be a number between 1 and 8'),
+
   body('firstName')
     .trim()
     .isLength({ min: 2, max: 50 })
@@ -106,6 +111,11 @@ export const validatePersonalInfo = [
 
 // Talent information validation
 export const validateTalentInfo = [
+  body('nextStep')
+    .optional()
+    .isInt({ min: 1, max: 8 })
+    .withMessage('Next step must be a number between 1 and 8'),
+
   body('talentCategory')
     .isIn(['Singing', 'Dancing', 'Acting', 'Comedy', 'Drama', 'Instrumental', 'Other'])
     .withMessage('Please select a valid talent category'),
@@ -164,6 +174,11 @@ export const validateTalentInfo = [
 
 // Group information validation
 export const validateGroupInfo = [
+  body('nextStep')
+    .optional()
+    .isInt({ min: 1, max: 8 })
+    .withMessage('Next step must be a number between 1 and 8'),
+
   body('groupName')
     .notEmpty()
     .withMessage('Group name is required')
@@ -255,6 +270,11 @@ export const validateGuardianInfo = [
 
 // Audition information validation
 export const validateAuditionInfo = [
+  body('nextStep')
+    .optional()
+    .isInt({ min: 1, max: 8 })
+    .withMessage('Next step must be a number between 1 and 8'),
+
   body('auditionLocation')
     .isIn(['Lagos', 'Benin'])
     .withMessage('Audition location must be Lagos or Benin'),
@@ -314,6 +334,11 @@ export const validateAuditionInfo = [
 
 // Terms and conditions validation
 export const validateTermsConditions = [
+  body('nextStep')
+    .optional()
+    .isInt({ min: 1, max: 8 })
+    .withMessage('Next step must be a number between 1 and 8'),
+
   body('rulesAcceptance')
     .isBoolean()
     .custom((value) => {
@@ -381,6 +406,11 @@ export const validatePayment = [
 
 // Media information validation
 export const validateMediaInfo = [
+  body('nextStep')
+    .optional()
+    .isInt({ min: 1, max: 8 })
+    .withMessage('Next step must be a number between 1 and 8'),
+
   body('profilePhoto')
     .optional()
     .isString()

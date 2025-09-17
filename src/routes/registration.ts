@@ -264,6 +264,12 @@ router.post('/:id/submit', authenticateToken, submitRegistration);
  *               - gender
  *               - tshirtSize
  *             properties:
+ *               nextStep:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 8
+ *                 description: "Next step to proceed to after completing this step"
+ *                 example: 2
  *               firstName:
  *                 type: string
  *                 minLength: 2
