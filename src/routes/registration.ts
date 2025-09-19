@@ -583,9 +583,9 @@ router.put('/:id/media-info', authenticateToken, validateMediaInfo, updateMediaI
  *             properties:
  *               auditionLocation:
  *                 type: string
- *                 enum: [Lagos, Benin]
- *                 description: "Location for audition"
- *                 example: "Benin"
+ *                 maxLength: 100
+ *                 description: "Location for audition (accepts any location)"
+ *                 example: "Lagos State University"
  *               auditionDate:
  *                 type: string
  *                 format: date-time
@@ -598,9 +598,9 @@ router.put('/:id/media-info', authenticateToken, validateMediaInfo, updateMediaI
  *                 example: "9:29 AM"
  *               auditionRequirement:
  *                 type: string
- *                 enum: [Microphone, Guitar, Bass, Drum, BackgroundMusic, StageLighting, Projector, Other]
- *                 description: "Equipment/requirement needed for audition"
- *                 example: "Other"
+ *                 maxLength: 100
+ *                 description: "Equipment/requirement needed for audition (accepts any requirement)"
+ *                 example: "Custom sound system with wireless microphones"
  *               otherRequirement:
  *                 type: string
  *                 maxLength: 100

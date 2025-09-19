@@ -71,10 +71,10 @@ export interface IRegistration extends Document {
         };
     };
     auditionInfo: {
-        auditionLocation: 'Lagos' | 'Benin';
+        auditionLocation: string;
         auditionDate: Date;
         auditionTime: string;
-        auditionRequirement?: 'Microphone' | 'Guitar' | 'Bass' | 'Drum' | 'BackgroundMusic' | 'StageLighting' | 'Projector' | 'Other';
+        auditionRequirement?: string;
         otherRequirement?: string;
         hasInstrument?: 'Yes' | 'No';
     };
