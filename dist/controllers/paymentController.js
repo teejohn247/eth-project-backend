@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.refundPayment = exports.handlePaymentWebhook = exports.getPaymentStatus = exports.verifyPayment = exports.initializePayment = void 0;
+exports.savePaymentInfo = exports.refundPayment = exports.handlePaymentWebhook = exports.getPaymentStatus = exports.verifyPayment = exports.initializePayment = void 0;
 const Registration_1 = __importDefault(require("../models/Registration"));
 const PaymentTransaction_1 = __importDefault(require("../models/PaymentTransaction"));
 const crypto_1 = __importDefault(require("crypto"));
@@ -386,4 +386,124 @@ const refundPayment = async (req, res) => {
     }
 };
 exports.refundPayment = refundPayment;
+const savePaymentInfo = async (req, res) => {
+    try {
+        const { registrationId } = req.params;
+        const paymentData = req.body;
+        if (!paymentData || Object.keys(paymentData).length === 0) {
+            res.status(400).json({
+                success: false,
+                message: 'Payment data is required'
+            });
+            return;
+        }
+        let registration;
+        if (registrationId && registrationId !== 'undefined' && registrationId !== 'null') {
+            registration = await Registration_1.default.findOne({
+                _id: registrationId,
+                userId: req.user?.userId
+            });
+        }
+        if (!registration) {
+            registration = await Registration_1.default.findOne({
+                userId: req.user?.userId
+            });
+        }
+        if (!registration) {
+            res.status(404).json({
+                success: false,
+                message: 'Registration not found'
+            });
+            return;
+        }
+        const { reference, amount, currency = 'NGN', status, gateway, transactionId, paymentMethod, email, ...otherData } = paymentData;
+        const paymentReference = reference || `ETH_${Date.now()}_${crypto_1.default.randomBytes(8).toString('hex')}`;
+        let transaction = await PaymentTransaction_1.default.findOne({
+            registrationId: registration._id,
+            userId: req.user?.userId
+        });
+        if (!transaction) {
+            transaction = new PaymentTransaction_1.default({
+                registrationId: registration._id,
+                userId: req.user?.userId,
+                reference: paymentReference,
+                amount: amount || registration.paymentInfo.amount || 1090,
+                currency: currency,
+                status: status || 'pending'
+            });
+        }
+        if (amount)
+            transaction.amount = amount;
+        if (currency)
+            transaction.currency = currency;
+        if (status)
+            transaction.status = status;
+        if (paymentMethod)
+            transaction.paymentMethod = paymentMethod;
+        if (transactionId)
+            transaction.gatewayReference = transactionId;
+        transaction.gatewayResponse = {
+            ...transaction.gatewayResponse,
+            frontendData: paymentData,
+            updatedAt: new Date()
+        };
+        if (status === 'successful' || status === 'success' || status === 'completed') {
+            transaction.status = 'successful';
+            transaction.processedAt = new Date();
+        }
+        await transaction.save();
+        registration.paymentInfo = {
+            ...registration.paymentInfo,
+            paymentReference: paymentReference,
+            amount: amount || registration.paymentInfo.amount,
+            currency: currency,
+            paymentStatus: status === 'successful' || status === 'success' || status === 'completed' ? 'completed' :
+                status === 'failed' || status === 'error' ? 'failed' : 'pending',
+            transactionId: transactionId || transaction.gatewayReference,
+            paymentMethod: paymentMethod,
+            paymentResponse: paymentData,
+            paidAt: (status === 'successful' || status === 'success' || status === 'completed') ? new Date() : registration.paymentInfo.paidAt
+        };
+        if (registration.paymentInfo.paymentStatus === 'completed') {
+            const paymentStep = 8;
+            if (!registration.completedSteps.includes(paymentStep)) {
+                registration.completedSteps.push(paymentStep);
+            }
+            registration.currentStep = Math.max(paymentStep, registration.currentStep);
+            const requiredSteps = registration.registrationType === 'individual' ?
+                [1, 2, 4, 5, 6, 7, 8] :
+                [1, 2, 3, 5, 6, 7, 8];
+            const allRequiredStepsCompleted = requiredSteps.every(step => registration.completedSteps.includes(step));
+            if (allRequiredStepsCompleted) {
+                registration.status = 'submitted';
+            }
+        }
+        await registration.save();
+        res.status(200).json({
+            success: true,
+            message: 'Payment information saved successfully',
+            data: {
+                registrationId: registration._id,
+                paymentReference: paymentReference,
+                paymentStatus: registration.paymentInfo.paymentStatus,
+                amount: registration.paymentInfo.amount,
+                currency: registration.paymentInfo.currency,
+                transactionId: transaction.gatewayReference,
+                currentStep: registration.currentStep,
+                completedSteps: registration.completedSteps,
+                registrationStatus: registration.status,
+                savedData: paymentData
+            }
+        });
+    }
+    catch (error) {
+        console.error('Save payment info error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to save payment information',
+            error: process.env.NODE_ENV === 'development' ? error : undefined
+        });
+    }
+};
+exports.savePaymentInfo = savePaymentInfo;
 //# sourceMappingURL=paymentController.js.map
