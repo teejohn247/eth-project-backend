@@ -39,20 +39,14 @@ exports.validatePersonalInfo = [
         .normalizeEmail()
         .withMessage('Please provide a valid email address'),
     (0, express_validator_1.body)('phoneNo')
-        .matches(/^(\+234|0)[789]\d{9}$/)
-        .withMessage('Please provide a valid Nigerian phone number'),
+        .optional()
+        .trim()
+        .isLength({ max: 20 })
+        .withMessage('Phone number cannot exceed 20 characters'),
     (0, express_validator_1.body)('dateOfBirth')
+        .optional()
         .isISO8601()
-        .withMessage('Please provide a valid date of birth')
-        .custom((value) => {
-        const birthDate = new Date(value);
-        const today = new Date();
-        const age = today.getFullYear() - birthDate.getFullYear();
-        if (age < 5 || age > 40) {
-            throw new Error('Age must be between 5 and 40 years');
-        }
-        return true;
-    }),
+        .withMessage('Please provide a valid date of birth'),
     (0, express_validator_1.body)('gender')
         .isIn(['Male', 'Female'])
         .withMessage('Gender must be either Male or Female'),
@@ -212,8 +206,9 @@ exports.validateGuardianInfo = [
         .withMessage('Please provide a valid guardian email address'),
     (0, express_validator_1.body)('guardianPhoneNo')
         .optional()
-        .matches(/^(\+234|0)[789]\d{9}$/)
-        .withMessage('Please provide a valid guardian phone number'),
+        .trim()
+        .isLength({ max: 20 })
+        .withMessage('Guardian phone number cannot exceed 20 characters'),
     exports.handleValidationErrors
 ];
 exports.validateAuditionInfo = [
