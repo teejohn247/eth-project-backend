@@ -78,10 +78,10 @@ export interface IRegistration extends Document {
   };
 
   auditionInfo: {
-    auditionLocation: 'Lagos' | 'Benin';
+    auditionLocation: string;
     auditionDate: Date;
     auditionTime: string;
-    auditionRequirement?: 'Microphone' | 'Guitar' | 'Bass' | 'Drum' | 'BackgroundMusic' | 'StageLighting' | 'Projector' | 'Other';
+    auditionRequirement?: string;
     otherRequirement?: string;
     hasInstrument?: 'Yes' | 'No';
   };
@@ -198,12 +198,11 @@ const RegistrationSchema = new Schema<IRegistration>({
   },
 
   auditionInfo: {
-    auditionLocation: { type: String, enum: ['Lagos', 'Benin'], required: true },
+    auditionLocation: { type: String, required: true },
     auditionDate: { type: Date, required: true },
     auditionTime: { type: String, required: true },
     auditionRequirement: { 
-      type: String, 
-      enum: ['Microphone', 'Guitar', 'Bass', 'Drum', 'BackgroundMusic', 'StageLighting', 'Projector', 'Other'] 
+      type: String
     },
     otherRequirement: String,
     hasInstrument: { type: String, enum: ['Yes', 'No'] }

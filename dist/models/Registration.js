@@ -110,12 +110,11 @@ const RegistrationSchema = new mongoose_1.Schema({
         }
     },
     auditionInfo: {
-        auditionLocation: { type: String, enum: ['Lagos', 'Benin'], required: true },
+        auditionLocation: { type: String, required: true },
         auditionDate: { type: Date, required: true },
         auditionTime: { type: String, required: true },
         auditionRequirement: {
-            type: String,
-            enum: ['Microphone', 'Guitar', 'Bass', 'Drum', 'BackgroundMusic', 'StageLighting', 'Projector', 'Other']
+            type: String
         },
         otherRequirement: String,
         hasInstrument: { type: String, enum: ['Yes', 'No'] }

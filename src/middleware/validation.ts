@@ -276,8 +276,10 @@ export const validateAuditionInfo = [
     .withMessage('Next step must be a number between 1 and 8'),
 
   body('auditionLocation')
-    .isIn(['Lagos', 'Benin'])
-    .withMessage('Audition location must be Lagos or Benin'),
+    .notEmpty()
+    .withMessage('Audition location is required')
+    .isLength({ max: 100 })
+    .withMessage('Audition location cannot exceed 100 characters'),
   
   body('auditionDate')
     .isISO8601()
@@ -307,13 +309,13 @@ export const validateAuditionInfo = [
   // Handle both correct and typo versions of auditionRequirement
   body('auditionRequirement')
     .optional()
-    .isIn(['Microphone', 'Guitar', 'Bass', 'Drum', 'BackgroundMusic', 'StageLighting', 'Projector', 'Other'])
-    .withMessage('Please select a valid audition requirement'),
+    .isLength({ max: 100 })
+    .withMessage('Audition requirement cannot exceed 100 characters'),
   
   body('audtionRequirement')
     .optional()
-    .isIn(['Microphone', 'Guitar', 'Bass', 'Drum', 'BackgroundMusic', 'StageLighting', 'Projector', 'Other'])
-    .withMessage('Please select a valid audition requirement'),
+    .isLength({ max: 100 })
+    .withMessage('Audition requirement cannot exceed 100 characters'),
   
   body('otherRequirement')
     .if((value, { req }) => {

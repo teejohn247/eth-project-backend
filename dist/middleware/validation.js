@@ -222,8 +222,10 @@ exports.validateAuditionInfo = [
         .isInt({ min: 1, max: 8 })
         .withMessage('Next step must be a number between 1 and 8'),
     (0, express_validator_1.body)('auditionLocation')
-        .isIn(['Lagos', 'Benin'])
-        .withMessage('Audition location must be Lagos or Benin'),
+        .notEmpty()
+        .withMessage('Audition location is required')
+        .isLength({ max: 100 })
+        .withMessage('Audition location cannot exceed 100 characters'),
     (0, express_validator_1.body)('auditionDate')
         .isISO8601()
         .withMessage('Please provide a valid audition date')
@@ -246,12 +248,12 @@ exports.validateAuditionInfo = [
     }),
     (0, express_validator_1.body)('auditionRequirement')
         .optional()
-        .isIn(['Microphone', 'Guitar', 'Bass', 'Drum', 'BackgroundMusic', 'StageLighting', 'Projector', 'Other'])
-        .withMessage('Please select a valid audition requirement'),
+        .isLength({ max: 100 })
+        .withMessage('Audition requirement cannot exceed 100 characters'),
     (0, express_validator_1.body)('audtionRequirement')
         .optional()
-        .isIn(['Microphone', 'Guitar', 'Bass', 'Drum', 'BackgroundMusic', 'StageLighting', 'Projector', 'Other'])
-        .withMessage('Please select a valid audition requirement'),
+        .isLength({ max: 100 })
+        .withMessage('Audition requirement cannot exceed 100 characters'),
     (0, express_validator_1.body)('otherRequirement')
         .if((value, { req }) => {
         return req.body.auditionRequirement === 'Other' || req.body.audtionRequirement === 'Other';
