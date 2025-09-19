@@ -3,7 +3,6 @@ import { User, OTP, Registration } from '../models';
 import { generateToken } from '../utils/jwt';
 import emailService from '../services/emailService';
 import { body, validationResult } from 'express-validator';
-import { authLimiter, otpLimiter, passwordResetLimiter } from '../middleware/rateLimiter';
 import { AuthResponse, OTPResponse } from '../types';
 
 const router = Router();
@@ -95,7 +94,7 @@ const emailValidation = [
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 // Register new user
-router.post('/register', authLimiter, registerValidation, async (req: Request, res: Response): Promise<void> => {
+router.post('/register', registerValidation, async (req: Request, res: Response): Promise<void> => {
   try {
     const { firstName, lastName, email } = req.body;
 
@@ -223,7 +222,7 @@ router.post('/register', authLimiter, registerValidation, async (req: Request, r
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 // Verify OTP
-router.post('/verify-otp', authLimiter, otpValidation, async (req: Request, res: Response): Promise<void> => {
+router.post('/verify-otp', otpValidation, async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, otp, type } = req.body;
 
@@ -398,7 +397,7 @@ router.post('/verify-otp', authLimiter, otpValidation, async (req: Request, res:
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.post('/set-password', authLimiter, passwordValidation, async (req: Request, res: Response): Promise<void> => {
+router.post('/set-password', passwordValidation, async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password, otp } = req.body;
 
@@ -516,7 +515,7 @@ router.post('/set-password', authLimiter, passwordValidation, async (req: Reques
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 // Login
-router.post('/login', authLimiter, loginValidation, async (req: Request, res: Response): Promise<void> => {
+router.post('/login', loginValidation, async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
 
@@ -699,7 +698,7 @@ router.post('/login', authLimiter, loginValidation, async (req: Request, res: Re
  *         description: Internal server error
  */
 // Forgot password - Send OTP
-router.post('/forgot-password', passwordResetLimiter, emailValidation, async (req: Request, res: Response): Promise<void> => {
+router.post('/forgot-password', emailValidation, async (req: Request, res: Response): Promise<void> => {
   try {
     const { email } = req.body;
 
@@ -787,7 +786,7 @@ router.post('/forgot-password', passwordResetLimiter, emailValidation, async (re
  *         description: Internal server error
  */
 // Resend OTP
-router.post('/resend-otp', otpLimiter, emailValidation, async (req: Request, res: Response): Promise<void> => {
+router.post('/resend-otp', emailValidation, async (req: Request, res: Response): Promise<void> => {
   try {
     const { email } = req.body;
 

@@ -7,7 +7,6 @@ import cors from 'cors';
 import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
 import { connectDatabase } from './utils/database';
-import { generalLimiter } from './middleware/rateLimiter';
 import routes from './routes';
 import emailService from './services/emailService';
 import swaggerSpecs from './swagger';
@@ -41,8 +40,6 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Rate limiting
-app.use(generalLimiter);
 
 // Request logging middleware
 app.use((req: Request, res: Response, next: NextFunction) => {

@@ -10,7 +10,6 @@ const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
 const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
 const database_1 = require("./utils/database");
-const rateLimiter_1 = require("./middleware/rateLimiter");
 const routes_1 = __importDefault(require("./routes"));
 const emailService_1 = __importDefault(require("./services/emailService"));
 const swagger_1 = __importDefault(require("./swagger"));
@@ -36,7 +35,6 @@ app.use((0, cors_1.default)({
 }));
 app.use(express_1.default.json({ limit: '10mb' }));
 app.use(express_1.default.urlencoded({ extended: true, limit: '10mb' }));
-app.use(rateLimiter_1.generalLimiter);
 app.use((req, res, next) => {
     const timestamp = new Date().toISOString();
     console.log(`${timestamp} - ${req.method} ${req.path} - IP: ${req.ip}`);
