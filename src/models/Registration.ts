@@ -60,21 +60,8 @@ export interface IRegistration extends Document {
   };
 
   mediaInfo?: {
-    profilePhoto?: {
-      originalName?: string;
-      filename?: string;
-      path?: string;
-      size?: number;
-      mimetype?: string;
-    };
-    videoUpload?: {
-      originalName?: string;
-      filename?: string;
-      path?: string;
-      size?: number;
-      mimetype?: string;
-      duration?: number;
-    };
+    profilePhoto?: string; // Base64 string: "data:image/jpeg;base64,..."
+    videoUpload?: string;  // Base64 string: "data:video/mp4;base64,..."
   };
 
   auditionInfo: {
@@ -179,21 +166,8 @@ const RegistrationSchema = new Schema<IRegistration>({
   },
 
   mediaInfo: {
-    profilePhoto: {
-      originalName: String,
-      filename: String,
-      path: String,
-      size: Number,
-      mimetype: String
-    },
-    videoUpload: {
-      originalName: String,
-      filename: String,
-      path: String,
-      size: Number,
-      mimetype: String,
-      duration: Number
-    }
+    profilePhoto: String, // Base64 string: "data:image/jpeg;base64,..."
+    videoUpload: String   // Base64 string: "data:video/mp4;base64,..."
   },
 
   auditionInfo: {

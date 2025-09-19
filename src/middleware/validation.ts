@@ -46,22 +46,15 @@ export const validatePersonalInfo = [
     .withMessage('Please provide a valid email address'),
   
   body('phoneNo')
-    .matches(/^(\+234|0)[789]\d{9}$/)
-    .withMessage('Please provide a valid Nigerian phone number'),
+    .optional()
+    .trim()
+    .isLength({ max: 20 })
+    .withMessage('Phone number cannot exceed 20 characters'),
   
   body('dateOfBirth')
+    .optional()
     .isISO8601()
-    .withMessage('Please provide a valid date of birth')
-    .custom((value) => {
-      const birthDate = new Date(value);
-      const today = new Date();
-      const age = today.getFullYear() - birthDate.getFullYear();
-      
-      if (age < 5 || age > 40) {
-        throw new Error('Age must be between 5 and 40 years');
-      }
-      return true;
-    }),
+    .withMessage('Please provide a valid date of birth'),
   
   body('gender')
     .isIn(['Male', 'Female'])
@@ -262,8 +255,9 @@ export const validateGuardianInfo = [
   
   body('guardianPhoneNo')
     .optional()
-    .matches(/^(\+234|0)[789]\d{9}$/)
-    .withMessage('Please provide a valid guardian phone number'),
+    .trim()
+    .isLength({ max: 20 })
+    .withMessage('Guardian phone number cannot exceed 20 characters'),
   
   handleValidationErrors
 ];

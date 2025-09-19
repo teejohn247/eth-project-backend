@@ -92,21 +92,8 @@ const RegistrationSchema = new mongoose_1.Schema({
         guardianState: String
     },
     mediaInfo: {
-        profilePhoto: {
-            originalName: String,
-            filename: String,
-            path: String,
-            size: Number,
-            mimetype: String
-        },
-        videoUpload: {
-            originalName: String,
-            filename: String,
-            path: String,
-            size: Number,
-            mimetype: String,
-            duration: Number
-        }
+        profilePhoto: String,
+        videoUpload: String
     },
     auditionInfo: {
         auditionLocation: { type: String, default: '' },
