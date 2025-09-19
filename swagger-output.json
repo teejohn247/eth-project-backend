@@ -2014,7 +2014,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "Registration ID (optional - can use user's registration if not provided)"
+            "description": "Registration ID (optional - can use userId in body or authenticated user's registration)"
           }
         ],
         "requestBody": {
@@ -2025,6 +2025,11 @@
                 "type": "object",
                 "description": "Flexible payment data structure - accepts any payment gateway response",
                 "properties": {
+                  "userId": {
+                    "type": "string",
+                    "description": "User ID (alternative to registrationId parameter)",
+                    "example": "64b5f2a5e123456789abcdef"
+                  },
                   "reference": {
                     "type": "string",
                     "description": "Payment reference",
@@ -2068,6 +2073,7 @@
                 },
                 "additionalProperties": true,
                 "example": {
+                  "userId": "64b5f2a5e123456789abcdef",
                   "reference": "PAY_123456789",
                   "amount": 1090,
                   "currency": "NGN",

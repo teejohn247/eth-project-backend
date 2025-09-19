@@ -390,7 +390,8 @@ const savePaymentInfo = async (req, res) => {
     try {
         const { registrationId } = req.params;
         const paymentData = req.body;
-        if (!paymentData || Object.keys(paymentData).length === 0) {
+        const { userId: bodyUserId, ...actualPaymentData } = paymentData;
+        if (!actualPaymentData || Object.keys(actualPaymentData).length === 0) {
             res.status(400).json({
                 success: false,
                 message: 'Payment data is required'
@@ -405,9 +406,17 @@ const savePaymentInfo = async (req, res) => {
             });
         }
         if (!registration) {
+            const targetUserId = bodyUserId || req.user?.userId;
             registration = await Registration_1.default.findOne({
-                userId: req.user?.userId
+                userId: targetUserId
             });
+            if (registration && registration.userId.toString() !== req.user?.userId) {
+                res.status(403).json({
+                    success: false,
+                    message: 'Unauthorized to access this registration'
+                });
+                return;
+            }
         }
         if (!registration) {
             res.status(404).json({
@@ -416,7 +425,7 @@ const savePaymentInfo = async (req, res) => {
             });
             return;
         }
-        const { reference, amount, currency = 'NGN', status, gateway, transactionId, paymentMethod, email, ...otherData } = paymentData;
+        const { reference, amount, currency = 'NGN', status, gateway, transactionId, paymentMethod, email, ...otherData } = actualPaymentData;
         const paymentReference = reference || `ETH_${Date.now()}_${crypto_1.default.randomBytes(8).toString('hex')}`;
         let transaction = await PaymentTransaction_1.default.findOne({
             registrationId: registration._id,
@@ -444,7 +453,7 @@ const savePaymentInfo = async (req, res) => {
             transaction.gatewayReference = transactionId;
         transaction.gatewayResponse = {
             ...transaction.gatewayResponse,
-            frontendData: paymentData,
+            frontendData: actualPaymentData,
             updatedAt: new Date()
         };
         if (status === 'successful' || status === 'success' || status === 'completed') {
@@ -461,7 +470,7 @@ const savePaymentInfo = async (req, res) => {
                 status === 'failed' || status === 'error' ? 'failed' : 'pending',
             transactionId: transactionId || transaction.gatewayReference,
             paymentMethod: paymentMethod,
-            paymentResponse: paymentData,
+            paymentResponse: actualPaymentData,
             paidAt: (status === 'successful' || status === 'success' || status === 'completed') ? new Date() : registration.paymentInfo.paidAt
         };
         if (registration.paymentInfo.paymentStatus === 'completed') {

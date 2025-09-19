@@ -228,7 +228,7 @@ router.post('/refund/:reference', authenticateToken, requireRole('admin'), refun
  *         required: false
  *         schema:
  *           type: string
- *         description: Registration ID (optional - can use user's registration if not provided)
+ *         description: Registration ID (optional - can use userId in body or authenticated user's registration)
  *     requestBody:
  *       required: true
  *       content:
@@ -237,6 +237,10 @@ router.post('/refund/:reference', authenticateToken, requireRole('admin'), refun
  *             type: object
  *             description: Flexible payment data structure - accepts any payment gateway response
  *             properties:
+ *               userId:
+ *                 type: string
+ *                 description: User ID (alternative to registrationId parameter)
+ *                 example: "64b5f2a5e123456789abcdef"
  *               reference:
  *                 type: string
  *                 description: Payment reference
@@ -271,6 +275,7 @@ router.post('/refund/:reference', authenticateToken, requireRole('admin'), refun
  *                 example: "user@example.com"
  *             additionalProperties: true
  *             example:
+ *               userId: "64b5f2a5e123456789abcdef"
  *               reference: "PAY_123456789"
  *               amount: 1090
  *               currency: "NGN"
@@ -333,6 +338,10 @@ router.post('/refund/:reference', authenticateToken, requireRole('admin'), refun
  *       500:
  *         description: Server error
  */
+// Route with optional registrationId parameter
 router.post('/save-info/:registrationId?', authenticateToken, savePaymentInfo);
+
+// Alternative route without any parameters for pure body-based usage
+router.post('/save-info', authenticateToken, savePaymentInfo);
 
 export default router;
