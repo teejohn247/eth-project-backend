@@ -8,7 +8,6 @@ const models_1 = require("../models");
 const jwt_1 = require("../utils/jwt");
 const emailService_1 = __importDefault(require("../services/emailService"));
 const express_validator_1 = require("express-validator");
-const rateLimiter_1 = require("../middleware/rateLimiter");
 const router = (0, express_1.Router)();
 const handleValidation = (req, res, next) => {
     const errors = (0, express_validator_1.validationResult)(req);
@@ -49,7 +48,7 @@ const emailValidation = [
     (0, express_validator_1.body)('email').isEmail().normalizeEmail().withMessage('Please provide a valid email address'),
     handleValidation
 ];
-router.post('/register', rateLimiter_1.authLimiter, registerValidation, async (req, res) => {
+router.post('/register', registerValidation, async (req, res) => {
     try {
         const { firstName, lastName, email } = req.body;
         const existingUser = await models_1.User.findOne({ email });
@@ -93,7 +92,7 @@ router.post('/register', rateLimiter_1.authLimiter, registerValidation, async (r
         });
     }
 });
-router.post('/verify-otp', rateLimiter_1.authLimiter, otpValidation, async (req, res) => {
+router.post('/verify-otp', otpValidation, async (req, res) => {
     try {
         const { email, otp, type } = req.body;
         const user = await models_1.User.findOne({ email });
@@ -177,7 +176,7 @@ router.post('/verify-otp', rateLimiter_1.authLimiter, otpValidation, async (req,
         });
     }
 });
-router.post('/set-password', rateLimiter_1.authLimiter, passwordValidation, async (req, res) => {
+router.post('/set-password', passwordValidation, async (req, res) => {
     try {
         const { email, password, otp } = req.body;
         const user = await models_1.User.findOne({ email }).select('+password');
@@ -244,7 +243,7 @@ router.post('/set-password', rateLimiter_1.authLimiter, passwordValidation, asyn
         });
     }
 });
-router.post('/login', rateLimiter_1.authLimiter, loginValidation, async (req, res) => {
+router.post('/login', loginValidation, async (req, res) => {
     try {
         const { email, password } = req.body;
         const user = await models_1.User.findOne({ email }).select('+password');
@@ -358,7 +357,7 @@ router.post('/login', rateLimiter_1.authLimiter, loginValidation, async (req, re
         });
     }
 });
-router.post('/forgot-password', rateLimiter_1.passwordResetLimiter, emailValidation, async (req, res) => {
+router.post('/forgot-password', emailValidation, async (req, res) => {
     try {
         const { email } = req.body;
         const user = await models_1.User.findOne({ email });
@@ -395,7 +394,7 @@ router.post('/forgot-password', rateLimiter_1.passwordResetLimiter, emailValidat
         });
     }
 });
-router.post('/resend-otp', rateLimiter_1.otpLimiter, emailValidation, async (req, res) => {
+router.post('/resend-otp', emailValidation, async (req, res) => {
     try {
         const { email } = req.body;
         const user = await models_1.User.findOne({ email });
