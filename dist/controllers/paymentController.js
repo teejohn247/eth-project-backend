@@ -547,7 +547,9 @@ exports.savePaymentInfo = savePaymentInfo;
 const getAllPayments = async (req, res) => {
     try {
         const { page = 1, limit = 10, status, paymentMethod, currency, userId, registrationId, startDate, endDate, amountMin, amountMax, search } = req.query;
-        const filter = {};
+        const filter = {
+            userId: req.user?.userId
+        };
         if (status) {
             filter.status = status;
         }
@@ -556,9 +558,6 @@ const getAllPayments = async (req, res) => {
         }
         if (currency) {
             filter.currency = currency;
-        }
-        if (userId) {
-            filter.userId = userId;
         }
         if (registrationId) {
             filter.registrationId = registrationId;
@@ -618,7 +617,6 @@ const getAllPayments = async (req, res) => {
                     status,
                     paymentMethod,
                     currency,
-                    userId,
                     registrationId,
                     startDate,
                     endDate,
