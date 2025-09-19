@@ -447,3 +447,164 @@ export const refundPayment = async (req: AuthenticatedRequest, res: Response): P
     });
   }
 };
+
+// Save flexible payment info
+export const savePaymentInfo = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { registrationId } = req.params;
+    const paymentData = req.body; // Accept any structure from frontend
+
+    // Validate that we have some payment data
+    if (!paymentData || Object.keys(paymentData).length === 0) {
+      res.status(400).json({
+        success: false,
+        message: 'Payment data is required'
+      });
+      return;
+    }
+
+    // Find registration (allow finding by either registrationId or userId)
+    let registration;
+    
+    if (registrationId && registrationId !== 'undefined' && registrationId !== 'null') {
+      // Try to find by registration ID first
+      registration = await Registration.findOne({
+        _id: registrationId,
+        userId: req.user?.userId
+      });
+    }
+    
+    // If not found by registrationId, try to find by userId
+    if (!registration) {
+      registration = await Registration.findOne({
+        userId: req.user?.userId
+      });
+    }
+
+    if (!registration) {
+      res.status(404).json({
+        success: false,
+        message: 'Registration not found'
+      });
+      return;
+    }
+
+    // Extract common payment fields if they exist in the frontend data
+    const {
+      reference,
+      amount,
+      currency = 'NGN',
+      status,
+      gateway,
+      transactionId,
+      paymentMethod,
+      email,
+      ...otherData
+    } = paymentData;
+
+    // Generate reference if not provided
+    const paymentReference = reference || `ETH_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`;
+
+    // Create or update payment transaction
+    let transaction = await PaymentTransaction.findOne({
+      registrationId: registration._id,
+      userId: req.user?.userId
+    });
+
+    if (!transaction) {
+      transaction = new PaymentTransaction({
+        registrationId: registration._id,
+        userId: req.user?.userId,
+        reference: paymentReference,
+        amount: amount || registration.paymentInfo.amount || 1090,
+        currency: currency,
+        status: status || 'pending'
+      });
+    }
+
+    // Update transaction with flexible data
+    if (amount) transaction.amount = amount;
+    if (currency) transaction.currency = currency;
+    if (status) transaction.status = status;
+    if (paymentMethod) transaction.paymentMethod = paymentMethod;
+    if (transactionId) transaction.gatewayReference = transactionId;
+    
+    // Store all payment data in gatewayResponse for flexibility
+    transaction.gatewayResponse = {
+      ...transaction.gatewayResponse,
+      frontendData: paymentData,
+      updatedAt: new Date()
+    };
+
+    // Mark as processed if status indicates success
+    if (status === 'successful' || status === 'success' || status === 'completed') {
+      transaction.status = 'successful';
+      transaction.processedAt = new Date();
+    }
+
+    await transaction.save();
+
+    // Update registration payment info with flexible structure
+    registration.paymentInfo = {
+      ...registration.paymentInfo,
+      paymentReference: paymentReference,
+      amount: amount || registration.paymentInfo.amount,
+      currency: currency,
+      paymentStatus: status === 'successful' || status === 'success' || status === 'completed' ? 'completed' : 
+                    status === 'failed' || status === 'error' ? 'failed' : 'pending',
+      transactionId: transactionId || transaction.gatewayReference,
+      paymentMethod: paymentMethod,
+      paymentResponse: paymentData,
+      paidAt: (status === 'successful' || status === 'success' || status === 'completed') ? new Date() : registration.paymentInfo.paidAt
+    };
+
+    // Mark payment step as completed if payment is successful
+    if (registration.paymentInfo.paymentStatus === 'completed') {
+      const paymentStep = 8; // Payment is step 8
+      if (!registration.completedSteps.includes(paymentStep)) {
+        registration.completedSteps.push(paymentStep);
+      }
+      registration.currentStep = Math.max(paymentStep, registration.currentStep);
+      
+      // Mark registration as submitted if all required steps are completed
+      const requiredSteps = registration.registrationType === 'individual' ? 
+        [1, 2, 4, 5, 6, 7, 8] : // personal, talent, guardian, media, audition, terms, payment
+        [1, 2, 3, 5, 6, 7, 8];  // personal, talent, group, media, audition, terms, payment
+      
+      const allRequiredStepsCompleted = requiredSteps.every(step => 
+        registration.completedSteps.includes(step)
+      );
+      
+      if (allRequiredStepsCompleted) {
+        registration.status = 'submitted';
+      }
+    }
+
+    await registration.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Payment information saved successfully',
+      data: {
+        registrationId: registration._id,
+        paymentReference: paymentReference,
+        paymentStatus: registration.paymentInfo.paymentStatus,
+        amount: registration.paymentInfo.amount,
+        currency: registration.paymentInfo.currency,
+        transactionId: transaction.gatewayReference,
+        currentStep: registration.currentStep,
+        completedSteps: registration.completedSteps,
+        registrationStatus: registration.status,
+        savedData: paymentData // Return what was saved for confirmation
+      }
+    });
+
+  } catch (error) {
+    console.error('Save payment info error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to save payment information',
+      error: process.env.NODE_ENV === 'development' ? error : undefined
+    });
+  }
+};
