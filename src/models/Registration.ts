@@ -10,22 +10,22 @@ export interface IRegistration extends Document {
     lastName: string;
     email: string;
     phoneNo: string;
-    dateOfBirth: Date;
+    dateOfBirth?: Date;
     age?: number;
     placeOfBirth?: string;
-    gender: 'Male' | 'Female';
+    gender?: 'Male' | 'Female';
     maritalStatus?: 'Single' | 'Married';
     address?: string;
     state?: string;
     lga?: string;
     nationality?: string;
-    tshirtSize: 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL';
+    tshirtSize?: 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL';
   };
 
   talentInfo: {
-    talentCategory: 'Singing' | 'Dancing' | 'Acting' | 'Comedy' | 'Drama' | 'Instrumental' | 'Other';
+    talentCategory?: 'Singing' | 'Dancing' | 'Acting' | 'Comedy' | 'Drama' | 'Instrumental' | 'Other';
     otherTalentCategory?: string;
-    skillLevel: 'Beginner' | 'Intermediate' | 'Advanced';
+    skillLevel?: 'Beginner' | 'Intermediate' | 'Advanced';
     stageName?: string;
     previouslyParticipated?: 'Yes' | 'No';
     previousParticipation?: {
@@ -79,7 +79,7 @@ export interface IRegistration extends Document {
 
   auditionInfo: {
     auditionLocation: string;
-    auditionDate: Date;
+    auditionDate?: Date;
     auditionTime: string;
     auditionRequirement?: string;
     otherRequirement?: string;
@@ -122,30 +122,29 @@ const RegistrationSchema = new Schema<IRegistration>({
   registrationType: { type: String, enum: ['individual', 'group'], required: true },
   
   personalInfo: {
-    firstName: { type: String, required: true },
-    lastName: { type: String, required: true },
-    email: { type: String, required: true },
-    phoneNo: { type: String, required: true },
-    dateOfBirth: { type: Date, required: true },
+    firstName: { type: String, default: '' },
+    lastName: { type: String, default: '' },
+    email: { type: String, default: '' },
+    phoneNo: { type: String, default: '' },
+    dateOfBirth: { type: Date },
     age: Number,
     placeOfBirth: String,
-    gender: { type: String, enum: ['Male', 'Female'], required: true },
+    gender: { type: String, enum: ['Male', 'Female'] },
     maritalStatus: { type: String, enum: ['Single', 'Married'] },
     address: String,
     state: String,
     lga: String,
     nationality: String,
-    tshirtSize: { type: String, enum: ['XS', 'S', 'M', 'L', 'XL', 'XXL'], required: true }
+    tshirtSize: { type: String, enum: ['XS', 'S', 'M', 'L', 'XL', 'XXL'] }
   },
 
   talentInfo: {
     talentCategory: { 
       type: String, 
-      enum: ['Singing', 'Dancing', 'Acting', 'Comedy', 'Drama', 'Instrumental', 'Other'],
-      required: true 
+      enum: ['Singing', 'Dancing', 'Acting', 'Comedy', 'Drama', 'Instrumental', 'Other']
     },
     otherTalentCategory: String,
-    skillLevel: { type: String, enum: ['Beginner', 'Intermediate', 'Advanced'], required: true },
+    skillLevel: { type: String, enum: ['Beginner', 'Intermediate', 'Advanced'] },
     stageName: String,
     previouslyParticipated: { type: String, enum: ['Yes', 'No'] },
     previousParticipation: {
@@ -198,9 +197,9 @@ const RegistrationSchema = new Schema<IRegistration>({
   },
 
   auditionInfo: {
-    auditionLocation: { type: String, required: true },
-    auditionDate: { type: Date, required: true },
-    auditionTime: { type: String, required: true },
+    auditionLocation: { type: String, default: '' },
+    auditionDate: { type: Date },
+    auditionTime: { type: String, default: '' },
     auditionRequirement: { 
       type: String
     },
@@ -209,15 +208,15 @@ const RegistrationSchema = new Schema<IRegistration>({
   },
 
   termsConditions: {
-    rulesAcceptance: { type: Boolean, required: true },
-    promotionalAcceptance: { type: Boolean, required: true },
+    rulesAcceptance: { type: Boolean, default: false },
+    promotionalAcceptance: { type: Boolean, default: false },
     contestantSignature: String,
     guardianSignature: String,
     signedAt: { type: Date, default: Date.now }
   },
 
   paymentInfo: {
-    amount: { type: Number, required: true, default: 1090 },
+    amount: { type: Number, default: 0 },
     currency: { type: String, default: 'NGN' },
     paymentStatus: { 
       type: String, 

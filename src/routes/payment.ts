@@ -5,7 +5,8 @@ import {
   getPaymentStatus,
   handlePaymentWebhook,
   refundPayment,
-  savePaymentInfo
+  savePaymentInfo,
+  getAllPayments
 } from '../controllers/paymentController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { validatePayment } from '../middleware/validation';
@@ -343,5 +344,171 @@ router.post('/save-info/:registrationId?', authenticateToken, savePaymentInfo);
 
 // Alternative route without any parameters for pure body-based usage
 router.post('/save-info', authenticateToken, savePaymentInfo);
+
+/**
+ * @swagger
+ * /api/v1/payments:
+ *   get:
+ *     summary: Get all payment transactions with filtering and pagination
+ *     tags: [Payments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 10
+ *         description: Number of items per page
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [initiated, pending, successful, failed, cancelled, refunded]
+ *         description: Filter by payment status
+ *       - in: query
+ *         name: paymentMethod
+ *         schema:
+ *           type: string
+ *         description: Filter by payment method
+ *       - in: query
+ *         name: currency
+ *         schema:
+ *           type: string
+ *           default: NGN
+ *         description: Filter by currency
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         description: Filter by user ID
+ *       - in: query
+ *         name: registrationId
+ *         schema:
+ *           type: string
+ *         description: Filter by registration ID
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Filter payments from this date (YYYY-MM-DD)
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Filter payments until this date (YYYY-MM-DD)
+ *       - in: query
+ *         name: amountMin
+ *         schema:
+ *           type: number
+ *         description: Minimum amount filter
+ *       - in: query
+ *         name: amountMax
+ *         schema:
+ *           type: number
+ *         description: Maximum amount filter
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search in payment reference or gateway reference
+ *     responses:
+ *       200:
+ *         description: Payment transactions retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Payment transactions retrieved successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     payments:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                           registrationId:
+ *                             type: object
+ *                             properties:
+ *                               registrationNumber:
+ *                                 type: string
+ *                               registrationType:
+ *                                 type: string
+ *                               status:
+ *                                 type: string
+ *                           userId:
+ *                             type: object
+ *                             properties:
+ *                               firstName:
+ *                                 type: string
+ *                               lastName:
+ *                                 type: string
+ *                               email:
+ *                                 type: string
+ *                           reference:
+ *                             type: string
+ *                           amount:
+ *                             type: number
+ *                           currency:
+ *                             type: string
+ *                           status:
+ *                             type: string
+ *                           paymentMethod:
+ *                             type: string
+ *                           gatewayReference:
+ *                             type: string
+ *                           processedAt:
+ *                             type: string
+ *                             format: date-time
+ *                           createdAt:
+ *                             type: string
+ *                             format: date-time
+ *                           gatewayResponse:
+ *                             type: object
+ *                             description: Complete gateway response data
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         currentPage:
+ *                           type: integer
+ *                         totalPages:
+ *                           type: integer
+ *                         totalCount:
+ *                           type: integer
+ *                         limit:
+ *                           type: integer
+ *                         hasNextPage:
+ *                           type: boolean
+ *                         hasPrevPage:
+ *                           type: boolean
+ *                     filters:
+ *                       type: object
+ *                       description: Applied filters for reference
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.get('/', authenticateToken, getAllPayments);
 
 export default router;
