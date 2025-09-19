@@ -453,9 +453,12 @@ export const savePaymentInfo = async (req: AuthenticatedRequest, res: Response):
   try {
     const { registrationId } = req.params;
     const paymentData = req.body; // Accept any structure from frontend
+    
+    // Extract userId from payment data if provided
+    const { userId: bodyUserId, ...actualPaymentData } = paymentData;
 
     // Validate that we have some payment data
-    if (!paymentData || Object.keys(paymentData).length === 0) {
+    if (!actualPaymentData || Object.keys(actualPaymentData).length === 0) {
       res.status(400).json({
         success: false,
         message: 'Payment data is required'
@@ -463,7 +466,10 @@ export const savePaymentInfo = async (req: AuthenticatedRequest, res: Response):
       return;
     }
 
-    // Find registration (allow finding by either registrationId or userId)
+    // Find registration using multiple strategies:
+    // 1. registrationId from params
+    // 2. userId from request body
+    // 3. authenticated user's userId
     let registration;
     
     if (registrationId && registrationId !== 'undefined' && registrationId !== 'null') {
@@ -474,11 +480,21 @@ export const savePaymentInfo = async (req: AuthenticatedRequest, res: Response):
       });
     }
     
-    // If not found by registrationId, try to find by userId
+    // If not found by registrationId, try to find by userId from body or authenticated user
     if (!registration) {
+      const targetUserId = bodyUserId || req.user?.userId;
       registration = await Registration.findOne({
-        userId: req.user?.userId
+        userId: targetUserId
       });
+      
+      // Ensure the authenticated user has permission to access this registration
+      if (registration && registration.userId.toString() !== req.user?.userId) {
+        res.status(403).json({
+          success: false,
+          message: 'Unauthorized to access this registration'
+        });
+        return;
+      }
     }
 
     if (!registration) {
@@ -500,7 +516,7 @@ export const savePaymentInfo = async (req: AuthenticatedRequest, res: Response):
       paymentMethod,
       email,
       ...otherData
-    } = paymentData;
+    } = actualPaymentData;
 
     // Generate reference if not provided
     const paymentReference = reference || `ETH_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`;
@@ -532,7 +548,7 @@ export const savePaymentInfo = async (req: AuthenticatedRequest, res: Response):
     // Store all payment data in gatewayResponse for flexibility
     transaction.gatewayResponse = {
       ...transaction.gatewayResponse,
-      frontendData: paymentData,
+      frontendData: actualPaymentData,
       updatedAt: new Date()
     };
 
@@ -554,7 +570,7 @@ export const savePaymentInfo = async (req: AuthenticatedRequest, res: Response):
                     status === 'failed' || status === 'error' ? 'failed' : 'pending',
       transactionId: transactionId || transaction.gatewayReference,
       paymentMethod: paymentMethod,
-      paymentResponse: paymentData,
+      paymentResponse: actualPaymentData,
       paidAt: (status === 'successful' || status === 'success' || status === 'completed') ? new Date() : registration.paymentInfo.paidAt
     };
 
