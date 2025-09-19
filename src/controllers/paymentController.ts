@@ -509,6 +509,7 @@ export const savePaymentInfo = async (req: AuthenticatedRequest, res: Response):
     const {
       reference,
       amount,
+      transAmount, // Payment gateways often use transAmount instead of amount
       currency = 'NGN',
       status,
       gateway,
@@ -517,6 +518,9 @@ export const savePaymentInfo = async (req: AuthenticatedRequest, res: Response):
       email,
       ...otherData
     } = actualPaymentData;
+
+    // Use transAmount if available, otherwise fallback to amount
+    const paymentAmount = transAmount ? parseFloat(transAmount.toString()) : (amount ? parseFloat(amount.toString()) : null);
 
     // Generate reference if not provided
     const paymentReference = reference || `ETH_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`;
@@ -532,18 +536,42 @@ export const savePaymentInfo = async (req: AuthenticatedRequest, res: Response):
         registrationId: registration._id,
         userId: req.user?.userId,
         reference: paymentReference,
-        amount: amount || registration.paymentInfo.amount || 1090,
+        amount: paymentAmount || 0, // Remove default 1090, use 0 if no amount provided
         currency: currency,
         status: status || 'pending'
       });
     }
 
     // Update transaction with flexible data
-    if (amount) transaction.amount = amount;
+    if (paymentAmount) transaction.amount = paymentAmount;
     if (currency) transaction.currency = currency;
-    if (status) transaction.status = status;
     if (paymentMethod) transaction.paymentMethod = paymentMethod;
     if (transactionId) transaction.gatewayReference = transactionId;
+    
+    // Map status values to our enum (flexible handling for different gateways)
+    if (status) {
+      let mappedStatus: 'initiated' | 'pending' | 'successful' | 'failed' | 'cancelled' | 'refunded' = 'pending'; // default
+      
+      // Handle different status formats from various payment gateways
+      if (status === 'successful' || status === 'success' || status === 'completed' || 
+          status === '0' || status === 0 || status === 'SUCCESSFUL' || 
+          status === 'SUCCESS' || status === 'COMPLETED') {
+        mappedStatus = 'successful';
+        transaction.processedAt = new Date();
+      } else if (status === 'failed' || status === 'failure' || status === 'error' || 
+                 status === '1' || status === 1 || status === 'FAILED' || 
+                 status === 'FAILURE' || status === 'ERROR') {
+        mappedStatus = 'failed';
+      } else if (status === 'pending' || status === 'processing' || status === 'initiated' ||
+                 status === 'PENDING' || status === 'PROCESSING' || status === 'INITIATED') {
+        mappedStatus = 'pending';
+      } else if (status === 'cancelled' || status === 'canceled' || status === 'CANCELLED' || 
+                 status === 'CANCELED') {
+        mappedStatus = 'cancelled';
+      }
+      
+      transaction.status = mappedStatus;
+    }
     
     // Store all payment data in gatewayResponse for flexibility
     transaction.gatewayResponse = {
@@ -552,26 +580,31 @@ export const savePaymentInfo = async (req: AuthenticatedRequest, res: Response):
       updatedAt: new Date()
     };
 
-    // Mark as processed if status indicates success
-    if (status === 'successful' || status === 'success' || status === 'completed') {
-      transaction.status = 'successful';
-      transaction.processedAt = new Date();
-    }
-
     await transaction.save();
+
+    // Map payment status for registration (using same logic as transaction)
+    let registrationPaymentStatus = 'pending';
+    if (status === 'successful' || status === 'success' || status === 'completed' || 
+        status === '0' || status === 0 || status === 'SUCCESSFUL' || 
+        status === 'SUCCESS' || status === 'COMPLETED') {
+      registrationPaymentStatus = 'completed';
+    } else if (status === 'failed' || status === 'failure' || status === 'error' || 
+               status === '1' || status === 1 || status === 'FAILED' || 
+               status === 'FAILURE' || status === 'ERROR') {
+      registrationPaymentStatus = 'failed';
+    }
 
     // Update registration payment info with flexible structure
     registration.paymentInfo = {
       ...registration.paymentInfo,
       paymentReference: paymentReference,
-      amount: amount || registration.paymentInfo.amount,
+      amount: paymentAmount || registration.paymentInfo.amount, // Use paymentAmount (transAmount or amount)
       currency: currency,
-      paymentStatus: status === 'successful' || status === 'success' || status === 'completed' ? 'completed' : 
-                    status === 'failed' || status === 'error' ? 'failed' : 'pending',
+      paymentStatus: registrationPaymentStatus,
       transactionId: transactionId || transaction.gatewayReference,
       paymentMethod: paymentMethod,
       paymentResponse: actualPaymentData,
-      paidAt: (status === 'successful' || status === 'success' || status === 'completed') ? new Date() : registration.paymentInfo.paidAt
+      paidAt: registrationPaymentStatus === 'completed' ? new Date() : registration.paymentInfo.paidAt
     };
 
     // Mark payment step as completed if payment is successful
@@ -579,20 +612,22 @@ export const savePaymentInfo = async (req: AuthenticatedRequest, res: Response):
       const paymentStep = 8; // Payment is step 8
       if (!registration.completedSteps.includes(paymentStep)) {
         registration.completedSteps.push(paymentStep);
+        registration.currentStep = Math.max(registration.currentStep, paymentStep);
       }
-      registration.currentStep = Math.max(paymentStep, registration.currentStep);
       
-      // Mark registration as submitted if all required steps are completed
+      // Auto-submit registration when payment is completed (payment is the final step)
+      // Using the same required steps as the original submit endpoint + payment step
       const requiredSteps = registration.registrationType === 'individual' ? 
-        [1, 2, 4, 5, 6, 7, 8] : // personal, talent, guardian, media, audition, terms, payment
-        [1, 2, 3, 5, 6, 7, 8];  // personal, talent, group, media, audition, terms, payment
+        [1, 2, 4, 5, 6, 8] : // personal, talent, guardian, media, audition/terms, payment for individual  
+        [1, 2, 3, 5, 6, 8];  // personal, talent, group, media, audition/terms, payment for group
       
       const allRequiredStepsCompleted = requiredSteps.every(step => 
         registration.completedSteps.includes(step)
       );
       
-      if (allRequiredStepsCompleted) {
+      if (allRequiredStepsCompleted && registration.status === 'draft') {
         registration.status = 'submitted';
+        registration.submittedAt = new Date();
       }
     }
 
@@ -620,6 +655,141 @@ export const savePaymentInfo = async (req: AuthenticatedRequest, res: Response):
     res.status(500).json({
       success: false,
       message: 'Failed to save payment information',
+      error: process.env.NODE_ENV === 'development' ? error : undefined
+    });
+  }
+};
+
+// Get all payment transactions with filtering
+export const getAllPayments = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      paymentMethod,
+      currency,
+      userId,
+      registrationId,
+      startDate,
+      endDate,
+      amountMin,
+      amountMax,
+      search
+    } = req.query;
+
+    // Build filter object
+    const filter: any = {};
+
+    // Status filter
+    if (status) {
+      filter.status = status;
+    }
+
+    // Payment method filter
+    if (paymentMethod) {
+      filter.paymentMethod = paymentMethod;
+    }
+
+    // Currency filter
+    if (currency) {
+      filter.currency = currency;
+    }
+
+    // User ID filter
+    if (userId) {
+      filter.userId = userId;
+    }
+
+    // Registration ID filter
+    if (registrationId) {
+      filter.registrationId = registrationId;
+    }
+
+    // Date range filter
+    if (startDate || endDate) {
+      filter.createdAt = {};
+      if (startDate) {
+        filter.createdAt.$gte = new Date(startDate as string);
+      }
+      if (endDate) {
+        filter.createdAt.$lte = new Date(endDate as string);
+      }
+    }
+
+    // Amount range filter
+    if (amountMin || amountMax) {
+      filter.amount = {};
+      if (amountMin) {
+        filter.amount.$gte = parseFloat(amountMin as string);
+      }
+      if (amountMax) {
+        filter.amount.$lte = parseFloat(amountMax as string);
+      }
+    }
+
+    // Search filter (reference, gatewayReference)
+    if (search) {
+      filter.$or = [
+        { reference: { $regex: search, $options: 'i' } },
+        { gatewayReference: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Calculate pagination
+    const pageNumber = parseInt(page as string, 10);
+    const limitNumber = parseInt(limit as string, 10);
+    const skip = (pageNumber - 1) * limitNumber;
+
+    // Get total count for pagination
+    const totalCount = await PaymentTransaction.countDocuments(filter);
+
+    // Get payments with population
+    const payments = await PaymentTransaction.find(filter)
+      .populate('userId', 'firstName lastName email')
+      .populate('registrationId', 'registrationNumber registrationType status')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNumber)
+      .lean();
+
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(totalCount / limitNumber);
+    const hasNextPage = pageNumber < totalPages;
+    const hasPrevPage = pageNumber > 1;
+
+    res.status(200).json({
+      success: true,
+      message: 'Payment transactions retrieved successfully',
+      data: {
+        payments,
+        pagination: {
+          currentPage: pageNumber,
+          totalPages,
+          totalCount,
+          limit: limitNumber,
+          hasNextPage,
+          hasPrevPage
+        },
+        filters: {
+          status,
+          paymentMethod,
+          currency,
+          userId,
+          registrationId,
+          startDate,
+          endDate,
+          amountMin,
+          amountMax,
+          search
+        }
+      }
+    });
+  } catch (error: any) {
+    console.error('Get all payments error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve payment transactions',
       error: process.env.NODE_ENV === 'development' ? error : undefined
     });
   }

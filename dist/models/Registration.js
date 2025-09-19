@@ -39,29 +39,28 @@ const RegistrationSchema = new mongoose_1.Schema({
     registrationNumber: { type: String, unique: true },
     registrationType: { type: String, enum: ['individual', 'group'], required: true },
     personalInfo: {
-        firstName: { type: String, required: true },
-        lastName: { type: String, required: true },
-        email: { type: String, required: true },
-        phoneNo: { type: String, required: true },
-        dateOfBirth: { type: Date, required: true },
+        firstName: { type: String, default: '' },
+        lastName: { type: String, default: '' },
+        email: { type: String, default: '' },
+        phoneNo: { type: String, default: '' },
+        dateOfBirth: { type: Date },
         age: Number,
         placeOfBirth: String,
-        gender: { type: String, enum: ['Male', 'Female'], required: true },
+        gender: { type: String, enum: ['Male', 'Female'] },
         maritalStatus: { type: String, enum: ['Single', 'Married'] },
         address: String,
         state: String,
         lga: String,
         nationality: String,
-        tshirtSize: { type: String, enum: ['XS', 'S', 'M', 'L', 'XL', 'XXL'], required: true }
+        tshirtSize: { type: String, enum: ['XS', 'S', 'M', 'L', 'XL', 'XXL'] }
     },
     talentInfo: {
         talentCategory: {
             type: String,
-            enum: ['Singing', 'Dancing', 'Acting', 'Comedy', 'Drama', 'Instrumental', 'Other'],
-            required: true
+            enum: ['Singing', 'Dancing', 'Acting', 'Comedy', 'Drama', 'Instrumental', 'Other']
         },
         otherTalentCategory: String,
-        skillLevel: { type: String, enum: ['Beginner', 'Intermediate', 'Advanced'], required: true },
+        skillLevel: { type: String, enum: ['Beginner', 'Intermediate', 'Advanced'] },
         stageName: String,
         previouslyParticipated: { type: String, enum: ['Yes', 'No'] },
         previousParticipation: {
@@ -110,9 +109,9 @@ const RegistrationSchema = new mongoose_1.Schema({
         }
     },
     auditionInfo: {
-        auditionLocation: { type: String, required: true },
-        auditionDate: { type: Date, required: true },
-        auditionTime: { type: String, required: true },
+        auditionLocation: { type: String, default: '' },
+        auditionDate: { type: Date },
+        auditionTime: { type: String, default: '' },
         auditionRequirement: {
             type: String
         },
@@ -120,14 +119,14 @@ const RegistrationSchema = new mongoose_1.Schema({
         hasInstrument: { type: String, enum: ['Yes', 'No'] }
     },
     termsConditions: {
-        rulesAcceptance: { type: Boolean, required: true },
-        promotionalAcceptance: { type: Boolean, required: true },
+        rulesAcceptance: { type: Boolean, default: false },
+        promotionalAcceptance: { type: Boolean, default: false },
         contestantSignature: String,
         guardianSignature: String,
         signedAt: { type: Date, default: Date.now }
     },
     paymentInfo: {
-        amount: { type: Number, required: true, default: 1090 },
+        amount: { type: Number, default: 0 },
         currency: { type: String, default: 'NGN' },
         paymentStatus: {
             type: String,

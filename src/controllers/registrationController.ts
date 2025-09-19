@@ -85,34 +85,7 @@ export const createRegistration = async (req: AuthenticatedRequest, res: Respons
 
     const registration = new Registration({
       userId: req.user?.userId,
-      registrationType,
-      personalInfo: {
-        firstName: 'Draft',
-        lastName: 'User',
-        email: req.user?.email || '',
-        phoneNo: '00000000000',
-        dateOfBirth: new Date(),
-        gender: 'Male',
-        tshirtSize: 'M'
-      },
-      talentInfo: {
-        talentCategory: 'Singing',
-        skillLevel: 'Beginner'
-      },
-      auditionInfo: {
-        auditionLocation: 'Lagos',
-        auditionDate: new Date(),
-        auditionTime: '09:00'
-      },
-      termsConditions: {
-        rulesAcceptance: false,
-        promotionalAcceptance: false
-      },
-      paymentInfo: {
-        amount: process.env.REGISTRATION_FEE ? parseInt(process.env.REGISTRATION_FEE) : 1090,
-        currency: process.env.PAYMENT_CURRENCY || 'NGN',
-        paymentStatus: 'pending'
-      }
+      registrationType
     });
 
     await registration.save();

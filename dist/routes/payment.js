@@ -14,5 +14,6 @@ router.post('/webhook', paymentController_1.handlePaymentWebhook);
 router.post('/refund/:reference', auth_1.authenticateToken, (0, auth_1.requireRole)('admin'), paymentController_1.refundPayment);
 router.post('/save-info/:registrationId?', auth_1.authenticateToken, paymentController_1.savePaymentInfo);
 router.post('/save-info', auth_1.authenticateToken, paymentController_1.savePaymentInfo);
+router.get('/', auth_1.authenticateToken, paymentController_1.getAllPayments);
 exports.default = router;
 //# sourceMappingURL=payment.js.map

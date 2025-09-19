@@ -8,21 +8,21 @@ export interface IRegistration extends Document {
         lastName: string;
         email: string;
         phoneNo: string;
-        dateOfBirth: Date;
+        dateOfBirth?: Date;
         age?: number;
         placeOfBirth?: string;
-        gender: 'Male' | 'Female';
+        gender?: 'Male' | 'Female';
         maritalStatus?: 'Single' | 'Married';
         address?: string;
         state?: string;
         lga?: string;
         nationality?: string;
-        tshirtSize: 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL';
+        tshirtSize?: 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL';
     };
     talentInfo: {
-        talentCategory: 'Singing' | 'Dancing' | 'Acting' | 'Comedy' | 'Drama' | 'Instrumental' | 'Other';
+        talentCategory?: 'Singing' | 'Dancing' | 'Acting' | 'Comedy' | 'Drama' | 'Instrumental' | 'Other';
         otherTalentCategory?: string;
-        skillLevel: 'Beginner' | 'Intermediate' | 'Advanced';
+        skillLevel?: 'Beginner' | 'Intermediate' | 'Advanced';
         stageName?: string;
         previouslyParticipated?: 'Yes' | 'No';
         previousParticipation?: {
@@ -72,7 +72,7 @@ export interface IRegistration extends Document {
     };
     auditionInfo: {
         auditionLocation: string;
-        auditionDate: Date;
+        auditionDate?: Date;
         auditionTime: string;
         auditionRequirement?: string;
         otherRequirement?: string;
