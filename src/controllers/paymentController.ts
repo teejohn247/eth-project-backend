@@ -678,8 +678,10 @@ export const getAllPayments = async (req: AuthenticatedRequest, res: Response): 
       search
     } = req.query;
 
-    // Build filter object
-    const filter: any = {};
+    // Build filter object - always filter by authenticated user
+    const filter: any = {
+      userId: req.user?.userId // Only show payments for the authenticated user
+    };
 
     // Status filter
     if (status) {
@@ -696,10 +698,7 @@ export const getAllPayments = async (req: AuthenticatedRequest, res: Response): 
       filter.currency = currency;
     }
 
-    // User ID filter
-    if (userId) {
-      filter.userId = userId;
-    }
+    // Note: userId parameter is ignored - always use authenticated user's ID
 
     // Registration ID filter
     if (registrationId) {
@@ -775,7 +774,6 @@ export const getAllPayments = async (req: AuthenticatedRequest, res: Response): 
           status,
           paymentMethod,
           currency,
-          userId,
           registrationId,
           startDate,
           endDate,

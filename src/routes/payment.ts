@@ -349,7 +349,7 @@ router.post('/save-info', authenticateToken, savePaymentInfo);
  * @swagger
  * /api/v1/payments:
  *   get:
- *     summary: Get all payment transactions with filtering and pagination
+ *     summary: Get authenticated user's payment transactions with filtering and pagination
  *     tags: [Payments]
  *     security:
  *       - bearerAuth: []
@@ -386,11 +386,6 @@ router.post('/save-info', authenticateToken, savePaymentInfo);
  *           type: string
  *           default: NGN
  *         description: Filter by currency
- *       - in: query
- *         name: userId
- *         schema:
- *           type: string
- *         description: Filter by user ID
  *       - in: query
  *         name: registrationId
  *         schema:
