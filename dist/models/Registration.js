@@ -39,10 +39,10 @@ const RegistrationSchema = new mongoose_1.Schema({
     registrationNumber: { type: String, unique: true },
     registrationType: { type: String, enum: ['individual', 'group'], required: true },
     personalInfo: {
-        firstName: { type: String, default: '' },
-        lastName: { type: String, default: '' },
-        email: { type: String, default: '' },
-        phoneNo: { type: String, default: '' },
+        firstName: String,
+        lastName: String,
+        email: String,
+        phoneNo: String,
         dateOfBirth: { type: Date },
         age: Number,
         placeOfBirth: String,
@@ -112,9 +112,9 @@ const RegistrationSchema = new mongoose_1.Schema({
         }
     },
     auditionInfo: {
-        auditionLocation: { type: String, default: '' },
-        auditionDate: { type: Date },
-        auditionTime: { type: String, default: '' },
+        auditionLocation: String,
+        auditionDate: Date,
+        auditionTime: String,
         auditionRequirement: {
             type: String
         },

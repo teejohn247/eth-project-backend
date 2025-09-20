@@ -227,11 +227,16 @@ const updatePersonalInfo = async (req, res) => {
             return;
         }
         const currentStepToSet = nextStep || 1;
-        const registration = await Registration_1.default.findOneAndUpdate({ _id: foundRegistration._id, userId: req.user?.userId }, {
-            personalInfo,
+        const updateObject = {
             $addToSet: { completedSteps: 1 },
             currentStep: currentStepToSet
-        }, { new: true });
+        };
+        Object.keys(personalInfo).forEach(key => {
+            if (personalInfo[key] !== undefined) {
+                updateObject[`personalInfo.${key}`] = personalInfo[key];
+            }
+        });
+        const registration = await Registration_1.default.findOneAndUpdate({ _id: foundRegistration._id, userId: req.user?.userId }, updateObject, { new: true });
         if (!registration) {
             res.status(404).json({
                 success: false,
@@ -268,11 +273,16 @@ const updateTalentInfo = async (req, res) => {
             return;
         }
         const currentStepToSet = nextStep || 2;
-        const registration = await Registration_1.default.findOneAndUpdate({ _id: foundRegistration._id, userId: req.user?.userId }, {
-            talentInfo,
+        const updateObject = {
             $addToSet: { completedSteps: 2 },
             currentStep: currentStepToSet
-        }, { new: true });
+        };
+        Object.keys(talentInfo).forEach(key => {
+            if (talentInfo[key] !== undefined) {
+                updateObject[`talentInfo.${key}`] = talentInfo[key];
+            }
+        });
+        const registration = await Registration_1.default.findOneAndUpdate({ _id: foundRegistration._id, userId: req.user?.userId }, updateObject, { new: true });
         if (!registration) {
             res.status(404).json({
                 success: false,
@@ -319,11 +329,16 @@ const updateGroupInfo = async (req, res) => {
             return;
         }
         const currentStepToSet = nextStep || 3;
-        const registration = await Registration_1.default.findOneAndUpdate({ _id: foundRegistration._id, userId: req.user?.userId }, {
-            groupInfo,
+        const updateObject = {
             $addToSet: { completedSteps: 3 },
             currentStep: currentStepToSet
-        }, { new: true });
+        };
+        Object.keys(groupInfo).forEach(key => {
+            if (groupInfo[key] !== undefined) {
+                updateObject[`groupInfo.${key}`] = groupInfo[key];
+            }
+        });
+        const registration = await Registration_1.default.findOneAndUpdate({ _id: foundRegistration._id, userId: req.user?.userId }, updateObject, { new: true });
         if (!registration) {
             res.status(404).json({
                 success: false,
@@ -359,11 +374,16 @@ const updateGuardianInfo = async (req, res) => {
             });
             return;
         }
-        const registration = await Registration_1.default.findOneAndUpdate({ _id: foundRegistration._id, userId: req.user?.userId }, {
-            guardianInfo,
+        const updateObject = {
             $addToSet: { completedSteps: 4 },
             currentStep: nextStep || 4
-        }, { new: true });
+        };
+        Object.keys(guardianInfo).forEach(key => {
+            if (guardianInfo[key] !== undefined) {
+                updateObject[`guardianInfo.${key}`] = guardianInfo[key];
+            }
+        });
+        const registration = await Registration_1.default.findOneAndUpdate({ _id: foundRegistration._id, userId: req.user?.userId }, updateObject, { new: true });
         if (!registration) {
             res.status(404).json({
                 success: false,
@@ -539,11 +559,16 @@ const updateAuditionInfo = async (req, res) => {
             });
             return;
         }
-        const registration = await Registration_1.default.findOneAndUpdate({ _id: foundRegistration._id, userId: req.user?.userId }, {
-            auditionInfo,
+        const updateObject = {
             $addToSet: { completedSteps: 6 },
             currentStep: nextStep || 6
-        }, { new: true });
+        };
+        Object.keys(auditionInfo).forEach(key => {
+            if (auditionInfo[key] !== undefined) {
+                updateObject[`auditionInfo.${key}`] = auditionInfo[key];
+            }
+        });
+        const registration = await Registration_1.default.findOneAndUpdate({ _id: foundRegistration._id, userId: req.user?.userId }, updateObject, { new: true });
         if (!registration) {
             res.status(404).json({
                 success: false,
@@ -579,14 +604,17 @@ const updateTermsConditions = async (req, res) => {
             });
             return;
         }
-        const registration = await Registration_1.default.findOneAndUpdate({ _id: foundRegistration._id, userId: req.user?.userId }, {
-            termsConditions: {
-                ...termsConditions,
-                signedAt: new Date()
-            },
+        const updateObject = {
             $addToSet: { completedSteps: 7 },
             currentStep: nextStep || 7
-        }, { new: true });
+        };
+        Object.keys(termsConditions).forEach(key => {
+            if (termsConditions[key] !== undefined) {
+                updateObject[`termsConditions.${key}`] = termsConditions[key];
+            }
+        });
+        updateObject['termsConditions.signedAt'] = new Date();
+        const registration = await Registration_1.default.findOneAndUpdate({ _id: foundRegistration._id, userId: req.user?.userId }, updateObject, { new: true });
         if (!registration) {
             res.status(404).json({
                 success: false,

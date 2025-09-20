@@ -272,13 +272,22 @@ export const updatePersonalInfo = async (req: AuthenticatedRequest, res: Respons
     // Determine the current step to set (use nextStep from frontend or default to step 1)
     const currentStepToSet = nextStep || 1;
 
+    // Build update object with only provided fields
+    const updateObject: any = {
+      $addToSet: { completedSteps: 1 },
+      currentStep: currentStepToSet
+    };
+
+    // Only update fields that are actually provided (not undefined)
+    Object.keys(personalInfo).forEach(key => {
+      if (personalInfo[key] !== undefined) {
+        updateObject[`personalInfo.${key}`] = personalInfo[key];
+      }
+    });
+
     const registration = await Registration.findOneAndUpdate(
       { _id: foundRegistration._id, userId: req.user?.userId },
-      { 
-        personalInfo,
-        $addToSet: { completedSteps: 1 },
-        currentStep: currentStepToSet
-      },
+      updateObject,
       { new: true }
     );
 
@@ -325,13 +334,22 @@ export const updateTalentInfo = async (req: AuthenticatedRequest, res: Response)
     // Determine the current step to set (use nextStep from frontend or default to step 2)
     const currentStepToSet = nextStep || 2;
 
+    // Build update object with only provided fields
+    const updateObject: any = {
+      $addToSet: { completedSteps: 2 },
+      currentStep: currentStepToSet
+    };
+
+    // Only update fields that are actually provided (not undefined)
+    Object.keys(talentInfo).forEach(key => {
+      if (talentInfo[key] !== undefined) {
+        updateObject[`talentInfo.${key}`] = talentInfo[key];
+      }
+    });
+
     const registration = await Registration.findOneAndUpdate(
       { _id: foundRegistration._id, userId: req.user?.userId },
-      { 
-        talentInfo,
-        $addToSet: { completedSteps: 2 },
-        currentStep: currentStepToSet
-      },
+      updateObject,
       { new: true }
     );
 
@@ -392,13 +410,22 @@ export const updateGroupInfo = async (req: AuthenticatedRequest, res: Response):
     // Determine the current step to set (use nextStep from frontend or default to step 3)
     const currentStepToSet = nextStep || 3;
 
+    // Build update object with only provided fields
+    const updateObject: any = {
+      $addToSet: { completedSteps: 3 },
+      currentStep: currentStepToSet
+    };
+
+    // Only update fields that are actually provided (not undefined)
+    Object.keys(groupInfo).forEach(key => {
+      if (groupInfo[key] !== undefined) {
+        updateObject[`groupInfo.${key}`] = groupInfo[key];
+      }
+    });
+
     const registration = await Registration.findOneAndUpdate(
       { _id: foundRegistration._id, userId: req.user?.userId },
-      { 
-        groupInfo,
-        $addToSet: { completedSteps: 3 },
-        currentStep: currentStepToSet
-      },
+      updateObject,
       { new: true }
     );
 
@@ -442,13 +469,22 @@ export const updateGuardianInfo = async (req: AuthenticatedRequest, res: Respons
       return;
     }
 
+    // Build update object with only provided fields
+    const updateObject: any = {
+      $addToSet: { completedSteps: 4 },
+      currentStep: nextStep || 4
+    };
+
+    // Only update fields that are actually provided (not undefined)
+    Object.keys(guardianInfo).forEach(key => {
+      if (guardianInfo[key] !== undefined) {
+        updateObject[`guardianInfo.${key}`] = guardianInfo[key];
+      }
+    });
+
     const registration = await Registration.findOneAndUpdate(
       { _id: foundRegistration._id, userId: req.user?.userId },
-      { 
-        guardianInfo,
-        $addToSet: { completedSteps: 4 },
-        currentStep: nextStep || 4
-      },
+      updateObject,
       { new: true }
     );
 
@@ -658,13 +694,22 @@ export const updateAuditionInfo = async (req: AuthenticatedRequest, res: Respons
       return;
     }
 
+    // Build update object with only provided fields
+    const updateObject: any = {
+      $addToSet: { completedSteps: 6 },
+      currentStep: nextStep || 6
+    };
+
+    // Only update fields that are actually provided (not undefined)
+    Object.keys(auditionInfo).forEach(key => {
+      if (auditionInfo[key] !== undefined) {
+        updateObject[`auditionInfo.${key}`] = auditionInfo[key];
+      }
+    });
+
     const registration = await Registration.findOneAndUpdate(
       { _id: foundRegistration._id, userId: req.user?.userId },
-      { 
-        auditionInfo,
-        $addToSet: { completedSteps: 6 },
-        currentStep: nextStep || 6
-      },
+      updateObject,
       { new: true }
     );
 
@@ -708,16 +753,25 @@ export const updateTermsConditions = async (req: AuthenticatedRequest, res: Resp
       return;
     }
 
+    // Build update object with only provided fields
+    const updateObject: any = {
+      $addToSet: { completedSteps: 7 },
+      currentStep: nextStep || 7
+    };
+
+    // Only update fields that are actually provided (not undefined)
+    Object.keys(termsConditions).forEach(key => {
+      if (termsConditions[key] !== undefined) {
+        updateObject[`termsConditions.${key}`] = termsConditions[key];
+      }
+    });
+
+    // Always update signedAt when terms are updated
+    updateObject['termsConditions.signedAt'] = new Date();
+
     const registration = await Registration.findOneAndUpdate(
       { _id: foundRegistration._id, userId: req.user?.userId },
-      { 
-        termsConditions: {
-          ...termsConditions,
-          signedAt: new Date()
-        },
-        $addToSet: { completedSteps: 7 },
-        currentStep: nextStep || 7
-      },
+      updateObject,
       { new: true }
     );
 
