@@ -7,6 +7,7 @@ const express_1 = __importDefault(require("express"));
 const registrationController_1 = require("../controllers/registrationController");
 const auth_1 = require("../middleware/auth");
 const validation_1 = require("../middleware/validation");
+const upload_1 = require("../middleware/upload");
 const router = express_1.default.Router();
 router.get('/', auth_1.authenticateToken, registrationController_1.getUserRegistrations);
 router.post('/', auth_1.authenticateToken, validation_1.validateRegistration, registrationController_1.createRegistration);
@@ -18,7 +19,7 @@ router.put('/:id/personal-info', auth_1.authenticateToken, validation_1.validate
 router.put('/:id/talent-info', auth_1.authenticateToken, validation_1.validateTalentInfo, registrationController_1.updateTalentInfo);
 router.put('/:id/group-info', auth_1.authenticateToken, validation_1.validateGroupInfo, registrationController_1.updateGroupInfo);
 router.put('/:id/guardian-info', auth_1.authenticateToken, registrationController_1.updateGuardianInfo);
-router.put('/:id/media-info', auth_1.authenticateToken, validation_1.validateMediaInfo, registrationController_1.updateMediaInfo);
+router.put('/:id/media-info', auth_1.authenticateToken, upload_1.uploadMediaFiles, registrationController_1.updateMediaInfo);
 router.put('/:id/audition-info', auth_1.authenticateToken, validation_1.validateAuditionInfo, registrationController_1.updateAuditionInfo);
 router.put('/:id/terms', auth_1.authenticateToken, validation_1.validateTermsConditions, registrationController_1.updateTermsConditions);
 router.get('/:id/status', auth_1.authenticateToken, registrationController_1.getRegistrationStatus);

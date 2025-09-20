@@ -1,4 +1,5 @@
 export { default as User } from './User';
 export { default as OTP } from './OTP';
 export { default as Registration } from './Registration';
+export { default as PaymentTransaction } from './PaymentTransaction';
 //# sourceMappingURL=index.d.ts.map
