@@ -54,8 +54,24 @@ export interface IRegistration extends Document {
         guardianState?: string;
     };
     mediaInfo?: {
-        profilePhoto?: string;
-        videoUpload?: string;
+        profilePhoto?: {
+            url?: string;
+            publicId?: string;
+            format?: string;
+            width?: number;
+            height?: number;
+            bytes?: number;
+        };
+        videoUpload?: {
+            url?: string;
+            publicId?: string;
+            format?: string;
+            width?: number;
+            height?: number;
+            duration?: number;
+            bytes?: number;
+            thumbnailUrl?: string;
+        };
     };
     auditionInfo: {
         auditionLocation: string;

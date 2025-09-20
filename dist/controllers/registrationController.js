@@ -7,6 +7,7 @@ exports.deleteRegistration = exports.getRegistrationStatus = exports.updateTerms
 const Registration_1 = __importDefault(require("../models/Registration"));
 const AuditionSchedule_1 = __importDefault(require("../models/AuditionSchedule"));
 const mongoose_1 = __importDefault(require("mongoose"));
+const cloudinaryService_1 = __importDefault(require("../services/cloudinaryService"));
 const findRegistrationByIdOrUserId = async (idParam, userId) => {
     const isValidObjectId = mongoose_1.default.Types.ObjectId.isValid(idParam);
     let registration;
@@ -389,7 +390,8 @@ exports.updateGuardianInfo = updateGuardianInfo;
 const updateMediaInfo = async (req, res) => {
     try {
         const { id } = req.params;
-        const { nextStep, ...mediaInfo } = req.body;
+        const { nextStep } = req.body;
+        const files = req.files;
         const foundRegistration = await findRegistrationByIdOrUserId(id, req.user?.userId);
         if (!foundRegistration) {
             res.status(404).json({
@@ -398,8 +400,84 @@ const updateMediaInfo = async (req, res) => {
             });
             return;
         }
+        const mediaInfo = {};
+        if (files?.profilePhoto && files.profilePhoto[0]) {
+            try {
+                const photoFile = files.profilePhoto[0];
+                const photoPublicId = `user_${req.user?.userId}_profile_${Date.now()}`;
+                const photoResult = await cloudinaryService_1.default.uploadImage(photoFile.buffer, photoPublicId);
+                mediaInfo.profilePhoto = {
+                    url: photoResult.url,
+                    publicId: photoResult.publicId,
+                    format: photoResult.format,
+                    width: photoResult.width,
+                    height: photoResult.height,
+                    bytes: photoResult.bytes
+                };
+            }
+            catch (error) {
+                console.error('Profile photo upload error:', error);
+                res.status(400).json({
+                    success: false,
+                    message: 'Failed to upload profile photo',
+                    error: process.env.NODE_ENV === 'development' ? error : undefined
+                });
+                return;
+            }
+        }
+        if (files?.videoUpload && files.videoUpload[0]) {
+            try {
+                const videoFile = files.videoUpload[0];
+                if (videoFile.size > 100 * 1024 * 1024) {
+                    res.status(400).json({
+                        success: false,
+                        message: 'Video file is too large. Maximum size is 100MB.',
+                        error: process.env.NODE_ENV === 'development' ? `File size: ${Math.round(videoFile.size / 1024 / 1024)}MB` : undefined
+                    });
+                    return;
+                }
+                const videoPublicId = `user_${req.user?.userId}_video_${Date.now()}`;
+                const videoResult = await cloudinaryService_1.default.uploadVideo(videoFile.buffer, videoPublicId);
+                const thumbnailUrl = cloudinaryService_1.default.generateVideoThumbnail(videoResult.publicId);
+                mediaInfo.videoUpload = {
+                    url: videoResult.url,
+                    publicId: videoResult.publicId,
+                    format: videoResult.format,
+                    width: videoResult.width,
+                    height: videoResult.height,
+                    duration: videoResult.duration,
+                    bytes: videoResult.bytes,
+                    thumbnailUrl: thumbnailUrl
+                };
+            }
+            catch (error) {
+                console.error('Video upload error:', error);
+                let errorMessage = 'Failed to upload video';
+                if (error.message.includes('Invalid video data format')) {
+                    errorMessage = 'Invalid video format. Please upload a valid video file (MP4, MOV, AVI, etc.)';
+                }
+                else if (error.message.includes('too large')) {
+                    errorMessage = 'Video file is too large. Please use a smaller file (max 100MB)';
+                }
+                else if (error.message.includes('rate limit')) {
+                    errorMessage = 'Upload rate limit exceeded. Please try again in a few minutes';
+                }
+                else if (error.message.includes('Invalid video format or corrupted file')) {
+                    errorMessage = 'The video file appears to be corrupted or in an unsupported format. Please try a different file';
+                }
+                res.status(400).json({
+                    success: false,
+                    message: errorMessage,
+                    error: process.env.NODE_ENV === 'development' ? error.message : undefined
+                });
+                return;
+            }
+        }
         const registration = await Registration_1.default.findOneAndUpdate({ _id: foundRegistration._id, userId: req.user?.userId }, {
-            mediaInfo,
+            $set: {
+                'mediaInfo.profilePhoto': mediaInfo.profilePhoto || foundRegistration.mediaInfo?.profilePhoto,
+                'mediaInfo.videoUpload': mediaInfo.videoUpload || foundRegistration.mediaInfo?.videoUpload
+            },
             $addToSet: { completedSteps: 5 },
             currentStep: nextStep || 5
         }, { new: true });
@@ -413,7 +491,11 @@ const updateMediaInfo = async (req, res) => {
         res.status(200).json({
             success: true,
             message: 'Media information updated successfully',
-            data: registration
+            data: registration,
+            uploadedFiles: {
+                profilePhoto: mediaInfo.profilePhoto ? 'uploaded' : 'not provided',
+                videoUpload: mediaInfo.videoUpload ? 'uploaded' : 'not provided'
+            }
         });
     }
     catch (error) {

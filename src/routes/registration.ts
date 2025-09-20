@@ -17,6 +17,7 @@ import {
 } from '../controllers/registrationController';
 import { authenticateToken } from '../middleware/auth';
 import { validateRegistration, validatePersonalInfo, validateTalentInfo, validateMediaInfo, validateAuditionInfo, validateTermsConditions, validateGroupInfo } from '../middleware/validation';
+import { uploadMediaFiles } from '../middleware/upload';
 
 const router = express.Router();
 
@@ -515,7 +516,7 @@ router.put('/:id/guardian-info', authenticateToken, updateGuardianInfo);
  * @swagger
  * /api/v1/registrations/{id}/media-info:
  *   put:
- *     summary: Update media information step (profile photo and video upload)
+ *     summary: Update media information step (profile photo and video upload using form-data)
  *     tags: [Registration Steps]
  *     security:
  *       - bearerAuth: []
@@ -529,21 +530,52 @@ router.put('/:id/guardian-info', authenticateToken, updateGuardianInfo);
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             properties:
  *               profilePhoto:
  *                 type: string
- *                 description: "Base64 encoded profile photo (data URL format)"
- *                 example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD..."
+ *                 format: binary
+ *                 description: "Profile photo file (JPEG, PNG, GIF, etc.) - Max 100MB"
  *               videoUpload:
  *                 type: string
- *                 description: "Base64 encoded audition video (data URL format)"
- *                 example: "data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28y..."
+ *                 format: binary
+ *                 description: "Audition video file (MP4, MOV, AVI, etc.) - Max 100MB"
+ *               nextStep:
+ *                 type: integer
+ *                 description: "Next step number for registration flow"
+ *                 example: 6
+ *           encoding:
+ *             profilePhoto:
+ *               contentType: image/*
+ *             videoUpload:
+ *               contentType: video/*
  *     responses:
  *       200:
  *         description: Media information updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Media information updated successfully"
+ *                 data:
+ *                   $ref: '#/components/schemas/Registration'
+ *                 uploadedFiles:
+ *                   type: object
+ *                   properties:
+ *                     profilePhoto:
+ *                       type: string
+ *                       example: "uploaded"
+ *                     videoUpload:
+ *                       type: string
+ *                       example: "uploaded"
  *       400:
  *         description: Validation error (file size, format, etc.)
  *       401:
@@ -553,7 +585,7 @@ router.put('/:id/guardian-info', authenticateToken, updateGuardianInfo);
  *       500:
  *         description: Internal server error
  */
-router.put('/:id/media-info', authenticateToken, validateMediaInfo, updateMediaInfo);
+router.put('/:id/media-info', authenticateToken, uploadMediaFiles, updateMediaInfo);
 
 /**
  * @swagger

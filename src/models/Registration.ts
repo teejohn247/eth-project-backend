@@ -60,8 +60,24 @@ export interface IRegistration extends Document {
   };
 
   mediaInfo?: {
-    profilePhoto?: string; // Base64 string: "data:image/jpeg;base64,..."
-    videoUpload?: string;  // Base64 string: "data:video/mp4;base64,..."
+    profilePhoto?: {
+      url?: string;        // Cloudinary URL
+      publicId?: string;   // Cloudinary public ID for management
+      format?: string;     // Image format (jpg, png, etc.)
+      width?: number;      // Image width
+      height?: number;     // Image height
+      bytes?: number;      // File size in bytes
+    };
+    videoUpload?: {
+      url?: string;        // Cloudinary URL
+      publicId?: string;   // Cloudinary public ID for management
+      format?: string;     // Video format (mp4, mov, etc.)
+      width?: number;      // Video width
+      height?: number;     // Video height
+      duration?: number;   // Video duration in seconds
+      bytes?: number;      // File size in bytes
+      thumbnailUrl?: string; // Video thumbnail URL
+    };
   };
 
   auditionInfo: {
@@ -166,8 +182,24 @@ const RegistrationSchema = new Schema<IRegistration>({
   },
 
   mediaInfo: {
-    profilePhoto: String, // Base64 string: "data:image/jpeg;base64,..."
-    videoUpload: String   // Base64 string: "data:video/mp4;base64,..."
+    profilePhoto: {
+      url: String,        // Cloudinary URL
+      publicId: String,   // Cloudinary public ID for management
+      format: String,     // Image format (jpg, png, etc.)
+      width: Number,      // Image width
+      height: Number,     // Image height
+      bytes: Number       // File size in bytes
+    },
+    videoUpload: {
+      url: String,        // Cloudinary URL
+      publicId: String,   // Cloudinary public ID for management
+      format: String,     // Video format (mp4, mov, etc.)
+      width: Number,      // Video width
+      height: Number,     // Video height
+      duration: Number,   // Video duration in seconds
+      bytes: Number,      // File size in bytes
+      thumbnailUrl: String // Video thumbnail URL
+    }
   },
 
   auditionInfo: {

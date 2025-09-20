@@ -4,6 +4,7 @@ import userRoutes from './user';
 import registrationRoutes from './registration';
 import paymentRoutes from './payment';
 import locationRoutes from './location';
+import adminRoutes from './admin';
 
 const router = Router();
 
@@ -49,6 +50,7 @@ router.get('/health', (req, res) => {
       registrations: '/api/v1/registrations',
       payments: '/api/v1/payments',
       locations: '/api/v1/locations',
+      admin: '/api/v1/admin',
       documentation: '/api-docs'
     }
   });
@@ -60,5 +62,6 @@ router.use('/user', userRoutes);
 router.use('/registrations', registrationRoutes);
 router.use('/payments', paymentRoutes);
 router.use('/locations', locationRoutes);
+router.use('/admin', adminRoutes);
 
 export default router;
