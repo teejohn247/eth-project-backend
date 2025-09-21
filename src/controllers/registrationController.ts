@@ -211,8 +211,8 @@ export const submitRegistration = async (req: AuthenticatedRequest, res: Respons
 
     // Validate required fields based on registration type
     const requiredSteps = registration.registrationType === 'individual' ? 
-      [1, 2, 4, 5, 6] : // personal, talent, guardian, audition, terms for individual
-      [1, 2, 3, 5, 6];  // personal, talent, group, audition, terms for group
+      [1, 2, 4, 6] : // personal, talent, guardian, audition/terms for individual (media step 5 is optional)
+      [1, 2, 3, 6];  // personal, talent, group, audition/terms for group (media step 5 is optional)
     
     const missingSteps = requiredSteps.filter(step => !registration.completedSteps.includes(step));
     if (missingSteps.length > 0) {

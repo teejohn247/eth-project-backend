@@ -158,8 +158,9 @@ const RegistrationSchema = new mongoose_1.Schema({
 });
 RegistrationSchema.pre('save', async function (next) {
     if (this.isNew && !this.registrationNumber) {
-        const count = await mongoose_1.default.model('Registration').countDocuments();
-        this.registrationNumber = `ETH2024${String(count + 1).padStart(3, '0')}`;
+        const timestamp = Date.now().toString().slice(-6);
+        const random = Math.floor(Math.random() * 100).toString().padStart(2, '0');
+        this.registrationNumber = `ETH2024${timestamp}${random}`;
     }
     if (this.personalInfo.dateOfBirth) {
         const today = new Date();

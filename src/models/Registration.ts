@@ -255,8 +255,10 @@ const RegistrationSchema = new Schema<IRegistration>({
 // Pre-save middleware to generate registration number
 RegistrationSchema.pre('save', async function(next) {
   if (this.isNew && !this.registrationNumber) {
-    const count = await mongoose.model('Registration').countDocuments();
-    this.registrationNumber = `ETH2024${String(count + 1).padStart(3, '0')}`;
+    // Use timestamp to ensure uniqueness
+    const timestamp = Date.now().toString().slice(-6);
+    const random = Math.floor(Math.random() * 100).toString().padStart(2, '0');
+    this.registrationNumber = `ETH2024${timestamp}${random}`;
   }
   
   // Calculate age from date of birth
