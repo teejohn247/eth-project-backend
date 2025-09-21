@@ -616,16 +616,8 @@ export const savePaymentInfo = async (req: AuthenticatedRequest, res: Response):
       }
       
       // Auto-submit registration when payment is completed (payment is the final step)
-      // Using the same required steps as the original submit endpoint + payment step
-      const requiredSteps = registration.registrationType === 'individual' ? 
-        [1, 2, 4, 5, 6, 8] : // personal, talent, guardian, media, audition/terms, payment for individual  
-        [1, 2, 3, 5, 6, 8];  // personal, talent, group, media, audition/terms, payment for group
-      
-      const allRequiredStepsCompleted = requiredSteps.every(step => 
-        registration.completedSteps.includes(step)
-      );
-      
-      if (allRequiredStepsCompleted && registration.status === 'draft') {
+      // Registration should be submitted after successful payment regardless of other steps
+      if (registration.status === 'draft') {
         registration.status = 'submitted';
         registration.submittedAt = new Date();
       }

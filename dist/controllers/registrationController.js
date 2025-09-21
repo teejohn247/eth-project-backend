@@ -177,8 +177,8 @@ const submitRegistration = async (req, res) => {
             return;
         }
         const requiredSteps = registration.registrationType === 'individual' ?
-            [1, 2, 4, 5, 6] :
-            [1, 2, 3, 5, 6];
+            [1, 2, 4, 6] :
+            [1, 2, 3, 6];
         const missingSteps = requiredSteps.filter(step => !registration.completedSteps.includes(step));
         if (missingSteps.length > 0) {
             res.status(400).json({

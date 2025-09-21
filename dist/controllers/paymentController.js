@@ -507,11 +507,7 @@ const savePaymentInfo = async (req, res) => {
                 registration.completedSteps.push(paymentStep);
                 registration.currentStep = Math.max(registration.currentStep, paymentStep);
             }
-            const requiredSteps = registration.registrationType === 'individual' ?
-                [1, 2, 4, 5, 6, 8] :
-                [1, 2, 3, 5, 6, 8];
-            const allRequiredStepsCompleted = requiredSteps.every(step => registration.completedSteps.includes(step));
-            if (allRequiredStepsCompleted && registration.status === 'draft') {
+            if (registration.status === 'draft') {
                 registration.status = 'submitted';
                 registration.submittedAt = new Date();
             }
