@@ -287,6 +287,10 @@ const options = {
             {
                 name: 'Admin',
                 description: 'Administrative endpoints for managing users, registrations, and transactions (Admin only)'
+            },
+            {
+                name: 'Complaints',
+                description: 'Support complaint management endpoints for users and admins'
             }
         ]
     },

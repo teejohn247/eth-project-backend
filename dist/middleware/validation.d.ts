@@ -1,4 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
+export declare const validateComplaint: import("express-validator").ValidationChain[];
+export declare const validateComplaintStatus: import("express-validator").ValidationChain[];
 export declare const handleValidationErrors: (req: Request, res: Response, next: NextFunction) => void;
 export declare const validateRegistration: (import("express-validator").ValidationChain | ((req: Request, res: Response, next: NextFunction) => void))[];
 export declare const validatePersonalInfo: (import("express-validator").ValidationChain | ((req: Request, res: Response, next: NextFunction) => void))[];

@@ -1,6 +1,30 @@
 import { Request, Response, NextFunction } from 'express';
 import { body, validationResult } from 'express-validator';
 
+// Complaint validation
+export const validateComplaint = [
+  body('complaintType')
+    .notEmpty()
+    .withMessage('Complaint type is required')
+    .isLength({ min: 3, max: 100 })
+    .withMessage('Complaint type must be between 3 and 100 characters')
+    .trim(),
+  body('description')
+    .notEmpty()
+    .withMessage('Description is required')
+    .isLength({ min: 10, max: 1000 })
+    .withMessage('Description must be between 10 and 1000 characters')
+    .trim()
+];
+
+export const validateComplaintStatus = [
+  body('status')
+    .notEmpty()
+    .withMessage('Status is required')
+    .isIn(['Pending', 'In Progress', 'Resolved', 'Closed'])
+    .withMessage('Status must be one of: Pending, In Progress, Resolved, Closed')
+];
+
 // Handle validation errors
 export const handleValidationErrors = (req: Request, res: Response, next: NextFunction): void => {
   const errors = validationResult(req);

@@ -1,0 +1,1 @@
+{"success":true,"message":"Complaint submitted successfully","data":{"_id":"68d131eb6f6f2ac0ad2e7caf","firstName":"Tee","lastName":"John","email":"teejohn247@gmail.com","complaintType":"Technical Issue","description":"Unable to upload profile photo during registration. The upload button is not working properly.","status":"Pending","createdAt":"2025-09-22T11:24:27.133Z"}}

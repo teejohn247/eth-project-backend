@@ -10,6 +10,7 @@ const registration_1 = __importDefault(require("./registration"));
 const payment_1 = __importDefault(require("./payment"));
 const location_1 = __importDefault(require("./location"));
 const admin_1 = __importDefault(require("./admin"));
+const complaint_1 = __importDefault(require("./complaint"));
 const router = (0, express_1.Router)();
 router.get('/health', (req, res) => {
     res.json({
@@ -24,6 +25,7 @@ router.get('/health', (req, res) => {
             payments: '/api/v1/payments',
             locations: '/api/v1/locations',
             admin: '/api/v1/admin',
+            complaints: '/api/v1/complaints',
             documentation: '/api-docs'
         }
     });
@@ -34,5 +36,6 @@ router.use('/registrations', registration_1.default);
 router.use('/payments', payment_1.default);
 router.use('/locations', location_1.default);
 router.use('/admin', admin_1.default);
+router.use('/complaints', complaint_1.default);
 exports.default = router;
 //# sourceMappingURL=index.js.map
