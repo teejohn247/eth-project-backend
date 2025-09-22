@@ -1,7 +1,28 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.validateEvaluation = exports.validateRegistrationStatusUpdate = exports.validateFileUpload = exports.validateMediaInfo = exports.validatePayment = exports.validateTermsConditions = exports.validateAuditionInfo = exports.validateGuardianInfo = exports.validateGroupInfo = exports.validateTalentInfo = exports.validatePersonalInfo = exports.validateRegistration = exports.handleValidationErrors = void 0;
+exports.validateEvaluation = exports.validateRegistrationStatusUpdate = exports.validateFileUpload = exports.validateMediaInfo = exports.validatePayment = exports.validateTermsConditions = exports.validateAuditionInfo = exports.validateGuardianInfo = exports.validateGroupInfo = exports.validateTalentInfo = exports.validatePersonalInfo = exports.validateRegistration = exports.handleValidationErrors = exports.validateComplaintStatus = exports.validateComplaint = void 0;
 const express_validator_1 = require("express-validator");
+exports.validateComplaint = [
+    (0, express_validator_1.body)('complaintType')
+        .notEmpty()
+        .withMessage('Complaint type is required')
+        .isLength({ min: 3, max: 100 })
+        .withMessage('Complaint type must be between 3 and 100 characters')
+        .trim(),
+    (0, express_validator_1.body)('description')
+        .notEmpty()
+        .withMessage('Description is required')
+        .isLength({ min: 10, max: 1000 })
+        .withMessage('Description must be between 10 and 1000 characters')
+        .trim()
+];
+exports.validateComplaintStatus = [
+    (0, express_validator_1.body)('status')
+        .notEmpty()
+        .withMessage('Status is required')
+        .isIn(['Pending', 'In Progress', 'Resolved', 'Closed'])
+        .withMessage('Status must be one of: Pending, In Progress, Resolved, Closed')
+];
 const handleValidationErrors = (req, res, next) => {
     const errors = (0, express_validator_1.validationResult)(req);
     if (!errors.isEmpty()) {

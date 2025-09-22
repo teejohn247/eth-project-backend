@@ -61,10 +61,14 @@ class EmailService {
   }
 
   private generateOTPEmailTemplate(otp: string, type: 'verification' | 'password_reset'): string {
-    const title = type === 'verification' ? 'Verify Your Email' : 'Reset Your Password';
+    const title = type === 'verification' ? 'Verify Your Email Address' : 'Reset Your Password';
     const message = type === 'verification' 
-      ? 'Thank you for registering with Edo Talent Hunt! Please use the OTP below to verify your email address.'
-      : 'You requested to reset your password. Please use the OTP below to proceed with password reset.';
+      ? 'Welcome to Edo Talent Hunt! We\'re excited to have you join our community of talented individuals. Please verify your email address to complete your registration.'
+      : 'We received a request to reset your password for your Edo Talent Hunt account. Please use the verification code below to proceed.';
+
+    const actionText = type === 'verification' 
+      ? 'Complete Email Verification'
+      : 'Reset Your Password';
 
     return `
       <!DOCTYPE html>
@@ -74,90 +78,465 @@ class EmailService {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${title}</title>
         <style>
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          
           body {
-            font-family: 'Arial', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             line-height: 1.6;
-            color: #333;
+            color: #333333;
+            background: linear-gradient(135deg, #F5F5DC 0%, #FFF8DC 50%, #FFFACD 100%);
+            margin: 0;
+            padding: 20px;
+          }
+          
+          .email-wrapper {
             max-width: 600px;
             margin: 0 auto;
-            padding: 20px;
-            background-color: #f4f4f4;
+            background: #ffffff;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px rgba(218, 165, 32, 0.2);
+            border: 2px solid rgba(255, 215, 0, 0.3);
           }
-          .container {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-          }
+          
           .header {
+            background: linear-gradient(135deg, #FFD700 0%, #F4D03F 30%, #DAA520 70%, #B8860B 100%);
+            padding: 60px 40px;
             text-align: center;
-            margin-bottom: 30px;
+            position: relative;
+            overflow: hidden;
           }
+          
+          .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.4) 0%, transparent 50%),
+                        radial-gradient(circle at 70% 80%, rgba(255, 255, 255, 0.3) 0%, transparent 50%);
+            pointer-events: none;
+          }
+          
+          .circular-frame {
+            width: 160px;
+            height: 160px;
+            margin: 0 auto 30px;
+            background: #ffffff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 
+              0 0 0 8px rgba(255, 255, 255, 0.8),
+              0 0 0 16px rgba(255, 215, 0, 0.6),
+              0 15px 35px rgba(0, 0, 0, 0.2),
+              inset 0 5px 20px rgba(255, 215, 0, 0.3);
+            position: relative;
+            z-index: 2;
+          }
+          
+          .circular-frame::before {
+            content: '';
+            position: absolute;
+            top: -4px;
+            left: -4px;
+            right: -4px;
+            bottom: -4px;
+            background: linear-gradient(45deg, #FFD700, #F4D03F, #DAA520, #B8860B);
+            border-radius: 50%;
+            z-index: -1;
+            animation: rotate 10s linear infinite;
+          }
+          
+          @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+          
           .logo {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            overflow: hidden;
+            background: #ffffff;
+          }
+          
+          .logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+          }
+          
+          .brand-text {
+            position: relative;
+            z-index: 2;
+          }
+          
+          .brand-name {
+            font-size: 36px;
+            font-weight: 900;
+            color: #1a1a1a;
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.3);
+            letter-spacing: 3px;
+            margin: 0 0 10px 0;
+            text-transform: uppercase;
+          }
+          
+          .brand-tagline {
+            font-size: 16px;
+            color: rgba(26, 26, 26, 0.8);
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin: 0;
+          }
+          
+          .content {
+            padding: 50px 40px;
+            background: #ffffff;
+            text-align: center;
+          }
+          
+          .greeting {
             font-size: 24px;
-            font-weight: bold;
-            color: #DAA520;
-            margin-bottom: 10px;
+            font-weight: 600;
+            color: #2D3748;
+            margin-bottom: 20px;
           }
-          .otp-container {
-            background: #f8f9fa;
-            border: 2px dashed #DAA520;
-            border-radius: 8px;
-            padding: 20px;
-            text-align: center;
-            margin: 20px 0;
+          
+          .message {
+            font-size: 16px;
+            color: #4A5568;
+            line-height: 1.7;
+            margin-bottom: 40px;
+            max-width: 480px;
+            margin-left: auto;
+            margin-right: auto;
           }
-          .otp {
-            font-size: 32px;
-            font-weight: bold;
-            color: #DAA520;
+          
+          .verification-card {
+            background: linear-gradient(135deg, #FFF9E6 0%, #FFF5CC 100%);
+            border: 3px solid #FFD700;
+            border-radius: 20px;
+            padding: 40px 30px;
+            margin: 40px 0;
+            position: relative;
+            overflow: hidden;
+          }
+          
+          .verification-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background: linear-gradient(90deg, #FFD700, #F4D03F, #DAA520, #B8860B);
+          }
+          
+          .verification-title {
+            font-size: 18px;
+            color: #B8860B;
+            font-weight: 700;
+            margin-bottom: 25px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+          }
+          
+          .otp-display {
+            background: #ffffff;
+            border: 3px dashed #DAA520;
+            border-radius: 16px;
+            padding: 30px 20px;
+            margin: 25px 0;
+            box-shadow: 0 8px 25px rgba(218, 165, 32, 0.2);
+          }
+          
+          .otp-code {
+            font-size: 48px;
+            font-weight: 900;
+            color: #B8860B;
             letter-spacing: 8px;
-            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            text-shadow: 2px 2px 4px rgba(184, 134, 11, 0.3);
+            margin: 0;
           }
-          .footer {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #eee;
-            font-size: 12px;
-            color: #666;
+          
+          .otp-timer {
+            font-size: 14px;
+            color: #8B7355;
+            margin-top: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+          }
+          
+          .security-alert {
+            background: linear-gradient(135deg, #FFF5F5 0%, #FED7D7 100%);
+            border: 2px solid #F56565;
+            border-radius: 16px;
+            padding: 25px;
+            margin: 35px 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            text-align: left;
+          }
+          
+          .security-icon {
+            color: #E53E3E;
+            font-size: 24px;
+            margin-top: 2px;
+            min-width: 24px;
+          }
+          
+          .security-content {
+            flex: 1;
+          }
+          
+          .security-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #742A2A;
+            margin-bottom: 8px;
+          }
+          
+          .security-text {
+            font-size: 14px;
+            color: #742A2A;
+            line-height: 1.6;
+          }
+          
+          .help-section {
+            background: #F7FAFC;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 35px 0;
             text-align: center;
           }
-          .warning {
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            color: #856404;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 15px 0;
+          
+          .help-text {
+            font-size: 15px;
+            color: #4A5568;
+            line-height: 1.6;
+            margin: 0;
+          }
+          
+          .footer {
+            background: linear-gradient(135deg, #F7FAFC 0%, #EDF2F7 100%);
+            padding: 40px;
+            text-align: center;
+            border-top: 3px solid #E2E8F0;
+          }
+          
+          .footer-logo {
+            width: 50px;
+            height: 50px;
+            margin: 0 auto 25px;
+            opacity: 0.7;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #FFD700, #DAA520);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          
+          .footer-content {
+            max-width: 400px;
+            margin: 0 auto;
+          }
+          
+          .footer-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #2D3748;
+            margin-bottom: 8px;
+          }
+          
+          .footer-subtitle {
             font-size: 14px;
+            color: #718096;
+            margin-bottom: 20px;
+            font-style: italic;
+          }
+          
+          .footer-text {
+            font-size: 13px;
+            color: #718096;
+            line-height: 1.5;
+            margin-bottom: 20px;
+          }
+          
+          .social-links {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 25px;
+          }
+          
+          .social-link {
+            color: #DAA520;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 8px 16px;
+            border: 2px solid #DAA520;
+            border-radius: 20px;
+            transition: all 0.3s ease;
+          }
+          
+          .social-link:hover {
+            background: #DAA520;
+            color: #ffffff;
+          }
+          
+          @media (max-width: 600px) {
+            body {
+              padding: 10px;
+            }
+            
+            .email-wrapper {
+              border-radius: 16px;
+            }
+            
+            .header {
+              padding: 40px 20px;
+            }
+            
+            .circular-frame {
+              width: 120px;
+              height: 120px;
+            }
+            
+            .logo {
+              width: 90px;
+              height: 90px;
+            }
+            
+            .brand-name {
+              font-size: 24px;
+              letter-spacing: 2px;
+            }
+            
+            .brand-tagline {
+              font-size: 12px;
+            }
+            
+            .content {
+              padding: 30px 20px;
+            }
+            
+            .greeting {
+              font-size: 20px;
+            }
+            
+            .verification-card {
+              padding: 30px 20px;
+            }
+            
+            .otp-code {
+              font-size: 36px;
+              letter-spacing: 6px;
+            }
+            
+            .footer {
+              padding: 30px 20px;
+            }
+            
+            .social-links {
+              flex-direction: column;
+              align-items: center;
+              gap: 10px;
+            }
           }
         </style>
       </head>
       <body>
-        <div class="container">
+        <div class="email-wrapper">
           <div class="header">
-            <div class="logo">🎤 EDO TALENT HUNT</div>
-            <h1>${title}</h1>
+            <div class="circular-frame">
+              <div class="logo">
+                <img src="https://www.edotalenthunt.com/assets/img/project/eth-logo-wht.png" alt="Edo Talent Hunt Logo" />
+              </div>
+            </div>
+            <div class="brand-text">
+              <h1 class="brand-name">Edo Talent Hunt</h1>
+              <p class="brand-tagline">Discover • Nurture • Celebrate</p>
+            </div>
           </div>
           
-          <p>Hello,</p>
-          <p>${message}</p>
-          
-          <div class="otp-container">
-            <p><strong>Your OTP Code:</strong></p>
-            <div class="otp">${otp}</div>
-            <p><small>This code will expire in 10 minutes</small></p>
+          <div class="content">
+            <h2 class="greeting">Hello!</h2>
+            
+            <p class="message">${message}</p>
+            
+            <div class="verification-card">
+              <h3 class="verification-title">${actionText}</h3>
+              <div class="otp-display">
+                <div class="otp-code">${otp}</div>
+                <div class="otp-timer">
+                  <span>⏰</span>
+                  <span>This code expires in 10 minutes</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="security-alert">
+              <div class="security-icon">🔒</div>
+              <div class="security-content">
+                <div class="security-title">Security Notice</div>
+                <div class="security-text">
+                  This verification code is confidential and should never be shared with anyone. Our team will never ask for your verification code via phone, email, or any other means. If you didn't request this code, please ignore this email and consider changing your account password.
+                </div>
+              </div>
+            </div>
+            
+            <div class="help-section">
+              <p class="help-text">
+                ${type === 'verification' 
+                  ? 'Having trouble? Make sure to check your spam folder. If you continue having issues, please contact our support team.'
+                  : 'If you didn\'t request a password reset, please ignore this email. Your account remains secure and no changes have been made.'}
+              </p>
+            </div>
           </div>
-          
-          <div class="warning">
-            <strong>Security Notice:</strong> Never share this OTP with anyone. Our team will never ask for your OTP via phone or email.
-          </div>
-          
-          <p>If you didn't request this ${type === 'verification' ? 'verification' : 'password reset'}, please ignore this email.</p>
           
           <div class="footer">
-            <p>© 2025 Edo Talent Hunt. All rights reserved.</p>
-            <p>This is an automated email, please do not reply.</p>
+            <div class="footer-logo">
+              <svg width="30" height="30" viewBox="0 0 30 30" fill="white">
+                <circle cx="15" cy="15" r="12" fill="none" stroke="white" stroke-width="2"/>
+                <path d="M10 12 L20 12 L21 8 L9 8 Z" fill="white"/>
+                <rect x="14" y="14" width="2" height="8" fill="white"/>
+                <rect x="12" y="22" width="6" height="1" fill="white"/>
+              </svg>
+            </div>
+            
+            <div class="footer-content">
+              <div class="footer-title">Edo Talent Hunt</div>
+              <div class="footer-subtitle">Empowering talents across Edo State and beyond</div>
+              
+              <div class="footer-text">
+                © 2024 Edo Talent Hunt. All rights reserved.<br>
+                This is an automated message, please do not reply directly to this email.
+              </div>
+              
+              <div class="social-links">
+                <a href="#" class="social-link">Website</a>
+                <a href="#" class="social-link">Instagram</a>
+                <a href="#" class="social-link">Twitter</a>
+                <a href="#" class="social-link">Facebook</a>
+              </div>
+            </div>
           </div>
         </div>
       </body>

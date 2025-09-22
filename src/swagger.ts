@@ -280,10 +280,14 @@ const options: swaggerJsdoc.Options = {
         name: 'Locations',
         description: 'Nigerian states and LGAs location data endpoints'
       },
-      {
-        name: 'Admin',
-        description: 'Administrative endpoints for managing users, registrations, and transactions (Admin only)'
-      }
+        {
+          name: 'Admin',
+          description: 'Administrative endpoints for managing users, registrations, and transactions (Admin only)'
+        },
+        {
+          name: 'Complaints',
+          description: 'Support complaint management endpoints for users and admins'
+        }
     ]
   },
   apis: [

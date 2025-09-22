@@ -36,6 +36,9 @@ app.use(cors({
   maxAge: 86400 // 24 hours preflight cache
 }));
 
+// Static files middleware
+app.use('/public', express.static('public'));
+
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
