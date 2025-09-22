@@ -4,6 +4,7 @@ import { generateToken } from '../utils/jwt';
 import emailService from '../services/emailService';
 import { body, validationResult } from 'express-validator';
 import { AuthResponse, OTPResponse } from '../types';
+import { verifyBulkParticipantOTP, checkBulkParticipantStatus } from '../controllers/bulkParticipantController';
 
 const router = Router();
 
@@ -826,5 +827,142 @@ router.post('/resend-otp', emailValidation, async (req: Request, res: Response):
   }
 });
 
+/**
+ * @swagger
+ * /api/v1/auth/bulk-participant/verify:
+ *   post:
+ *     summary: Verify bulk participant OTP and create account
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - otp
+ *               - password
+ *               - confirmPassword
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Email address of the bulk participant
+ *                 example: "participant@example.com"
+ *               otp:
+ *                 type: string
+ *                 description: OTP received via invitation email
+ *                 example: "123456"
+ *               password:
+ *                 type: string
+ *                 minLength: 8
+ *                 description: Password for the new account
+ *                 example: "SecurePass123!"
+ *               confirmPassword:
+ *                 type: string
+ *                 description: Password confirmation
+ *                 example: "SecurePass123!"
+ *     responses:
+ *       201:
+ *         description: Account created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Account created successfully. Your registration slot is already paid for!"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     token:
+ *                       type: string
+ *                       description: JWT token for authentication
+ *                     user:
+ *                       type: object
+ *                       properties:
+ *                         id: { type: string }
+ *                         firstName: { type: string }
+ *                         lastName: { type: string }
+ *                         email: { type: string }
+ *                         role: { type: string }
+ *                     registration:
+ *                       type: object
+ *                       properties:
+ *                         registrationId: { type: string }
+ *                         registrationNumber: { type: string }
+ *                         currentStep: { type: integer }
+ *                         status: { type: string }
+ *                         isBulkParticipant: { type: boolean }
+ *                         bulkRegistrationNumber: { type: string }
+ *                         paymentRequired: { type: boolean }
+ *       400:
+ *         description: Validation error or invalid OTP
+ *       404:
+ *         description: Bulk registration invitation not found
+ *       500:
+ *         description: Server error
+ */
+router.post('/bulk-participant/verify', [
+  body('email').isEmail().withMessage('Please provide a valid email'),
+  body('otp').isLength({ min: 4, max: 8 }).withMessage('OTP must be 4-8 characters'),
+  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+  body('confirmPassword').notEmpty().withMessage('Password confirmation is required'),
+  handleValidation
+], verifyBulkParticipantOTP);
+
+/**
+ * @swagger
+ * /api/v1/auth/bulk-participant/status/{email}:
+ *   get:
+ *     summary: Check bulk participant invitation status
+ *     tags: [Authentication]
+ *     parameters:
+ *       - in: path
+ *         name: email
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: email
+ *         description: Email address of the bulk participant
+ *     responses:
+ *       200:
+ *         description: Participant status retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Bulk participant status retrieved successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     email: { type: string }
+ *                     firstName: { type: string }
+ *                     lastName: { type: string }
+ *                     invitationStatus: { type: string }
+ *                     invitationSentAt: { type: string, format: date-time }
+ *                     registeredAt: { type: string, format: date-time }
+ *                     bulkRegistrationNumber: { type: string }
+ *                     hasAccount: { type: boolean }
+ *                     hasRegistration: { type: boolean }
+ *                     participantId: { type: string }
+ *                     registrationId: { type: string }
+ *       404:
+ *         description: Bulk registration invitation not found
+ *       500:
+ *         description: Server error
+ */
+router.get('/bulk-participant/status/:email', checkBulkParticipantStatus);
 
 export default router;

@@ -38,8 +38,8 @@ const handleValidationErrors = (req, res, next) => {
 exports.handleValidationErrors = handleValidationErrors;
 exports.validateRegistration = [
     (0, express_validator_1.body)('registrationType')
-        .isIn(['individual', 'group'])
-        .withMessage('Registration type must be either individual or group'),
+        .isIn(['individual', 'group', 'bulk'])
+        .withMessage('Registration type must be individual, group, or bulk'),
     exports.handleValidationErrors
 ];
 exports.validatePersonalInfo = [

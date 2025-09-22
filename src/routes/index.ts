@@ -2,6 +2,7 @@ import { Router } from 'express';
 import authRoutes from './auth';
 import userRoutes from './user';
 import registrationRoutes from './registration';
+import bulkRegistrationRoutes from './bulkRegistration';
 import paymentRoutes from './payment';
 import locationRoutes from './location';
 import adminRoutes from './admin';
@@ -49,6 +50,7 @@ router.get('/health', (req, res) => {
       authentication: '/api/v1/auth',
       user: '/api/v1/user',
       registrations: '/api/v1/registrations',
+      bulkRegistrations: '/api/v1/bulk-registrations',
            payments: '/api/v1/payments',
            locations: '/api/v1/locations',
            admin: '/api/v1/admin',
@@ -62,6 +64,7 @@ router.get('/health', (req, res) => {
 router.use('/auth', authRoutes);
 router.use('/user', userRoutes);
 router.use('/registrations', registrationRoutes);
+router.use('/bulk-registrations', bulkRegistrationRoutes);
 router.use('/payments', paymentRoutes);
 router.use('/locations', locationRoutes);
 router.use('/admin', adminRoutes);

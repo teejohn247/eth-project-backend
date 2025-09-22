@@ -607,6 +607,39 @@ export const savePaymentInfo = async (req: AuthenticatedRequest, res: Response):
       paidAt: registrationPaymentStatus === 'completed' ? new Date() : registration.paymentInfo.paidAt
     };
 
+    // Handle bulk registration payment
+    if (registration.registrationType === 'bulk' && registration.bulkRegistrationId) {
+      try {
+        const { BulkRegistration } = await import('../models');
+        const bulkRegistration = await BulkRegistration.findById(registration.bulkRegistrationId);
+        
+        if (bulkRegistration) {
+          // Update bulk registration payment info
+          bulkRegistration.paymentInfo = {
+            paymentStatus: registrationPaymentStatus === 'completed' ? 'completed' : 
+                          registrationPaymentStatus === 'failed' ? 'failed' : 'pending',
+            paymentReference: paymentReference,
+            transactionId: transactionId || transaction.gatewayReference,
+            paymentMethod: paymentMethod,
+            paidAt: registrationPaymentStatus === 'completed' ? new Date() : undefined,
+            paymentResponse: actualPaymentData
+          };
+
+          // Update bulk registration status
+          if (registrationPaymentStatus === 'completed') {
+            bulkRegistration.status = 'active';
+          } else if (registrationPaymentStatus === 'failed') {
+            bulkRegistration.status = 'payment_pending';
+          }
+
+          await bulkRegistration.save();
+        }
+      } catch (error) {
+        console.error('Failed to update bulk registration payment:', error);
+        // Don't fail the main payment processing if bulk update fails
+      }
+    }
+
     // Mark payment step as completed if payment is successful
     if (registration.paymentInfo.paymentStatus === 'completed') {
       const paymentStep = 8; // Payment is step 8
@@ -615,9 +648,9 @@ export const savePaymentInfo = async (req: AuthenticatedRequest, res: Response):
         registration.currentStep = Math.max(registration.currentStep, paymentStep);
       }
       
-      // Auto-submit registration when payment is completed (payment is the final step)
-      // Registration should be submitted after successful payment regardless of other steps
-      if (registration.status === 'draft') {
+      // For bulk registrations, don't auto-submit since the flow continues with adding participants
+      // For regular registrations, auto-submit when payment is completed
+      if (registration.registrationType !== 'bulk' && registration.status === 'draft') {
         registration.status = 'submitted';
         registration.submittedAt = new Date();
       }
@@ -625,21 +658,53 @@ export const savePaymentInfo = async (req: AuthenticatedRequest, res: Response):
 
     await registration.save();
 
+    // Prepare response data
+    const responseData: any = {
+      registrationId: registration._id,
+      paymentReference: paymentReference,
+      paymentStatus: registration.paymentInfo.paymentStatus,
+      amount: registration.paymentInfo.amount,
+      currency: registration.paymentInfo.currency,
+      transactionId: transaction.gatewayReference,
+      currentStep: registration.currentStep,
+      completedSteps: registration.completedSteps,
+      registrationStatus: registration.status,
+      savedData: paymentData // Return what was saved for confirmation
+    };
+
+    // Add bulk registration information if applicable
+    if (registration.registrationType === 'bulk' && registration.bulkRegistrationId) {
+      try {
+        const { BulkRegistration } = await import('../models');
+        const bulkRegistration = await BulkRegistration.findById(registration.bulkRegistrationId);
+        
+        if (bulkRegistration) {
+          responseData.bulkRegistration = {
+            bulkRegistrationId: bulkRegistration._id,
+            bulkRegistrationNumber: bulkRegistration.bulkRegistrationNumber,
+            totalSlots: bulkRegistration.totalSlots,
+            usedSlots: bulkRegistration.usedSlots,
+            availableSlots: bulkRegistration.availableSlots,
+            status: bulkRegistration.status,
+            canAddParticipants: bulkRegistration.status === 'active',
+            nextStep: bulkRegistration.status === 'active' ? 'add_participants' : 'payment',
+            addParticipantEndpoint: bulkRegistration.status === 'active' ? 
+              `/api/v1/registrations/${registration._id}/participants` : undefined
+          };
+        }
+      } catch (error) {
+        console.error('Failed to fetch bulk registration info for response:', error);
+      }
+    }
+
+    const message = registration.registrationType === 'bulk' && registration.paymentInfo.paymentStatus === 'completed' 
+      ? 'Bulk payment processed successfully. You can now add participants.'
+      : 'Payment information saved successfully';
+
     res.status(200).json({
       success: true,
-      message: 'Payment information saved successfully',
-      data: {
-        registrationId: registration._id,
-        paymentReference: paymentReference,
-        paymentStatus: registration.paymentInfo.paymentStatus,
-        amount: registration.paymentInfo.amount,
-        currency: registration.paymentInfo.currency,
-        transactionId: transaction.gatewayReference,
-        currentStep: registration.currentStep,
-        completedSteps: registration.completedSteps,
-        registrationStatus: registration.status,
-        savedData: paymentData // Return what was saved for confirmation
-      }
+      message: message,
+      data: responseData
     });
 
   } catch (error) {

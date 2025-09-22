@@ -277,6 +277,10 @@ const options = {
                 description: 'Registration CRUD operations and management'
             },
             {
+                name: 'Bulk Registration',
+                description: 'Bulk registration management endpoints for purchasing multiple slots'
+            },
+            {
                 name: 'Payment',
                 description: 'Payment processing and transaction management'
             },

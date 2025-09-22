@@ -2,7 +2,9 @@ import mongoose, { Document } from 'mongoose';
 export interface IRegistration extends Document {
     userId: mongoose.Types.ObjectId;
     registrationNumber: string;
-    registrationType: 'individual' | 'group';
+    registrationType: 'individual' | 'group' | 'bulk';
+    isBulkParticipant?: boolean;
+    bulkRegistrationId?: mongoose.Types.ObjectId;
     personalInfo: {
         firstName: string;
         lastName: string;

@@ -42,8 +42,8 @@ export const handleValidationErrors = (req: Request, res: Response, next: NextFu
 // Registration validation
 export const validateRegistration = [
   body('registrationType')
-    .isIn(['individual', 'group'])
-    .withMessage('Registration type must be either individual or group'),
+    .isIn(['individual', 'group', 'bulk'])
+    .withMessage('Registration type must be individual, group, or bulk'),
   handleValidationErrors
 ];
 

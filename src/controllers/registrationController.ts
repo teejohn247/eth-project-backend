@@ -94,13 +94,438 @@ export const createRegistration = async (req: AuthenticatedRequest, res: Respons
     res.status(201).json({
       success: true,
       message: 'Registration created successfully',
-      data: registration
+      data: {
+        ...registration.toObject(),
+        nextStep: registrationType === 'bulk' ? 'slot_selection' : 'personal_info',
+        isBulk: registrationType === 'bulk',
+        pricePerSlot: registrationType === 'bulk' ? 10000 : undefined,
+        bulkSlotEndpoint: registrationType === 'bulk' ? `/api/v1/registrations/${registration._id}/bulk-slots` : undefined
+      }
     });
   } catch (error) {
     console.error('Create registration error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to create registration',
+      error: process.env.NODE_ENV === 'development' ? error : undefined
+    });
+  }
+};
+
+// Add bulk slots to a registration
+export const addBulkSlots = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { totalSlots } = req.body;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Unauthorized: User ID not found in token' });
+      return;
+    }
+
+    // Validate slot count
+    if (!totalSlots || totalSlots < 2 || totalSlots > 50) {
+      res.status(400).json({ 
+        success: false, 
+        message: 'Total slots must be between 2 and 50' 
+      });
+      return;
+    }
+
+    // Find the registration
+    const registration = await findRegistrationByIdOrUserId(id, userId);
+    if (!registration) {
+      res.status(404).json({
+        success: false,
+        message: 'Registration not found'
+      });
+      return;
+    }
+
+    // Verify this is a bulk registration
+    if (registration.registrationType !== 'bulk') {
+      res.status(400).json({
+        success: false,
+        message: 'This endpoint is only for bulk registrations'
+      });
+      return;
+    }
+
+    // Check if this specific registration already has bulk slots and they still exist
+    if (registration.bulkRegistrationId) {
+      const { BulkRegistration } = await import('../models');
+      const existingBulkRegistration = await BulkRegistration.findById(registration.bulkRegistrationId);
+      
+      if (existingBulkRegistration) {
+        res.status(400).json({
+          success: false,
+          message: 'This registration already has bulk slots configured.'
+        });
+        return;
+      } else {
+        // Clear the invalid reference if the bulk registration no longer exists
+        registration.bulkRegistrationId = undefined;
+        await registration.save();
+      }
+    }
+
+    // Get price per slot
+    const pricePerSlot = 10000;
+    const totalAmount = totalSlots * pricePerSlot;
+
+    // Create bulk registration
+    const { BulkRegistration } = await import('../models');
+    const bulkRegistration = new BulkRegistration({
+      ownerId: userId,
+      totalSlots,
+      pricePerSlot,
+      totalAmount,
+      currency: 'NGN',
+      status: 'payment_pending',
+      participants: []
+    });
+
+    await bulkRegistration.save();
+
+    // Update the registration with bulk registration reference
+    registration.bulkRegistrationId = bulkRegistration._id;
+    registration.paymentInfo = {
+      amount: totalAmount,
+      currency: 'NGN',
+      paymentStatus: 'pending',
+      paymentReference: '',
+      transactionId: '',
+      paymentMethod: '',
+      paidAt: undefined,
+      paymentResponse: {}
+    };
+    await registration.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Bulk slots added successfully. Proceed to payment.',
+      data: {
+        registrationId: registration._id,
+        registrationNumber: registration.registrationNumber,
+        bulkRegistrationId: bulkRegistration._id,
+        bulkRegistrationNumber: bulkRegistration.bulkRegistrationNumber,
+        totalSlots: bulkRegistration.totalSlots,
+        pricePerSlot: bulkRegistration.pricePerSlot,
+        totalAmount: bulkRegistration.totalAmount,
+        currency: bulkRegistration.currency,
+        status: bulkRegistration.status,
+        paymentInfo: {
+          paymentStatus: bulkRegistration.paymentInfo.paymentStatus,
+          amount: totalAmount,
+          currency: 'NGN'
+        },
+        nextStep: 'payment',
+        paymentEndpoint: `/api/v1/registrations/${registration._id}/bulk-payment`
+      }
+    });
+
+  } catch (error) {
+    console.error('Add bulk slots error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to add bulk slots',
+      error: process.env.NODE_ENV === 'development' ? error : undefined
+    });
+  }
+};
+
+// Process bulk payment for a registration
+export const processBulkPayment = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.userId;
+    const paymentData = req.body;
+
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Unauthorized: User ID not found in token' });
+      return;
+    }
+
+    // Find the registration
+    const registration = await findRegistrationByIdOrUserId(id, userId);
+    if (!registration) {
+      res.status(404).json({
+        success: false,
+        message: 'Registration not found'
+      });
+      return;
+    }
+
+    // Verify this is a bulk registration
+    if (registration.registrationType !== 'bulk') {
+      res.status(400).json({
+        success: false,
+        message: 'This endpoint is only for bulk registrations'
+      });
+      return;
+    }
+
+    if (!registration.bulkRegistrationId) {
+      res.status(400).json({
+        success: false,
+        message: 'No bulk registration found. Please add slots first.'
+      });
+      return;
+    }
+
+    // Get the bulk registration
+    const { BulkRegistration } = await import('../models');
+    const bulkRegistration = await BulkRegistration.findById(registration.bulkRegistrationId);
+    if (!bulkRegistration) {
+      res.status(404).json({
+        success: false,
+        message: 'Bulk registration not found'
+      });
+      return;
+    }
+
+    // Extract payment information with flexible status mapping
+    const transAmount = paymentData.transAmount || paymentData.amount || bulkRegistration.totalAmount;
+    
+    // Map various status formats to our enum
+    let mappedStatus: 'pending' | 'processing' | 'completed' | 'failed' | 'refunded' = 'pending';
+    const statusValue = paymentData.status || paymentData.transaction_status || paymentData.paymentStatus;
+    
+    if (statusValue === '0' || statusValue === 0 || 
+        statusValue === 'successful' || statusValue === 'success' || 
+        statusValue === 'completed' || statusValue === 'paid') {
+      mappedStatus = 'completed';
+    } else if (statusValue === '1' || statusValue === 1 || 
+               statusValue === 'failed' || statusValue === 'failure' || 
+               statusValue === 'declined' || statusValue === 'error') {
+      mappedStatus = 'failed';
+    } else if (statusValue === 'processing' || statusValue === 'pending') {
+      mappedStatus = 'processing';
+    }
+
+    // Update bulk registration payment information
+    bulkRegistration.paymentInfo = {
+      paymentStatus: mappedStatus,
+      paymentReference: paymentData.reference || paymentData.paymentReference || paymentData.transaction_reference,
+      transactionId: paymentData.transactionId || paymentData.transaction_id || paymentData.id,
+      paymentMethod: paymentData.paymentMethod || paymentData.payment_method || paymentData.channel,
+      paidAt: mappedStatus === 'completed' ? new Date() : undefined,
+      paymentResponse: paymentData
+    };
+
+    // Update bulk registration status based on payment
+    if (mappedStatus === 'completed') {
+      bulkRegistration.status = 'active';
+    } else if (mappedStatus === 'failed') {
+      bulkRegistration.status = 'payment_pending';
+    }
+
+    await bulkRegistration.save();
+
+    // Update registration payment info
+    registration.paymentInfo = {
+      amount: transAmount,
+      currency: 'NGN',
+      paymentStatus: mappedStatus,
+      paymentReference: paymentData.reference || paymentData.paymentReference || paymentData.transaction_reference,
+      transactionId: paymentData.transactionId || paymentData.transaction_id || paymentData.id,
+      paymentMethod: paymentData.paymentMethod || paymentData.payment_method || paymentData.channel,
+      paidAt: mappedStatus === 'completed' ? new Date() : undefined,
+      paymentResponse: paymentData
+    };
+
+    await registration.save();
+
+    res.status(200).json({
+      success: true,
+      message: mappedStatus === 'completed' 
+        ? 'Bulk payment processed successfully. You can now add participants.' 
+        : 'Payment status updated.',
+      data: {
+        registrationId: registration._id,
+        registrationNumber: registration.registrationNumber,
+        bulkRegistrationId: bulkRegistration._id,
+        bulkRegistrationNumber: bulkRegistration.bulkRegistrationNumber,
+        paymentStatus: bulkRegistration.paymentInfo.paymentStatus,
+        status: bulkRegistration.status,
+        totalSlots: bulkRegistration.totalSlots,
+        availableSlots: bulkRegistration.availableSlots,
+        canAddParticipants: bulkRegistration.status === 'active',
+        nextStep: mappedStatus === 'completed' ? 'add_participants' : 'payment',
+        addParticipantEndpoint: mappedStatus === 'completed' ? `/api/v1/registrations/${registration._id}/participants` : undefined
+      }
+    });
+
+  } catch (error) {
+    console.error('Process bulk payment error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process bulk payment',
+      error: process.env.NODE_ENV === 'development' ? error : undefined
+    });
+  }
+};
+
+// Add participant to bulk registration
+export const addParticipantToRegistration = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { firstName, lastName, email, phoneNo } = req.body;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Unauthorized: User ID not found in token' });
+      return;
+    }
+
+    // Validate required fields
+    if (!firstName || !lastName || !email) {
+      res.status(400).json({ 
+        success: false, 
+        message: 'First name, last name, and email are required' 
+      });
+      return;
+    }
+
+    // Find the registration
+    const registration = await findRegistrationByIdOrUserId(id, userId);
+    if (!registration) {
+      res.status(404).json({
+        success: false,
+        message: 'Registration not found'
+      });
+      return;
+    }
+
+    // Verify this is a bulk registration
+    if (registration.registrationType !== 'bulk') {
+      res.status(400).json({
+        success: false,
+        message: 'This endpoint is only for bulk registrations'
+      });
+      return;
+    }
+
+    if (!registration.bulkRegistrationId) {
+      res.status(400).json({
+        success: false,
+        message: 'No bulk registration found. Please add slots and complete payment first.'
+      });
+      return;
+    }
+
+    // Get the bulk registration
+    const { BulkRegistration, User, OTP } = await import('../models');
+    const bulkRegistration = await BulkRegistration.findById(registration.bulkRegistrationId);
+    if (!bulkRegistration) {
+      res.status(404).json({
+        success: false,
+        message: 'Bulk registration not found'
+      });
+      return;
+    }
+
+    // Verify payment is completed
+    if (bulkRegistration.status !== 'active') {
+      res.status(400).json({
+        success: false,
+        message: 'Payment must be completed before adding participants'
+      });
+      return;
+    }
+
+    // Check if we have available slots
+    if (bulkRegistration.availableSlots <= 0) {
+      res.status(400).json({ 
+        success: false, 
+        message: 'No available slots remaining' 
+      });
+      return;
+    }
+
+    // Check if email is already used in this bulk registration
+    const existingParticipant = bulkRegistration.participants.find(p => p.email === email);
+    if (existingParticipant) {
+      res.status(400).json({ 
+        success: false, 
+        message: 'Email already used for another participant in this bulk registration' 
+      });
+      return;
+    }
+
+    // Check if email is already registered in the system
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      res.status(400).json({ 
+        success: false, 
+        message: 'Email already registered in the system' 
+      });
+      return;
+    }
+
+    // Generate OTP for the participant
+    const otpDoc = await OTP.createOTP(email, 'email_verification', 10);
+
+    // Add participant to bulk registration
+    bulkRegistration.participants.push({
+      firstName,
+      lastName,
+      email,
+      phoneNo,
+      invitationStatus: 'pending',
+      otpToken: otpDoc.otp,
+      otpExpiresAt: otpDoc.expiresAt,
+      addedAt: new Date()
+    });
+
+    bulkRegistration.usedSlots += 1;
+    await bulkRegistration.save();
+
+    // Send invitation email with OTP
+    try {
+      const emailService = await import('../services/emailService');
+      await emailService.default.sendBulkParticipantInvitation(
+        email, 
+        otpDoc.otp, 
+        firstName, 
+        bulkRegistration.bulkRegistrationNumber
+      );
+
+      // Update invitation status
+      const participant = bulkRegistration.participants.find(p => p.email === email);
+      if (participant) {
+        participant.invitationStatus = 'sent';
+        participant.invitationSentAt = new Date();
+        await bulkRegistration.save();
+      }
+
+    } catch (emailError) {
+      console.error('Failed to send invitation email:', emailError);
+      // Don't fail the request if email fails, just log it
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Participant added successfully. Invitation email sent.',
+      data: {
+        registrationId: registration._id,
+        registrationNumber: registration.registrationNumber,
+        bulkRegistrationId: bulkRegistration._id,
+        bulkRegistrationNumber: bulkRegistration.bulkRegistrationNumber,
+        participantEmail: email,
+        participantName: `${firstName} ${lastName}`,
+        availableSlots: bulkRegistration.availableSlots,
+        usedSlots: bulkRegistration.usedSlots,
+        totalSlots: bulkRegistration.totalSlots
+      }
+    });
+
+  } catch (error) {
+    console.error('Add participant to registration error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to add participant',
       error: process.env.NODE_ENV === 'development' ? error : undefined
     });
   }
@@ -224,8 +649,8 @@ export const submitRegistration = async (req: AuthenticatedRequest, res: Respons
       return;
     }
 
-    // Check payment status
-    if (registration.paymentInfo.paymentStatus !== 'completed') {
+    // Check payment status (except for bulk participants - their payment is already handled)
+    if (!registration.isBulkParticipant && registration.paymentInfo.paymentStatus !== 'completed') {
       res.status(400).json({
         success: false,
         message: 'Payment must be completed before submission'
@@ -236,6 +661,26 @@ export const submitRegistration = async (req: AuthenticatedRequest, res: Respons
     registration.status = 'submitted';
     registration.submittedAt = new Date();
     await registration.save();
+
+    // If this is a bulk participant, update their status in the bulk registration
+    if (registration.isBulkParticipant && registration.bulkRegistrationId) {
+      try {
+        const { BulkRegistration } = await import('../models');
+        const bulkRegistration = await BulkRegistration.findById(registration.bulkRegistrationId);
+        if (bulkRegistration) {
+          const participant = bulkRegistration.participants.find(p => 
+            p.registrationId?.toString() === registration._id.toString()
+          );
+          if (participant) {
+            participant.invitationStatus = 'completed';
+            await bulkRegistration.save();
+          }
+        }
+      } catch (error) {
+        console.error('Failed to update bulk participant status:', error);
+        // Don't fail the registration submission if bulk status update fails
+      }
+    }
 
     res.status(200).json({
       success: true,
