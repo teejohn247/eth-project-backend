@@ -13,7 +13,10 @@ import {
   updateAuditionInfo,
   updateTermsConditions,
   getRegistrationStatus,
-  deleteRegistration
+  deleteRegistration,
+  addBulkSlots,
+  processBulkPayment,
+  addParticipantToRegistration
 } from '../controllers/registrationController';
 import { authenticateToken } from '../middleware/auth';
 import { validateRegistration, validatePersonalInfo, validateTalentInfo, validateMediaInfo, validateAuditionInfo, validateTermsConditions, validateGroupInfo } from '../middleware/validation';
@@ -124,7 +127,9 @@ router.get('/', authenticateToken, getUserRegistrations);
  *             properties:
  *               registrationType:
  *                 type: string
- *                 enum: [individual, group]
+ *                 enum: [individual, group, bulk]
+ *                 description: Type of registration - use 'bulk' to initiate bulk registration flow
+ *                 example: individual
  *     responses:
  *       201:
  *         description: Registration created successfully
@@ -733,5 +738,151 @@ router.put('/:id/terms', authenticateToken, validateTermsConditions, updateTerms
  *         description: Registration status retrieved successfully
  */
 router.get('/:id/status', authenticateToken, getRegistrationStatus);
+
+/**
+ * @swagger
+ * /api/v1/registrations/{id}/bulk-slots:
+ *   post:
+ *     summary: Add bulk slots to a bulk registration
+ *     tags: [Registration Steps]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Registration ID or User ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - totalSlots
+ *             properties:
+ *               totalSlots:
+ *                 type: integer
+ *                 minimum: 2
+ *                 maximum: 50
+ *                 description: Number of registration slots to purchase
+ *                 example: 3
+ *     responses:
+ *       201:
+ *         description: Bulk slots added successfully
+ *       400:
+ *         description: Invalid slot count or registration type
+ *       404:
+ *         description: Registration not found
+ */
+router.post('/:id/bulk-slots', authenticateToken, addBulkSlots);
+
+/**
+ * @swagger
+ * /api/v1/registrations/{id}/bulk-payment:
+ *   post:
+ *     summary: Process payment for bulk registration
+ *     tags: [Registration Steps]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Registration ID or User ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             description: Flexible payment response data from payment gateway
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 description: Payment status (0='successful', 1='failed', etc.)
+ *                 example: "0"
+ *               transAmount:
+ *                 type: number
+ *                 description: Transaction amount
+ *                 example: 3270
+ *               reference:
+ *                 type: string
+ *                 description: Payment reference
+ *                 example: "BULK_ETH_123456789"
+ *               transactionId:
+ *                 type: string
+ *                 description: Transaction ID from payment gateway
+ *                 example: "txn_abc123def456"
+ *               paymentMethod:
+ *                 type: string
+ *                 description: Payment method used
+ *                 example: "card"
+ *     responses:
+ *       200:
+ *         description: Payment processed successfully
+ *       400:
+ *         description: Invalid registration type or missing bulk registration
+ *       404:
+ *         description: Registration not found
+ */
+router.post('/:id/bulk-payment', authenticateToken, processBulkPayment);
+
+/**
+ * @swagger
+ * /api/v1/registrations/{id}/participants:
+ *   post:
+ *     summary: Add participant to bulk registration
+ *     tags: [Registration Steps]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Registration ID or User ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - firstName
+ *               - lastName
+ *               - email
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *                 description: Participant's first name
+ *                 example: "John"
+ *               lastName:
+ *                 type: string
+ *                 description: Participant's last name
+ *                 example: "Doe"
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Participant's email address
+ *                 example: "john.doe@example.com"
+ *               phoneNo:
+ *                 type: string
+ *                 description: Participant's phone number (optional)
+ *                 example: "+2348012345678"
+ *     responses:
+ *       201:
+ *         description: Participant added successfully
+ *       400:
+ *         description: Validation error, no available slots, or payment not completed
+ *       404:
+ *         description: Registration not found
+ */
+router.post('/:id/participants', authenticateToken, addParticipantToRegistration);
 
 export default router;

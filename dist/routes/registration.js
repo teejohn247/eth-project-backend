@@ -23,5 +23,8 @@ router.put('/:id/media-info', auth_1.authenticateToken, upload_1.uploadMediaFile
 router.put('/:id/audition-info', auth_1.authenticateToken, validation_1.validateAuditionInfo, registrationController_1.updateAuditionInfo);
 router.put('/:id/terms', auth_1.authenticateToken, validation_1.validateTermsConditions, registrationController_1.updateTermsConditions);
 router.get('/:id/status', auth_1.authenticateToken, registrationController_1.getRegistrationStatus);
+router.post('/:id/bulk-slots', auth_1.authenticateToken, registrationController_1.addBulkSlots);
+router.post('/:id/bulk-payment', auth_1.authenticateToken, registrationController_1.processBulkPayment);
+router.post('/:id/participants', auth_1.authenticateToken, registrationController_1.addParticipantToRegistration);
 exports.default = router;
 //# sourceMappingURL=registration.js.map

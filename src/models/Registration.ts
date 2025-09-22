@@ -3,7 +3,9 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IRegistration extends Document {
   userId: mongoose.Types.ObjectId;
   registrationNumber: string;
-  registrationType: 'individual' | 'group';
+  registrationType: 'individual' | 'group' | 'bulk';
+  isBulkParticipant?: boolean;
+  bulkRegistrationId?: mongoose.Types.ObjectId;
   
   personalInfo: {
     firstName: string;
@@ -122,7 +124,9 @@ export interface IRegistration extends Document {
 const RegistrationSchema = new Schema<IRegistration>({
   userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   registrationNumber: { type: String, unique: true },
-  registrationType: { type: String, enum: ['individual', 'group'], required: true },
+  registrationType: { type: String, enum: ['individual', 'group', 'bulk'], required: true },
+  isBulkParticipant: { type: Boolean, default: false },
+  bulkRegistrationId: { type: Schema.Types.ObjectId, ref: 'BulkRegistration' },
   
   personalInfo: {
     firstName: String,

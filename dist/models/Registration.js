@@ -37,7 +37,9 @@ const mongoose_1 = __importStar(require("mongoose"));
 const RegistrationSchema = new mongoose_1.Schema({
     userId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true },
     registrationNumber: { type: String, unique: true },
-    registrationType: { type: String, enum: ['individual', 'group'], required: true },
+    registrationType: { type: String, enum: ['individual', 'group', 'bulk'], required: true },
+    isBulkParticipant: { type: Boolean, default: false },
+    bulkRegistrationId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'BulkRegistration' },
     personalInfo: {
         firstName: String,
         lastName: String,

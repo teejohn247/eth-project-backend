@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -501,33 +534,87 @@ const savePaymentInfo = async (req, res) => {
             paymentResponse: actualPaymentData,
             paidAt: registrationPaymentStatus === 'completed' ? new Date() : registration.paymentInfo.paidAt
         };
+        if (registration.registrationType === 'bulk' && registration.bulkRegistrationId) {
+            try {
+                const { BulkRegistration } = await Promise.resolve().then(() => __importStar(require('../models')));
+                const bulkRegistration = await BulkRegistration.findById(registration.bulkRegistrationId);
+                if (bulkRegistration) {
+                    bulkRegistration.paymentInfo = {
+                        paymentStatus: registrationPaymentStatus === 'completed' ? 'completed' :
+                            registrationPaymentStatus === 'failed' ? 'failed' : 'pending',
+                        paymentReference: paymentReference,
+                        transactionId: transactionId || transaction.gatewayReference,
+                        paymentMethod: paymentMethod,
+                        paidAt: registrationPaymentStatus === 'completed' ? new Date() : undefined,
+                        paymentResponse: actualPaymentData
+                    };
+                    if (registrationPaymentStatus === 'completed') {
+                        bulkRegistration.status = 'active';
+                    }
+                    else if (registrationPaymentStatus === 'failed') {
+                        bulkRegistration.status = 'payment_pending';
+                    }
+                    await bulkRegistration.save();
+                }
+            }
+            catch (error) {
+                console.error('Failed to update bulk registration payment:', error);
+            }
+        }
         if (registration.paymentInfo.paymentStatus === 'completed') {
             const paymentStep = 8;
             if (!registration.completedSteps.includes(paymentStep)) {
                 registration.completedSteps.push(paymentStep);
                 registration.currentStep = Math.max(registration.currentStep, paymentStep);
             }
-            if (registration.status === 'draft') {
+            if (registration.registrationType !== 'bulk' && registration.status === 'draft') {
                 registration.status = 'submitted';
                 registration.submittedAt = new Date();
             }
         }
         await registration.save();
+        const responseData = {
+            registrationId: registration._id,
+            paymentReference: paymentReference,
+            paymentStatus: registration.paymentInfo.paymentStatus,
+            amount: registration.paymentInfo.amount,
+            currency: registration.paymentInfo.currency,
+            transactionId: transaction.gatewayReference,
+            currentStep: registration.currentStep,
+            completedSteps: registration.completedSteps,
+            registrationStatus: registration.status,
+            savedData: paymentData
+        };
+        if (registration.registrationType === 'bulk' && registration.bulkRegistrationId) {
+            try {
+                const { BulkRegistration } = await Promise.resolve().then(() => __importStar(require('../models')));
+                const bulkRegistration = await BulkRegistration.findById(registration.bulkRegistrationId);
+                if (bulkRegistration) {
+                    responseData.bulkRegistration = {
+                        bulkRegistrationId: bulkRegistration._id,
+                        bulkRegistrationNumber: bulkRegistration.bulkRegistrationNumber,
+                        totalSlots: bulkRegistration.totalSlots,
+                        usedSlots: bulkRegistration.usedSlots,
+                        availableSlots: bulkRegistration.availableSlots,
+                        status: bulkRegistration.status,
+                        canAddParticipants: bulkRegistration.status === 'active',
+                        nextStep: bulkRegistration.status === 'active' ? 'add_participants' : 'payment',
+                        addParticipantEndpoint: bulkRegistration.status === 'active' ?
+                            `/api/v1/registrations/${registration._id}/participants` : undefined
+                    };
+                }
+            }
+            catch (error) {
+                console.error('Failed to fetch bulk registration info for response:', error);
+            }
+        }
+        const message = registration.registrationType === 'bulk' && registration.paymentInfo.paymentStatus === 'completed'
+            ? 'Bulk payment processed successfully. You can now add participants.'
+            : 'Payment information saved successfully';
         res.status(200).json({
             success: true,
-            message: 'Payment information saved successfully',
-            data: {
-                registrationId: registration._id,
-                paymentReference: paymentReference,
-                paymentStatus: registration.paymentInfo.paymentStatus,
-                amount: registration.paymentInfo.amount,
-                currency: registration.paymentInfo.currency,
-                transactionId: transaction.gatewayReference,
-                currentStep: registration.currentStep,
-                completedSteps: registration.completedSteps,
-                registrationStatus: registration.status,
-                savedData: paymentData
-            }
+            message: message,
+            data: responseData
         });
     }
     catch (error) {

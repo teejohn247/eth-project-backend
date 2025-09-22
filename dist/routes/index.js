@@ -7,6 +7,7 @@ const express_1 = require("express");
 const auth_1 = __importDefault(require("./auth"));
 const user_1 = __importDefault(require("./user"));
 const registration_1 = __importDefault(require("./registration"));
+const bulkRegistration_1 = __importDefault(require("./bulkRegistration"));
 const payment_1 = __importDefault(require("./payment"));
 const location_1 = __importDefault(require("./location"));
 const admin_1 = __importDefault(require("./admin"));
@@ -22,6 +23,7 @@ router.get('/health', (req, res) => {
             authentication: '/api/v1/auth',
             user: '/api/v1/user',
             registrations: '/api/v1/registrations',
+            bulkRegistrations: '/api/v1/bulk-registrations',
             payments: '/api/v1/payments',
             locations: '/api/v1/locations',
             admin: '/api/v1/admin',
@@ -33,6 +35,7 @@ router.get('/health', (req, res) => {
 router.use('/auth', auth_1.default);
 router.use('/user', user_1.default);
 router.use('/registrations', registration_1.default);
+router.use('/bulk-registrations', bulkRegistration_1.default);
 router.use('/payments', payment_1.default);
 router.use('/locations', location_1.default);
 router.use('/admin', admin_1.default);

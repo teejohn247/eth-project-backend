@@ -8,6 +8,7 @@ const models_1 = require("../models");
 const jwt_1 = require("../utils/jwt");
 const emailService_1 = __importDefault(require("../services/emailService"));
 const express_validator_1 = require("express-validator");
+const bulkParticipantController_1 = require("../controllers/bulkParticipantController");
 const router = (0, express_1.Router)();
 const handleValidation = (req, res, next) => {
     const errors = (0, express_validator_1.validationResult)(req);
@@ -426,5 +427,13 @@ router.post('/resend-otp', emailValidation, async (req, res) => {
         });
     }
 });
+router.post('/bulk-participant/verify', [
+    (0, express_validator_1.body)('email').isEmail().withMessage('Please provide a valid email'),
+    (0, express_validator_1.body)('otp').isLength({ min: 4, max: 8 }).withMessage('OTP must be 4-8 characters'),
+    (0, express_validator_1.body)('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+    (0, express_validator_1.body)('confirmPassword').notEmpty().withMessage('Password confirmation is required'),
+    handleValidation
+], bulkParticipantController_1.verifyBulkParticipantOTP);
+router.get('/bulk-participant/status/:email', bulkParticipantController_1.checkBulkParticipantStatus);
 exports.default = router;
 //# sourceMappingURL=auth.js.map
