@@ -5,7 +5,8 @@ import {
   processBulkPayment,
   addParticipant,
   getBulkRegistration,
-  listBulkRegistrations
+  listBulkRegistrations,
+  updateBulkOwnersToSponsors
 } from '../controllers/bulkRegistrationController';
 
 const router = express.Router();
@@ -310,6 +311,41 @@ router.post('/:bulkRegistrationId/payment', authenticateToken, processBulkPaymen
  *         description: Server error
  */
 router.post('/:bulkRegistrationId/participants', authenticateToken, addParticipant);
+
+/**
+ * @swagger
+ * /api/v1/bulk-registrations/update-sponsors:
+ *   post:
+ *     summary: Update existing bulk registration owners to sponsor role
+ *     tags: [Bulk Registration]
+ *     security:
+ *       - bearerAuth: []
+ *     description: One-time utility endpoint to update existing bulk registration owners who have completed payments to have the 'sponsor' role
+ *     responses:
+ *       200:
+ *         description: Bulk registration owners updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Updated 2 bulk registration owners to sponsor role"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     totalBulkRegistrations: { type: integer }
+ *                     usersUpdated: { type: integer }
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.post('/update-sponsors', authenticateToken, updateBulkOwnersToSponsors);
 
 /**
  * @swagger

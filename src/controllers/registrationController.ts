@@ -617,13 +617,14 @@ export const getRegistration = async (req: AuthenticatedRequest, res: Response):
     }
 
     // Remove sensitive payment response data
-    const registrationData = registration.toObject();
+    const registrationData: any = registration.toObject();
     if (registrationData.paymentInfo?.paymentResponse) {
       delete registrationData.paymentInfo.paymentResponse;
     }
 
-    // Add bulk registration information if applicable
-    if (registration.registrationType === 'bulk' && registration.bulkRegistrationId) {
+    // Add bulk registration details for bulk registrations and bulk participants
+    if ((registration.registrationType === 'bulk' && registration.bulkRegistrationId) || 
+        (registration.isBulkParticipant && registration.bulkRegistrationId)) {
       try {
         const { BulkRegistration } = await import('../models');
         const bulkRegistration = await BulkRegistration.findById(registration.bulkRegistrationId);
@@ -636,7 +637,19 @@ export const getRegistration = async (req: AuthenticatedRequest, res: Response):
             usedSlots: bulkRegistration.usedSlots,
             availableSlots: bulkRegistration.availableSlots,
             status: bulkRegistration.status,
-            canAddParticipants: bulkRegistration.status === 'active',
+            owner: {
+              ownerId: bulkRegistration.ownerId
+            },
+            paymentInfo: {
+              paymentStatus: bulkRegistration.paymentInfo.paymentStatus,
+              paymentReference: bulkRegistration.paymentInfo.paymentReference,
+              transactionId: bulkRegistration.paymentInfo.transactionId,
+              paymentMethod: bulkRegistration.paymentInfo.paymentMethod,
+              paidAt: bulkRegistration.paymentInfo.paidAt,
+              amount: bulkRegistration.totalAmount,
+              currency: bulkRegistration.currency,
+              pricePerSlot: bulkRegistration.pricePerSlot
+            },
             participants: bulkRegistration.participants.map(p => ({
               firstName: p.firstName,
               lastName: p.lastName,
@@ -645,8 +658,11 @@ export const getRegistration = async (req: AuthenticatedRequest, res: Response):
               invitationStatus: p.invitationStatus,
               invitationSentAt: p.invitationSentAt,
               registeredAt: p.registeredAt,
-              addedAt: p.addedAt
+              addedAt: p.addedAt,
+              hasAccount: !!p.participantId,
+              hasRegistration: !!p.registrationId
             })),
+            canAddParticipants: bulkRegistration.status === 'active' && bulkRegistration.availableSlots > 0,
             nextStep: bulkRegistration.status === 'active' ? 'add_participants' : 'payment',
             addParticipantEndpoint: bulkRegistration.status === 'active' ? 
               `/api/v1/registrations/${registration._id}/participants` : undefined
@@ -660,7 +676,7 @@ export const getRegistration = async (req: AuthenticatedRequest, res: Response):
     res.status(200).json({
       success: true,
       message: 'Registration retrieved successfully',
-      data: registrationData
+      data: [registrationData]
     });
   } catch (error) {
     console.error('Get registration error:', error);
