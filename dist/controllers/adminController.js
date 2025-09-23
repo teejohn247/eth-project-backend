@@ -80,6 +80,10 @@ const getAllRegistrations = async (req, res) => {
         const totalCount = await models_1.Registration.countDocuments(filter);
         const totalPages = Math.ceil(totalCount / limitNumber);
         const enhancedRegistrations = await Promise.all(registrations.map(async (registration) => {
+            if (registration.paidBy) {
+                registration.sponsor = registration.paidBy;
+                delete registration.paidBy;
+            }
             if ((registration.registrationType === 'bulk' && registration.bulkRegistrationId) ||
                 (registration.isBulkParticipant && registration.bulkRegistrationId)) {
                 try {
