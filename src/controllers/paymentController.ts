@@ -628,6 +628,16 @@ export const savePaymentInfo = async (req: AuthenticatedRequest, res: Response):
           // Update bulk registration status
           if (registrationPaymentStatus === 'completed') {
             bulkRegistration.status = 'active';
+            
+            // Update user role to sponsor when they successfully pay for bulk registration
+            try {
+              const { User } = await import('../models');
+              await User.findByIdAndUpdate(bulkRegistration.ownerId, { role: 'sponsor' });
+              console.log(`✅ Updated user ${bulkRegistration.ownerId} role to sponsor after bulk payment`);
+            } catch (error) {
+              console.error('Failed to update user role to sponsor:', error);
+              // Don't fail payment processing if role update fails
+            }
           } else if (registrationPaymentStatus === 'failed') {
             bulkRegistration.status = 'payment_pending';
           }

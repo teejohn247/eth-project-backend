@@ -33,7 +33,7 @@ const UserSchema: Schema = new Schema({
   },
   role: {
     type: String,
-    enum: ['contestant', 'admin', 'judge'],
+    enum: ['contestant', 'admin', 'judge', 'sponsor'],
     default: 'contestant'
   },
   isEmailVerified: {
