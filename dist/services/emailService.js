@@ -773,13 +773,83 @@ class EmailService {
             gap: 8px;
           }
           
-          .steps-section {
-            background: #F7FAFC;
-            border-radius: 16px;
-            padding: 30px;
-            margin: 35px 0;
-            text-align: left;
-          }
+               .verification-link-section {
+                 background: linear-gradient(135deg, #FFF9E6 0%, #FFF5CC 100%);
+                 border: 3px solid #FFD700;
+                 border-radius: 20px;
+                 padding: 40px 30px;
+                 margin: 40px 0;
+                 text-align: center;
+                 position: relative;
+                 overflow: hidden;
+               }
+               
+               .verification-link-section::before {
+                 content: '';
+                 position: absolute;
+                 top: 0;
+                 left: 0;
+                 right: 0;
+                 height: 6px;
+                 background: linear-gradient(90deg, #FFD700, #F4D03F, #DAA520, #B8860B);
+               }
+               
+               .verification-link-title {
+                 font-size: 20px;
+                 color: #B8860B;
+                 font-weight: 700;
+                 margin-bottom: 15px;
+                 text-transform: uppercase;
+                 letter-spacing: 1px;
+               }
+               
+               .verification-link-text {
+                 font-size: 16px;
+                 color: #4A5568;
+                 line-height: 1.6;
+                 margin-bottom: 25px;
+               }
+               
+               .verification-button-container {
+                 margin: 30px 0;
+               }
+               
+               .verification-button {
+                 display: inline-block;
+                 background: linear-gradient(135deg, #FFD700 0%, #F4D03F 30%, #DAA520 70%, #B8860B 100%);
+                 color: #1a1a1a;
+                 text-decoration: none;
+                 padding: 18px 40px;
+                 border-radius: 50px;
+                 font-size: 16px;
+                 font-weight: 700;
+                 text-transform: uppercase;
+                 letter-spacing: 1px;
+                 box-shadow: 0 8px 25px rgba(218, 165, 32, 0.4);
+                 transition: all 0.3s ease;
+                 border: 3px solid rgba(255, 255, 255, 0.8);
+               }
+               
+               .verification-button:hover {
+                 transform: translateY(-2px);
+                 box-shadow: 0 12px 35px rgba(218, 165, 32, 0.6);
+                 background: linear-gradient(135deg, #F4D03F 0%, #FFD700 30%, #B8860B 70%, #DAA520 100%);
+               }
+               
+               .verification-note {
+                 font-size: 14px;
+                 color: #8B7355;
+                 font-style: italic;
+                 margin-top: 20px;
+               }
+               
+               .steps-section {
+                 background: #F7FAFC;
+                 border-radius: 16px;
+                 padding: 30px;
+                 margin: 35px 0;
+                 text-align: left;
+               }
           
           .steps-title {
             font-size: 18px;
@@ -954,37 +1024,61 @@ class EmailService {
               </div>
             </div>
             
-            <div class="steps-section">
-              <h3 class="steps-title">🚀 Next Steps to Complete Your Registration</h3>
-              
-              <div class="step">
-                <div class="step-number">1</div>
-                <div class="step-text">
-                  <strong>Verify Your Email:</strong> Use the OTP code above to verify your email address
-                </div>
-              </div>
-              
-              <div class="step">
-                <div class="step-number">2</div>
-                <div class="step-text">
-                  <strong>Set Your Password:</strong> Create a secure password for your account
-                </div>
-              </div>
-              
-              <div class="step">
-                <div class="step-number">3</div>
-                <div class="step-text">
-                  <strong>Complete Registration:</strong> Fill out your personal information, talent details, and other required steps
-                </div>
-              </div>
-              
-              <div class="step">
-                <div class="step-number">4</div>
-                <div class="step-text">
-                  <strong>Submit:</strong> Since your slot is already paid for, you can submit directly after completing all steps
-                </div>
-              </div>
-          </div>
+                 <div class="verification-link-section">
+                   <h3 class="verification-link-title">🌐 Ready to Get Started?</h3>
+                   <p class="verification-link-text">
+                     Click the button below to begin your verification process and complete your registration:
+                   </p>
+                   
+                   <div class="verification-button-container">
+                     <a href="https://edotalenthunt.com/verify" class="verification-button" target="_blank">
+                       Verify Email & Complete Registration
+                     </a>
+                   </div>
+                   
+                   <p class="verification-note">
+                     <strong>Note:</strong> You'll need the OTP code above when you visit the verification page.
+                   </p>
+                 </div>
+                 
+                 <div class="steps-section">
+                   <h3 class="steps-title">🚀 Next Steps to Complete Your Registration</h3>
+                   
+                   <div class="step">
+                     <div class="step-number">1</div>
+                     <div class="step-text">
+                       <strong>Visit Verification Page:</strong> Click the button above or go to <a href="https://edotalenthunt.com/verify" target="_blank" style="color: #DAA520; text-decoration: none;">https://edotalenthunt.com/verify</a>
+                     </div>
+                   </div>
+                   
+                   <div class="step">
+                     <div class="step-number">2</div>
+                     <div class="step-text">
+                       <strong>Verify Your Email:</strong> Use the OTP code above to verify your email address
+                     </div>
+                   </div>
+                   
+                   <div class="step">
+                     <div class="step-number">3</div>
+                     <div class="step-text">
+                       <strong>Set Your Password:</strong> Create a secure password for your account
+                     </div>
+                   </div>
+                   
+                   <div class="step">
+                     <div class="step-number">4</div>
+                     <div class="step-text">
+                       <strong>Complete Registration:</strong> Fill out your personal information, talent details, and other required steps
+                     </div>
+                   </div>
+                   
+                   <div class="step">
+                     <div class="step-number">5</div>
+                     <div class="step-text">
+                       <strong>Submit:</strong> Since your slot is already paid for, you can fill in your details and submit directly after completing all steps
+                     </div>
+                   </div>
+                 </div>
           
             <div class="help-section">
               <p class="help-text">

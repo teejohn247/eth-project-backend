@@ -143,6 +143,7 @@ router.post('/', authenticateToken, validateRegistration, createRegistration);
  * /api/v1/registrations/{id}:
  *   get:
  *     summary: Get specific registration
+ *     description: Retrieve a registration by either registration ID or user ID. The system will automatically find the correct registration for the authenticated user.
  *     tags: [Registrations]
  *     security:
  *       - bearerAuth: []
@@ -152,12 +153,62 @@ router.post('/', authenticateToken, validateRegistration, createRegistration);
  *         required: true
  *         schema:
  *           type: string
- *         description: Registration ID or User ID (both are supported for convenience)
+ *         description: Registration ID or User ID. If a user ID is provided, the system will find the user's registration.
+ *         examples:
+ *           registrationId:
+ *             value: "68d1f10bf6998743731936ed"
+ *             summary: Using Registration ID
+ *           userId:
+ *             value: "68cc2051204aeb64c4480e1b"
+ *             summary: Using User ID
  *     responses:
  *       200:
- *         description: Registration retrieved successfully
+ *         description: Registration retrieved successfully (includes bulk registration details if applicable)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Registration retrieved successfully"
+ *                 data:
+ *                   allOf:
+ *                     - $ref: '#/components/schemas/Registration'
+ *                     - type: object
+ *                       properties:
+ *                         bulkRegistration:
+ *                           type: object
+ *                           description: Bulk registration details (only present for bulk registrations)
+ *                           properties:
+ *                             bulkRegistrationId: { type: string }
+ *                             bulkRegistrationNumber: { type: string }
+ *                             totalSlots: { type: integer }
+ *                             usedSlots: { type: integer }
+ *                             availableSlots: { type: integer }
+ *                             status: { type: string }
+ *                             canAddParticipants: { type: boolean }
+ *                             participants: 
+ *                               type: array
+ *                               items:
+ *                                 type: object
+ *                                 properties:
+ *                                   firstName: { type: string }
+ *                                   lastName: { type: string }
+ *                                   email: { type: string }
+ *                                   phoneNo: { type: string }
+ *                                   invitationStatus: { type: string }
+ *                                   invitationSentAt: { type: string, format: date-time }
+ *                                   addedAt: { type: string, format: date-time }
+ *                             nextStep: { type: string }
+ *                             addParticipantEndpoint: { type: string }
  *       404:
  *         description: Registration not found
+ *       403:
+ *         description: Access denied (if trying to access another user's registration)
  */
 router.get('/:id', authenticateToken, getRegistration);
 

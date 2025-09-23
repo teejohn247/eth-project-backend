@@ -6,6 +6,7 @@ export interface IRegistration extends Document {
   registrationType: 'individual' | 'group' | 'bulk';
   isBulkParticipant?: boolean;
   bulkRegistrationId?: mongoose.Types.ObjectId;
+  paidBy?: mongoose.Types.ObjectId; // User who paid for this registration
   
   personalInfo: {
     firstName: string;
@@ -127,6 +128,7 @@ const RegistrationSchema = new Schema<IRegistration>({
   registrationType: { type: String, enum: ['individual', 'group', 'bulk'], required: true },
   isBulkParticipant: { type: Boolean, default: false },
   bulkRegistrationId: { type: Schema.Types.ObjectId, ref: 'BulkRegistration' },
+  paidBy: { type: Schema.Types.ObjectId, ref: 'User' }, // User who paid for this registration
   
   personalInfo: {
     firstName: String,
@@ -287,6 +289,7 @@ RegistrationSchema.index({ userId: 1 });
 RegistrationSchema.index({ registrationNumber: 1 });
 RegistrationSchema.index({ status: 1 });
 RegistrationSchema.index({ 'paymentInfo.paymentStatus': 1 });
+RegistrationSchema.index({ paidBy: 1 });
 RegistrationSchema.index({ createdAt: -1 });
 
 export default mongoose.model<IRegistration>('Registration', RegistrationSchema);

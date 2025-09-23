@@ -39,6 +39,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteRegistration = exports.getRegistrationStatus = exports.updateTermsConditions = exports.updateAuditionInfo = exports.updateMediaInfo = exports.updateGuardianInfo = exports.updateGroupInfo = exports.updateTalentInfo = exports.updatePersonalInfo = exports.submitRegistration = exports.updateRegistration = exports.getRegistration = exports.addParticipantToRegistration = exports.processBulkPayment = exports.addBulkSlots = exports.createRegistration = exports.getUserRegistrations = void 0;
 const Registration_1 = __importDefault(require("../models/Registration"));
 const AuditionSchedule_1 = __importDefault(require("../models/AuditionSchedule"));
+const models_1 = require("../models");
 const mongoose_1 = __importDefault(require("mongoose"));
 const cloudinaryService_1 = __importDefault(require("../services/cloudinaryService"));
 const findRegistrationByIdOrUserId = async (idParam, userId) => {
@@ -161,8 +162,7 @@ const addBulkSlots = async (req, res) => {
             return;
         }
         if (registration.bulkRegistrationId) {
-            const { BulkRegistration } = await Promise.resolve().then(() => __importStar(require('../models')));
-            const existingBulkRegistration = await BulkRegistration.findById(registration.bulkRegistrationId);
+            const existingBulkRegistration = await models_1.BulkRegistration.findById(registration.bulkRegistrationId);
             if (existingBulkRegistration) {
                 res.status(400).json({
                     success: false,
@@ -177,8 +177,7 @@ const addBulkSlots = async (req, res) => {
         }
         const pricePerSlot = 10000;
         const totalAmount = totalSlots * pricePerSlot;
-        const { BulkRegistration } = await Promise.resolve().then(() => __importStar(require('../models')));
-        const bulkRegistration = new BulkRegistration({
+        const bulkRegistration = new models_1.BulkRegistration({
             ownerId: userId,
             totalSlots,
             pricePerSlot,
@@ -264,8 +263,7 @@ const processBulkPayment = async (req, res) => {
             });
             return;
         }
-        const { BulkRegistration } = await Promise.resolve().then(() => __importStar(require('../models')));
-        const bulkRegistration = await BulkRegistration.findById(registration.bulkRegistrationId);
+        const bulkRegistration = await models_1.BulkRegistration.findById(registration.bulkRegistrationId);
         if (!bulkRegistration) {
             res.status(404).json({
                 success: false,
@@ -383,8 +381,7 @@ const addParticipantToRegistration = async (req, res) => {
             });
             return;
         }
-        const { BulkRegistration, User, OTP } = await Promise.resolve().then(() => __importStar(require('../models')));
-        const bulkRegistration = await BulkRegistration.findById(registration.bulkRegistrationId);
+        const bulkRegistration = await models_1.BulkRegistration.findById(registration.bulkRegistrationId);
         if (!bulkRegistration) {
             res.status(404).json({
                 success: false,
@@ -414,7 +411,7 @@ const addParticipantToRegistration = async (req, res) => {
             });
             return;
         }
-        const existingUser = await User.findOne({ email });
+        const existingUser = await models_1.User.findOne({ email });
         if (existingUser) {
             res.status(400).json({
                 success: false,
@@ -422,7 +419,15 @@ const addParticipantToRegistration = async (req, res) => {
             });
             return;
         }
-        const otpDoc = await OTP.createOTP(email, 'email_verification', 10);
+        const otpDoc = await models_1.OTP.createOTP(email, 'email_verification', 10);
+        const owner = await models_1.User.findById(userId).select('firstName lastName email');
+        if (!owner) {
+            res.status(404).json({
+                success: false,
+                message: 'Owner information not found'
+            });
+            return;
+        }
         bulkRegistration.participants.push({
             firstName,
             lastName,
@@ -431,7 +436,14 @@ const addParticipantToRegistration = async (req, res) => {
             invitationStatus: 'pending',
             otpToken: otpDoc.otp,
             otpExpiresAt: otpDoc.expiresAt,
-            addedAt: new Date()
+            addedAt: new Date(),
+            paidBy: {
+                userId: new mongoose_1.default.Types.ObjectId(userId),
+                firstName: owner.firstName,
+                lastName: owner.lastName,
+                email: owner.email,
+                registrationNumber: registration.registrationNumber
+            }
         });
         bulkRegistration.usedSlots += 1;
         await bulkRegistration.save();
@@ -488,6 +500,45 @@ const getRegistration = async (req, res) => {
         const registrationData = registration.toObject();
         if (registrationData.paymentInfo?.paymentResponse) {
             delete registrationData.paymentInfo.paymentResponse;
+        }
+        if (registration.registrationType === 'bulk' && registration.bulkRegistrationId) {
+            try {
+                const bulkRegistration = await models_1.BulkRegistration.findById(registration.bulkRegistrationId);
+                if (bulkRegistration) {
+                    registrationData.bulkRegistration = {
+                        bulkRegistrationId: bulkRegistration._id,
+                        bulkRegistrationNumber: bulkRegistration.bulkRegistrationNumber,
+                        totalSlots: bulkRegistration.totalSlots,
+                        usedSlots: bulkRegistration.usedSlots,
+                        availableSlots: bulkRegistration.availableSlots,
+                        status: bulkRegistration.status,
+                        canAddParticipants: bulkRegistration.status === 'active',
+                        participants: bulkRegistration.participants.map(p => ({
+                            firstName: p.firstName,
+                            lastName: p.lastName,
+                            email: p.email,
+                            phoneNo: p.phoneNo,
+                            invitationStatus: p.invitationStatus,
+                            invitationSentAt: p.invitationSentAt,
+                            registeredAt: p.registeredAt,
+                            addedAt: p.addedAt,
+                            paidBy: p.paidBy ? {
+                                userId: p.paidBy.userId,
+                                firstName: p.paidBy.firstName,
+                                lastName: p.paidBy.lastName,
+                                email: p.paidBy.email,
+                                registrationNumber: p.paidBy.registrationNumber
+                            } : undefined
+                        })),
+                        nextStep: bulkRegistration.status === 'active' ? 'add_participants' : 'payment',
+                        addParticipantEndpoint: bulkRegistration.status === 'active' ?
+                            `/api/v1/registrations/${registration._id}/participants` : undefined
+                    };
+                }
+            }
+            catch (error) {
+                console.error('Failed to fetch bulk registration info for get registration:', error);
+            }
         }
         res.status(200).json({
             success: true,
@@ -584,8 +635,7 @@ const submitRegistration = async (req, res) => {
         await registration.save();
         if (registration.isBulkParticipant && registration.bulkRegistrationId) {
             try {
-                const { BulkRegistration } = await Promise.resolve().then(() => __importStar(require('../models')));
-                const bulkRegistration = await BulkRegistration.findById(registration.bulkRegistrationId);
+                const bulkRegistration = await models_1.BulkRegistration.findById(registration.bulkRegistrationId);
                 if (bulkRegistration) {
                     const participant = bulkRegistration.participants.find(p => p.registrationId?.toString() === registration._id.toString());
                     if (participant) {

@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.listBulkRegistrations = exports.getBulkRegistration = exports.addParticipant = exports.processBulkPayment = exports.createBulkRegistration = void 0;
+const mongoose_1 = __importDefault(require("mongoose"));
 const models_1 = require("../models");
 const emailService_1 = __importDefault(require("../services/emailService"));
 const createBulkRegistration = async (req, res) => {
@@ -188,6 +189,14 @@ const addParticipant = async (req, res) => {
             return;
         }
         const otpDoc = await models_1.OTP.createOTP(email, 'email_verification', 10);
+        const owner = await models_1.User.findById(userId).select('firstName lastName email');
+        if (!owner) {
+            res.status(404).json({
+                success: false,
+                message: 'Owner information not found'
+            });
+            return;
+        }
         bulkRegistration.participants.push({
             firstName,
             lastName,
@@ -196,7 +205,14 @@ const addParticipant = async (req, res) => {
             invitationStatus: 'pending',
             otpToken: otpDoc.otp,
             otpExpiresAt: otpDoc.expiresAt,
-            addedAt: new Date()
+            addedAt: new Date(),
+            paidBy: {
+                userId: new mongoose_1.default.Types.ObjectId(userId),
+                firstName: owner.firstName,
+                lastName: owner.lastName,
+                email: owner.email,
+                registrationNumber: bulkRegistration.bulkRegistrationNumber
+            }
         });
         bulkRegistration.usedSlots += 1;
         await bulkRegistration.save();

@@ -4,7 +4,7 @@ import { generateToken } from '../utils/jwt';
 import emailService from '../services/emailService';
 import { body, validationResult } from 'express-validator';
 import { AuthResponse, OTPResponse } from '../types';
-import { verifyBulkParticipantOTP, checkBulkParticipantStatus } from '../controllers/bulkParticipantController';
+import { checkBulkParticipantStatus, resendBulkParticipantOTP } from '../controllers/bulkParticipantController';
 
 const router = Router();
 
@@ -153,8 +153,8 @@ router.post('/register', registerValidation, async (req: Request, res: Response)
  * /api/v1/auth/verify-otp:
  *   post:
  *     tags: [Authentication]
- *     summary: Verify OTP (Email verification or Password reset)
- *     description: Verify OTP for either email verification during registration or password reset. The type is auto-detected based on user status.
+ *     summary: Verify OTP (Email verification, Password reset, or Bulk participant registration)
+ *     description: Verify OTP for email verification during registration, password reset, or bulk participant account creation. For bulk participants, this creates their account and registration. The type is auto-detected based on user status.
  *     requestBody:
  *       required: true
  *       content:
@@ -227,12 +227,104 @@ router.post('/verify-otp', otpValidation, async (req: Request, res: Response): P
   try {
     const { email, otp, type } = req.body;
 
-    // Find user to determine OTP type if not provided
-    const user = await User.findOne({ email });
+    // Check if this is a bulk participant scenario (user doesn't exist yet)
+    let user = await User.findOne({ email });
+    let isBulkParticipant = false;
+    let bulkRegistration: any = null;
+    let participant: any = null;
+
     if (!user) {
+      // Check if this is a bulk participant invitation
+      const { BulkRegistration } = await import('../models');
+      bulkRegistration = await BulkRegistration.findOne({
+        'participants.email': email
+      });
+
+      if (bulkRegistration) {
+        participant = bulkRegistration.participants.find((p: any) => p.email === email);
+        
+        if (participant && !participant.participantId) {
+          isBulkParticipant = true;
+          
+          // Verify OTP for bulk participant
+          const otpResult = await OTP.verifyOTP(email, otp, 'email_verification');
+          if (!otpResult.valid) {
+            res.status(400).json({
+              success: false,
+              message: otpResult.message
+            } as AuthResponse);
+            return;
+          }
+
+          // Create user account for bulk participant (without password)
+          user = new User({
+            firstName: participant.firstName,
+            lastName: participant.lastName,
+            email: participant.email,
+            role: 'contestant',
+            isActive: true,
+            isEmailVerified: true,
+            isPasswordSet: false, // Password will be set in next step
+            emailVerifiedAt: new Date()
+          });
+
+          await user.save();
+
+          // Create registration for the participant
+          const registration = new Registration({
+            userId: user._id,
+            registrationType: 'individual',
+            isBulkParticipant: true,
+            bulkRegistrationId: bulkRegistration._id,
+            paidBy: bulkRegistration.ownerId // Set who paid for this participant
+          });
+
+          await registration.save();
+
+          // Update participant information in bulk registration
+          participant.participantId = user._id;
+          participant.registrationId = registration._id;
+          participant.invitationStatus = 'registered';
+          participant.registeredAt = new Date();
+
+          await bulkRegistration.save();
+
+          // Return success response for bulk participant
+          res.json({
+            success: true,
+            message: 'OTP verified successfully. Your account has been created. Please set your password.',
+            data: {
+              otpType: 'email_verification',
+              nextStep: 'set-password',
+              isBulkParticipant: true,
+              user: {
+                id: user._id.toString(),
+                firstName: user.firstName,
+                lastName: user.lastName,
+                email: user.email,
+                role: user.role,
+                isEmailVerified: user.isEmailVerified,
+                isPasswordSet: user.isPasswordSet
+              },
+              registration: {
+                registrationId: registration._id.toString(),
+                registrationNumber: registration.registrationNumber,
+                currentStep: registration.currentStep,
+                status: registration.status,
+                isBulkParticipant: true,
+                bulkRegistrationNumber: bulkRegistration.bulkRegistrationNumber,
+                paymentRequired: false
+              }
+            }
+          } as AuthResponse);
+          return;
+        }
+      }
+      
+      // If not a bulk participant and user not found
       res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: 'User not found and no bulk participant invitation found for this email'
       } as AuthResponse);
       return;
     }
@@ -332,8 +424,8 @@ router.post('/verify-otp', otpValidation, async (req: Request, res: Response): P
  * /api/v1/auth/set-password:
  *   post:
  *     tags: [Authentication]
- *     summary: Set password (initial setup or reset)
- *     description: Set user password after email verification OR reset password with OTP. Supports both initial password setup and password reset flows.
+ *     summary: Set password (initial setup, reset, or bulk participant registration)
+ *     description: Set user password after email verification OR reset password with OTP OR create account for bulk participants. Supports initial password setup, password reset flows, and bulk participant registration.
  *     requestBody:
  *       required: true
  *       content:
@@ -402,18 +494,21 @@ router.post('/set-password', passwordValidation, async (req: Request, res: Respo
   try {
     const { email, password, otp } = req.body;
 
-    // Find user
-    const user = await User.findOne({ email }).select('+password');
+    // Find user (should exist for all scenarios now)
+    let user = await User.findOne({ email }).select('+password');
     if (!user) {
       res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: 'User not found. Please verify your OTP first.'
       } as AuthResponse);
       return;
     }
 
-    // Handle OTP verification if provided (for password reset flow)
-    if (otp) {
+    // Check if this is a bulk participant (account created by verify-otp but password not set)
+    const isBulkParticipant = !user.isPasswordSet && user.isEmailVerified;
+
+    // Handle OTP verification if provided (for password reset flow or regular users)
+    if (otp && !isBulkParticipant) {
       // Determine OTP type based on user status
       const otpType = user.isEmailVerified ? 'password_reset' : 'email_verification';
       
@@ -431,8 +526,8 @@ router.post('/set-password', passwordValidation, async (req: Request, res: Respo
       if (otpType === 'email_verification') {
         user.isEmailVerified = true;
       }
-    } else {
-      // Original flow: check if email is already verified
+    } else if (!isBulkParticipant) {
+      // Original flow: check if email is already verified for regular users
       if (!user.isEmailVerified) {
         res.status(400).json({
           success: false,
@@ -442,7 +537,7 @@ router.post('/set-password', passwordValidation, async (req: Request, res: Respo
       }
     }
 
-    // Set password
+    // Set password for all users (including bulk participants)
     user.password = password;
     user.isPasswordSet = true;
     await user.save();
@@ -451,26 +546,51 @@ router.post('/set-password', passwordValidation, async (req: Request, res: Respo
     const token = generateToken(user);
 
     // Determine response message based on context
-    const isPasswordReset = user.isPasswordSet && otp;
-    const message = isPasswordReset 
-      ? 'Password reset successfully. You can now login with your new password.'
-      : 'Password set successfully. You can now login.';
+    let message = '';
+    if (isBulkParticipant) {
+      message = 'Account created successfully. Your registration slot is already paid for!';
+    } else {
+      const isPasswordReset = user.isPasswordSet && otp;
+      message = isPasswordReset 
+        ? 'Password reset successfully. You can now login with your new password.'
+        : 'Password set successfully. You can now login.';
+    }
+
+    // Prepare response data
+    const responseData: any = {
+      token,
+      user: {
+        id: user._id.toString(),
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+        isEmailVerified: user.isEmailVerified,
+        isPasswordSet: user.isPasswordSet
+      }
+    };
+
+    // Add registration info for bulk participants
+    if (isBulkParticipant) {
+      const registrationDoc = await Registration.findOne({ userId: user._id, isBulkParticipant: true });
+      if (registrationDoc) {
+        const bulkRegDoc = await (await import('../models')).BulkRegistration.findById(registrationDoc.bulkRegistrationId);
+        responseData.registration = {
+          registrationId: registrationDoc._id.toString(),
+          registrationNumber: registrationDoc.registrationNumber,
+          currentStep: registrationDoc.currentStep || 0,
+          status: registrationDoc.status || 'draft',
+          isBulkParticipant: true,
+          bulkRegistrationNumber: bulkRegDoc?.bulkRegistrationNumber || '',
+          paymentRequired: false
+        };
+      }
+    }
 
     res.json({
       success: true,
       message,
-      data: {
-        token,
-        user: {
-          id: user._id.toString(),
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-          role: user.role,
-          isEmailVerified: user.isEmailVerified,
-          isPasswordSet: user.isPasswordSet
-        }
-      }
+      data: responseData
     } as AuthResponse);
 
   } catch (error: any) {
@@ -827,94 +947,6 @@ router.post('/resend-otp', emailValidation, async (req: Request, res: Response):
   }
 });
 
-/**
- * @swagger
- * /api/v1/auth/bulk-participant/verify:
- *   post:
- *     summary: Verify bulk participant OTP and create account
- *     tags: [Authentication]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - otp
- *               - password
- *               - confirmPassword
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *                 description: Email address of the bulk participant
- *                 example: "participant@example.com"
- *               otp:
- *                 type: string
- *                 description: OTP received via invitation email
- *                 example: "123456"
- *               password:
- *                 type: string
- *                 minLength: 8
- *                 description: Password for the new account
- *                 example: "SecurePass123!"
- *               confirmPassword:
- *                 type: string
- *                 description: Password confirmation
- *                 example: "SecurePass123!"
- *     responses:
- *       201:
- *         description: Account created successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Account created successfully. Your registration slot is already paid for!"
- *                 data:
- *                   type: object
- *                   properties:
- *                     token:
- *                       type: string
- *                       description: JWT token for authentication
- *                     user:
- *                       type: object
- *                       properties:
- *                         id: { type: string }
- *                         firstName: { type: string }
- *                         lastName: { type: string }
- *                         email: { type: string }
- *                         role: { type: string }
- *                     registration:
- *                       type: object
- *                       properties:
- *                         registrationId: { type: string }
- *                         registrationNumber: { type: string }
- *                         currentStep: { type: integer }
- *                         status: { type: string }
- *                         isBulkParticipant: { type: boolean }
- *                         bulkRegistrationNumber: { type: string }
- *                         paymentRequired: { type: boolean }
- *       400:
- *         description: Validation error or invalid OTP
- *       404:
- *         description: Bulk registration invitation not found
- *       500:
- *         description: Server error
- */
-router.post('/bulk-participant/verify', [
-  body('email').isEmail().withMessage('Please provide a valid email'),
-  body('otp').isLength({ min: 4, max: 8 }).withMessage('OTP must be 4-8 characters'),
-  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
-  body('confirmPassword').notEmpty().withMessage('Password confirmation is required'),
-  handleValidation
-], verifyBulkParticipantOTP);
 
 /**
  * @swagger
@@ -964,5 +996,57 @@ router.post('/bulk-participant/verify', [
  *         description: Server error
  */
 router.get('/bulk-participant/status/:email', checkBulkParticipantStatus);
+
+/**
+ * @swagger
+ * /api/v1/auth/bulk-participant/resend-otp:
+ *   post:
+ *     summary: Resend OTP for bulk participant
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Email address of the bulk participant
+ *                 example: "participant@example.com"
+ *     responses:
+ *       200:
+ *         description: New OTP sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "New OTP sent successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     email: { type: string }
+ *                     expiresAt: { type: string, format: date-time }
+ *                     bulkRegistrationNumber: { type: string }
+ *       400:
+ *         description: Validation error or participant already registered
+ *       404:
+ *         description: Bulk registration invitation not found
+ *       500:
+ *         description: Server error
+ */
+router.post('/bulk-participant/resend-otp', [
+  body('email').isEmail().withMessage('Please provide a valid email'),
+  handleValidation
+], resendBulkParticipantOTP);
 
 export default router;

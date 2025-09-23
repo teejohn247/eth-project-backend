@@ -50,10 +50,69 @@ export const getUserRegistrations = async (req: AuthenticatedRequest, res: Respo
       .sort({ createdAt: -1 })
       .select('-paymentInfo.paymentResponse');
 
+    // Process each registration to add bulk details if applicable
+    const enrichedRegistrations = await Promise.all(
+      registrations.map(async (registration) => {
+        const registrationData: any = registration.toObject();
+
+        // Add bulk registration details for bulk registrations and bulk participants
+        if ((registration.registrationType === 'bulk' && registration.bulkRegistrationId) || 
+            (registration.isBulkParticipant && registration.bulkRegistrationId)) {
+          try {
+            const { BulkRegistration } = await import('../models');
+            const bulkRegistration = await BulkRegistration.findById(registration.bulkRegistrationId);
+            
+            if (bulkRegistration) {
+              registrationData.bulkRegistration = {
+                bulkRegistrationId: bulkRegistration._id,
+                bulkRegistrationNumber: bulkRegistration.bulkRegistrationNumber,
+                totalSlots: bulkRegistration.totalSlots,
+                usedSlots: bulkRegistration.usedSlots,
+                availableSlots: bulkRegistration.availableSlots,
+                status: bulkRegistration.status,
+                owner: {
+                  ownerId: bulkRegistration.ownerId
+                },
+                paymentInfo: {
+                  paymentStatus: bulkRegistration.paymentInfo.paymentStatus,
+                  paymentReference: bulkRegistration.paymentInfo.paymentReference,
+                  transactionId: bulkRegistration.paymentInfo.transactionId,
+                  paymentMethod: bulkRegistration.paymentInfo.paymentMethod,
+                  paidAt: bulkRegistration.paymentInfo.paidAt,
+                  amount: bulkRegistration.totalAmount,
+                  currency: bulkRegistration.currency,
+                  pricePerSlot: bulkRegistration.pricePerSlot
+                },
+                participants: bulkRegistration.participants.map(p => ({
+                  firstName: p.firstName,
+                  lastName: p.lastName,
+                  email: p.email,
+                  phoneNo: p.phoneNo,
+                  invitationStatus: p.invitationStatus,
+                  invitationSentAt: p.invitationSentAt,
+                  registeredAt: p.registeredAt,
+                  addedAt: p.addedAt,
+                  hasAccount: !!p.participantId,
+                  hasRegistration: !!p.registrationId
+                })),
+                canAddParticipants: bulkRegistration.status === 'active' && bulkRegistration.availableSlots > 0,
+                nextStep: bulkRegistration.status === 'active' ? 'add_participants' : 'payment'
+              };
+            }
+          } catch (error) {
+            console.error('Failed to fetch bulk registration info:', error);
+            // Don't fail the entire request if bulk info fetch fails
+          }
+        }
+
+        return registrationData;
+      })
+    );
+
     res.status(200).json({
       success: true,
       message: 'Registrations retrieved successfully',
-      data: registrations
+      data: enrichedRegistrations
     });
   } catch (error) {
     console.error('Get registrations error:', error);
@@ -86,7 +145,8 @@ export const createRegistration = async (req: AuthenticatedRequest, res: Respons
 
     const registration = new Registration({
       userId: req.user?.userId,
-      registrationType
+      registrationType,
+      paidBy: req.user?.userId // For individual/group registrations, they pay for themselves
     });
 
     await registration.save();
@@ -317,6 +377,16 @@ export const processBulkPayment = async (req: AuthenticatedRequest, res: Respons
     // Update bulk registration status based on payment
     if (mappedStatus === 'completed') {
       bulkRegistration.status = 'active';
+      
+      // Update user role to sponsor when they successfully pay for bulk registration
+      try {
+        const { User } = await import('../models');
+        await User.findByIdAndUpdate(userId, { role: 'sponsor' });
+        console.log(`✅ Updated user ${userId} role to sponsor after bulk payment`);
+      } catch (error) {
+        console.error('Failed to update user role to sponsor:', error);
+        // Don't fail payment processing if role update fails
+      }
     } else if (mappedStatus === 'failed') {
       bulkRegistration.status = 'payment_pending';
     }
@@ -552,6 +622,41 @@ export const getRegistration = async (req: AuthenticatedRequest, res: Response):
       delete registrationData.paymentInfo.paymentResponse;
     }
 
+    // Add bulk registration information if applicable
+    if (registration.registrationType === 'bulk' && registration.bulkRegistrationId) {
+      try {
+        const { BulkRegistration } = await import('../models');
+        const bulkRegistration = await BulkRegistration.findById(registration.bulkRegistrationId);
+        
+        if (bulkRegistration) {
+          registrationData.bulkRegistration = {
+            bulkRegistrationId: bulkRegistration._id,
+            bulkRegistrationNumber: bulkRegistration.bulkRegistrationNumber,
+            totalSlots: bulkRegistration.totalSlots,
+            usedSlots: bulkRegistration.usedSlots,
+            availableSlots: bulkRegistration.availableSlots,
+            status: bulkRegistration.status,
+            canAddParticipants: bulkRegistration.status === 'active',
+            participants: bulkRegistration.participants.map(p => ({
+              firstName: p.firstName,
+              lastName: p.lastName,
+              email: p.email,
+              phoneNo: p.phoneNo,
+              invitationStatus: p.invitationStatus,
+              invitationSentAt: p.invitationSentAt,
+              registeredAt: p.registeredAt,
+              addedAt: p.addedAt
+            })),
+            nextStep: bulkRegistration.status === 'active' ? 'add_participants' : 'payment',
+            addParticipantEndpoint: bulkRegistration.status === 'active' ? 
+              `/api/v1/registrations/${registration._id}/participants` : undefined
+          };
+        }
+      } catch (error) {
+        console.error('Failed to fetch bulk registration info for get registration:', error);
+      }
+    }
+
     res.status(200).json({
       success: true,
       message: 'Registration retrieved successfully',
@@ -674,6 +779,30 @@ export const submitRegistration = async (req: AuthenticatedRequest, res: Respons
           if (participant) {
             participant.invitationStatus = 'completed';
             await bulkRegistration.save();
+
+            // Check if all participants have completed their registrations
+            const allParticipantsCompleted = bulkRegistration.participants.every(p => 
+              p.invitationStatus === 'completed'
+            );
+
+            if (allParticipantsCompleted) {
+              // Update the main bulk registration status to completed
+              bulkRegistration.status = 'completed';
+              await bulkRegistration.save();
+
+              // Also update the owner's bulk registration record to submitted
+              const ownerBulkRegistration = await Registration.findOne({
+                userId: bulkRegistration.ownerId,
+                registrationType: 'bulk',
+                bulkRegistrationId: bulkRegistration._id
+              });
+
+              if (ownerBulkRegistration && ownerBulkRegistration.status === 'draft') {
+                ownerBulkRegistration.status = 'submitted';
+                ownerBulkRegistration.submittedAt = new Date();
+                await ownerBulkRegistration.save();
+              }
+            }
           }
         }
       } catch (error) {
