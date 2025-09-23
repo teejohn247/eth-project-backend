@@ -330,6 +330,53 @@ export const getBulkRegistration = async (req: AuthenticatedRequest, res: Respon
   }
 };
 
+// Update existing bulk registration owners to sponsor role
+export const updateBulkOwnersToSponsors = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Unauthorized: User ID not found in token' });
+      return;
+    }
+
+    // Find all bulk registrations with completed payments
+    const completedBulkRegs = await BulkRegistration.find({
+      'paymentInfo.paymentStatus': 'completed'
+    });
+
+    const { User } = await import('../models');
+    let updatedCount = 0;
+
+    for (const bulkReg of completedBulkRegs) {
+      const user = await User.findById(bulkReg.ownerId);
+      if (user && user.role !== 'sponsor') {
+        user.role = 'sponsor';
+        await user.save();
+        updatedCount++;
+        console.log(`✅ Updated user ${user.email} to sponsor role`);
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Updated ${updatedCount} bulk registration owners to sponsor role`,
+      data: {
+        totalBulkRegistrations: completedBulkRegs.length,
+        usersUpdated: updatedCount
+      }
+    });
+
+  } catch (error) {
+    console.error('Update bulk owners to sponsors error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update bulk owners to sponsors',
+      error: process.env.NODE_ENV === 'development' ? error : undefined
+    });
+  }
+};
+
 // List all bulk registrations for a user
 export const listBulkRegistrations = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
