@@ -17,7 +17,7 @@ const findRegistrationByIdOrUserId = async (idParam: string, userId: string) => 
     registration = await Registration.findOne({
       _id: idParam,
       userId: userId
-    });
+    }).populate('paidBy', 'firstName lastName email role');
   }
   
   // If not found by _id or not a valid ObjectId, try to find by userId
@@ -26,7 +26,7 @@ const findRegistrationByIdOrUserId = async (idParam: string, userId: string) => 
     if (mongoose.Types.ObjectId.isValid(idParam)) {
       registration = await Registration.findOne({
         userId: idParam
-      });
+      }).populate('paidBy', 'firstName lastName email role');
       
       // Verify that the user making the request owns this registration or is the user themselves
       if (registration && registration.userId.toString() !== userId && idParam !== userId) {
@@ -36,7 +36,7 @@ const findRegistrationByIdOrUserId = async (idParam: string, userId: string) => 
       // If idParam is not a valid ObjectId, just search by current user's userId
       registration = await Registration.findOne({
         userId: userId
-      });
+      }).populate('paidBy', 'firstName lastName email role');
     }
   }
   
@@ -47,6 +47,7 @@ const findRegistrationByIdOrUserId = async (idParam: string, userId: string) => 
 export const getUserRegistrations = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const registrations = await Registration.find({ userId: req.user?.userId })
+      .populate('paidBy', 'firstName lastName email role')
       .sort({ createdAt: -1 })
       .select('-paymentInfo.paymentResponse');
 
@@ -54,6 +55,12 @@ export const getUserRegistrations = async (req: AuthenticatedRequest, res: Respo
     const enrichedRegistrations = await Promise.all(
       registrations.map(async (registration) => {
         const registrationData: any = registration.toObject();
+
+        // Transform paidBy to sponsor
+        if (registrationData.paidBy) {
+          registrationData.sponsor = registrationData.paidBy;
+          delete registrationData.paidBy;
+        }
 
         // Add bulk registration details for bulk registrations and bulk participants
         if ((registration.registrationType === 'bulk' && registration.bulkRegistrationId) || 
@@ -620,6 +627,12 @@ export const getRegistration = async (req: AuthenticatedRequest, res: Response):
     const registrationData: any = registration.toObject();
     if (registrationData.paymentInfo?.paymentResponse) {
       delete registrationData.paymentInfo.paymentResponse;
+    }
+
+    // Transform paidBy to sponsor
+    if (registrationData.paidBy) {
+      registrationData.sponsor = registrationData.paidBy;
+      delete registrationData.paidBy;
     }
 
     // Add bulk registration details for bulk registrations and bulk participants

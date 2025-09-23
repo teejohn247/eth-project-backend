@@ -48,13 +48,13 @@ const findRegistrationByIdOrUserId = async (idParam, userId) => {
         registration = await Registration_1.default.findOne({
             _id: idParam,
             userId: userId
-        });
+        }).populate('paidBy', 'firstName lastName email role');
     }
     if (!registration) {
         if (mongoose_1.default.Types.ObjectId.isValid(idParam)) {
             registration = await Registration_1.default.findOne({
                 userId: idParam
-            });
+            }).populate('paidBy', 'firstName lastName email role');
             if (registration && registration.userId.toString() !== userId && idParam !== userId) {
                 return null;
             }
@@ -62,7 +62,7 @@ const findRegistrationByIdOrUserId = async (idParam, userId) => {
         else {
             registration = await Registration_1.default.findOne({
                 userId: userId
-            });
+            }).populate('paidBy', 'firstName lastName email role');
         }
     }
     return registration;
@@ -70,10 +70,15 @@ const findRegistrationByIdOrUserId = async (idParam, userId) => {
 const getUserRegistrations = async (req, res) => {
     try {
         const registrations = await Registration_1.default.find({ userId: req.user?.userId })
+            .populate('paidBy', 'firstName lastName email role')
             .sort({ createdAt: -1 })
             .select('-paymentInfo.paymentResponse');
         const enrichedRegistrations = await Promise.all(registrations.map(async (registration) => {
             const registrationData = registration.toObject();
+            if (registrationData.paidBy) {
+                registrationData.sponsor = registrationData.paidBy;
+                delete registrationData.paidBy;
+            }
             if ((registration.registrationType === 'bulk' && registration.bulkRegistrationId) ||
                 (registration.isBulkParticipant && registration.bulkRegistrationId)) {
                 try {
@@ -548,6 +553,10 @@ const getRegistration = async (req, res) => {
         const registrationData = registration.toObject();
         if (registrationData.paymentInfo?.paymentResponse) {
             delete registrationData.paymentInfo.paymentResponse;
+        }
+        if (registrationData.paidBy) {
+            registrationData.sponsor = registrationData.paidBy;
+            delete registrationData.paidBy;
         }
         if ((registration.registrationType === 'bulk' && registration.bulkRegistrationId) ||
             (registration.isBulkParticipant && registration.bulkRegistrationId)) {

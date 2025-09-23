@@ -76,6 +76,12 @@ export const getAllRegistrations = async (req: AuthenticatedRequest, res: Respon
     // Enhance registrations with bulk data
     const enhancedRegistrations = await Promise.all(
       registrations.map(async (registration: any) => {
+        // Transform paidBy to sponsor
+        if (registration.paidBy) {
+          registration.sponsor = registration.paidBy;
+          delete registration.paidBy;
+        }
+
         // Add bulk registration details for bulk registrations and bulk participants
         if ((registration.registrationType === 'bulk' && registration.bulkRegistrationId) || 
             (registration.isBulkParticipant && registration.bulkRegistrationId)) {
