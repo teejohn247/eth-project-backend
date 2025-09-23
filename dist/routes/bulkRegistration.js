@@ -12,5 +12,6 @@ router.get('/', auth_1.authenticateToken, bulkRegistrationController_1.listBulkR
 router.get('/:bulkRegistrationId', auth_1.authenticateToken, bulkRegistrationController_1.getBulkRegistration);
 router.post('/:bulkRegistrationId/payment', auth_1.authenticateToken, bulkRegistrationController_1.processBulkPayment);
 router.post('/:bulkRegistrationId/participants', auth_1.authenticateToken, bulkRegistrationController_1.addParticipant);
+router.post('/update-sponsors', auth_1.authenticateToken, bulkRegistrationController_1.updateBulkOwnersToSponsors);
 exports.default = router;
 //# sourceMappingURL=bulkRegistration.js.map

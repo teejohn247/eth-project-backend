@@ -71,14 +71,7 @@ const BulkRegistrationSchema = new mongoose_1.Schema({
             registeredAt: Date,
             otpToken: String,
             otpExpiresAt: Date,
-            addedAt: { type: Date, default: Date.now },
-            paidBy: {
-                userId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true },
-                firstName: { type: String, required: true },
-                lastName: { type: String, required: true },
-                email: { type: String, required: true },
-                registrationNumber: { type: String, required: true }
-            }
+            addedAt: { type: Date, default: Date.now }
         }],
     status: {
         type: String,

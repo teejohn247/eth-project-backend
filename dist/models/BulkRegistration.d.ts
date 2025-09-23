@@ -29,13 +29,6 @@ export interface IBulkRegistration extends Document {
         otpToken?: string;
         otpExpiresAt?: Date;
         addedAt: Date;
-        paidBy: {
-            userId: mongoose.Types.ObjectId;
-            firstName: string;
-            lastName: string;
-            email: string;
-            registrationNumber: string;
-        };
     }>;
     status: 'draft' | 'payment_pending' | 'active' | 'completed' | 'expired';
     expiresAt?: Date;

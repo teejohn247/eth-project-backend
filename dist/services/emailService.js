@@ -29,7 +29,7 @@ class EmailService {
             const subject = type === 'verification'
                 ? 'Verify Your Email - Edo Talent Hunt'
                 : 'Reset Your Password - Edo Talent Hunt';
-            const htmlContent = this.generateOTPEmailTemplate(otp, type);
+            const htmlContent = this.generateOTPEmailTemplate(email, otp, type);
             const mailOptions = {
                 from: `"Edo Talent Hunt" <${this.fromEmail}>`,
                 to: email,
@@ -47,7 +47,7 @@ class EmailService {
     async sendBulkParticipantInvitation(email, otp, firstName, bulkRegistrationNumber) {
         try {
             const subject = 'You\'re Invited to Join Edo Talent Hunt!';
-            const htmlContent = this.generateBulkInvitationTemplate(otp, firstName, bulkRegistrationNumber);
+            const htmlContent = this.generateBulkInvitationTemplate(email, otp, firstName, bulkRegistrationNumber);
             const mailOptions = {
                 from: `"Edo Talent Hunt" <${this.fromEmail}>`,
                 to: email,
@@ -62,7 +62,7 @@ class EmailService {
             throw new Error('Failed to send bulk invitation email');
         }
     }
-    generateOTPEmailTemplate(otp, type) {
+    generateOTPEmailTemplate(email, otp, type) {
         const title = type === 'verification' ? 'Verify Your Email Address' : 'Reset Your Password';
         const message = type === 'verification'
             ? 'Welcome to Edo Talent Hunt! We\'re excited to have you join our community of talented individuals. Please verify your email address to complete your registration.'
@@ -543,7 +543,7 @@ class EmailService {
       </html>
     `;
     }
-    generateBulkInvitationTemplate(otp, firstName, bulkRegistrationNumber) {
+    generateBulkInvitationTemplate(email, otp, firstName, bulkRegistrationNumber) {
         return `
       <!DOCTYPE html>
       <html lang="en">
@@ -1031,7 +1031,7 @@ class EmailService {
                    </p>
                    
                    <div class="verification-button-container">
-                     <a href="https://edotalenthunt.com/verify" class="verification-button" target="_blank">
+                     <a href="https://edotalenthunt.com/verify?email=${email}" class="verification-button" target="_blank">
                        Verify Email & Complete Registration
                      </a>
                    </div>
@@ -1047,7 +1047,7 @@ class EmailService {
                    <div class="step">
                      <div class="step-number">1</div>
                      <div class="step-text">
-                       <strong>Visit Verification Page:</strong> Click the button above or go to <a href="https://edotalenthunt.com/verify" target="_blank" style="color: #DAA520; text-decoration: none;">https://edotalenthunt.com/verify</a>
+                       <strong>Visit Verification Page:</strong> Click the button above or go to <a href="https://edotalenthunt.com/verify?email=${email}" target="_blank" style="color: #DAA520; text-decoration: none;">https://edotalenthunt.com/verify</a>
                      </div>
                    </div>
                    
@@ -1078,7 +1078,7 @@ class EmailService {
                        <strong>Submit:</strong> Since your slot is already paid for, you can fill in your details and submit directly after completing all steps
                      </div>
                    </div>
-                 </div>
+          </div>
           
             <div class="help-section">
               <p class="help-text">

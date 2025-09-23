@@ -1,10 +1,42 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.listBulkRegistrations = exports.getBulkRegistration = exports.addParticipant = exports.processBulkPayment = exports.createBulkRegistration = void 0;
-const mongoose_1 = __importDefault(require("mongoose"));
+exports.listBulkRegistrations = exports.updateBulkOwnersToSponsors = exports.getBulkRegistration = exports.addParticipant = exports.processBulkPayment = exports.createBulkRegistration = void 0;
 const models_1 = require("../models");
 const emailService_1 = __importDefault(require("../services/emailService"));
 const createBulkRegistration = async (req, res) => {
@@ -106,6 +138,14 @@ const processBulkPayment = async (req, res) => {
         };
         if (mappedStatus === 'completed') {
             bulkRegistration.status = 'active';
+            try {
+                const { User } = await Promise.resolve().then(() => __importStar(require('../models')));
+                await User.findByIdAndUpdate(userId, { role: 'sponsor' });
+                console.log(`✅ Updated user ${userId} role to sponsor after bulk payment`);
+            }
+            catch (error) {
+                console.error('Failed to update user role to sponsor:', error);
+            }
         }
         else if (mappedStatus === 'failed') {
             bulkRegistration.status = 'payment_pending';
@@ -189,14 +229,6 @@ const addParticipant = async (req, res) => {
             return;
         }
         const otpDoc = await models_1.OTP.createOTP(email, 'email_verification', 10);
-        const owner = await models_1.User.findById(userId).select('firstName lastName email');
-        if (!owner) {
-            res.status(404).json({
-                success: false,
-                message: 'Owner information not found'
-            });
-            return;
-        }
         bulkRegistration.participants.push({
             firstName,
             lastName,
@@ -205,14 +237,7 @@ const addParticipant = async (req, res) => {
             invitationStatus: 'pending',
             otpToken: otpDoc.otp,
             otpExpiresAt: otpDoc.expiresAt,
-            addedAt: new Date(),
-            paidBy: {
-                userId: new mongoose_1.default.Types.ObjectId(userId),
-                firstName: owner.firstName,
-                lastName: owner.lastName,
-                email: owner.email,
-                registrationNumber: bulkRegistration.bulkRegistrationNumber
-            }
+            addedAt: new Date()
         });
         bulkRegistration.usedSlots += 1;
         await bulkRegistration.save();
@@ -284,6 +309,46 @@ const getBulkRegistration = async (req, res) => {
     }
 };
 exports.getBulkRegistration = getBulkRegistration;
+const updateBulkOwnersToSponsors = async (req, res) => {
+    try {
+        const userId = req.user?.userId;
+        if (!userId) {
+            res.status(401).json({ success: false, message: 'Unauthorized: User ID not found in token' });
+            return;
+        }
+        const completedBulkRegs = await models_1.BulkRegistration.find({
+            'paymentInfo.paymentStatus': 'completed'
+        });
+        const { User } = await Promise.resolve().then(() => __importStar(require('../models')));
+        let updatedCount = 0;
+        for (const bulkReg of completedBulkRegs) {
+            const user = await User.findById(bulkReg.ownerId);
+            if (user && user.role !== 'sponsor') {
+                user.role = 'sponsor';
+                await user.save();
+                updatedCount++;
+                console.log(`✅ Updated user ${user.email} to sponsor role`);
+            }
+        }
+        res.status(200).json({
+            success: true,
+            message: `Updated ${updatedCount} bulk registration owners to sponsor role`,
+            data: {
+                totalBulkRegistrations: completedBulkRegs.length,
+                usersUpdated: updatedCount
+            }
+        });
+    }
+    catch (error) {
+        console.error('Update bulk owners to sponsors error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update bulk owners to sponsors',
+            error: process.env.NODE_ENV === 'development' ? error : undefined
+        });
+    }
+};
+exports.updateBulkOwnersToSponsors = updateBulkOwnersToSponsors;
 const listBulkRegistrations = async (req, res) => {
     try {
         const userId = req.user?.userId;

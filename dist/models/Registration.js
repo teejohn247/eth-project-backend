@@ -40,6 +40,7 @@ const RegistrationSchema = new mongoose_1.Schema({
     registrationType: { type: String, enum: ['individual', 'group', 'bulk'], required: true },
     isBulkParticipant: { type: Boolean, default: false },
     bulkRegistrationId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'BulkRegistration' },
+    paidBy: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User' },
     personalInfo: {
         firstName: String,
         lastName: String,
@@ -180,6 +181,7 @@ RegistrationSchema.index({ userId: 1 });
 RegistrationSchema.index({ registrationNumber: 1 });
 RegistrationSchema.index({ status: 1 });
 RegistrationSchema.index({ 'paymentInfo.paymentStatus': 1 });
+RegistrationSchema.index({ paidBy: 1 });
 RegistrationSchema.index({ createdAt: -1 });
 exports.default = mongoose_1.default.model('Registration', RegistrationSchema);
 //# sourceMappingURL=Registration.js.map

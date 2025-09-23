@@ -5,6 +5,7 @@ export interface IRegistration extends Document {
     registrationType: 'individual' | 'group' | 'bulk';
     isBulkParticipant?: boolean;
     bulkRegistrationId?: mongoose.Types.ObjectId;
+    paidBy?: mongoose.Types.ObjectId;
     personalInfo: {
         firstName: string;
         lastName: string;
