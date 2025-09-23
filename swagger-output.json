@@ -1731,8 +1731,8 @@
         "tags": [
           "Authentication"
         ],
-        "summary": "Verify OTP (Email verification or Password reset)",
-        "description": "Verify OTP for either email verification during registration or password reset. The type is auto-detected based on user status.",
+        "summary": "Verify OTP (Email verification, Password reset, or Bulk participant registration)",
+        "description": "Verify OTP for email verification during registration, password reset, or bulk participant account creation. For bulk participants, this creates their account and registration. The type is auto-detected based on user status.",
         "requestBody": {
           "required": true,
           "content": {
@@ -1842,8 +1842,8 @@
         "tags": [
           "Authentication"
         ],
-        "summary": "Set password (initial setup or reset)",
-        "description": "Set user password after email verification OR reset password with OTP. Supports both initial password setup and password reset flows.",
+        "summary": "Set password (initial setup, reset, or bulk participant registration)",
+        "description": "Set user password after email verification OR reset password with OTP OR create account for bulk participants. Supports initial password setup, password reset flows, and bulk participant registration.",
         "requestBody": {
           "required": true,
           "content": {
@@ -2107,140 +2107,6 @@
         }
       }
     },
-    "/api/v1/auth/bulk-participant/verify": {
-      "post": {
-        "summary": "Verify bulk participant OTP and create account",
-        "tags": [
-          "Authentication"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "email",
-                  "otp",
-                  "password",
-                  "confirmPassword"
-                ],
-                "properties": {
-                  "email": {
-                    "type": "string",
-                    "format": "email",
-                    "description": "Email address of the bulk participant",
-                    "example": "participant@example.com"
-                  },
-                  "otp": {
-                    "type": "string",
-                    "description": "OTP received via invitation email",
-                    "example": "123456"
-                  },
-                  "password": {
-                    "type": "string",
-                    "minLength": 8,
-                    "description": "Password for the new account",
-                    "example": "SecurePass123!"
-                  },
-                  "confirmPassword": {
-                    "type": "string",
-                    "description": "Password confirmation",
-                    "example": "SecurePass123!"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Account created successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Account created successfully. Your registration slot is already paid for!"
-                    },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "token": {
-                          "type": "string",
-                          "description": "JWT token for authentication"
-                        },
-                        "user": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string"
-                            },
-                            "firstName": {
-                              "type": "string"
-                            },
-                            "lastName": {
-                              "type": "string"
-                            },
-                            "email": {
-                              "type": "string"
-                            },
-                            "role": {
-                              "type": "string"
-                            }
-                          }
-                        },
-                        "registration": {
-                          "type": "object",
-                          "properties": {
-                            "registrationId": {
-                              "type": "string"
-                            },
-                            "registrationNumber": {
-                              "type": "string"
-                            },
-                            "currentStep": {
-                              "type": "integer"
-                            },
-                            "status": {
-                              "type": "string"
-                            },
-                            "isBulkParticipant": {
-                              "type": "boolean"
-                            },
-                            "bulkRegistrationNumber": {
-                              "type": "string"
-                            },
-                            "paymentRequired": {
-                              "type": "boolean"
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation error or invalid OTP"
-          },
-          "404": {
-            "description": "Bulk registration invitation not found"
-          },
-          "500": {
-            "description": "Server error"
-          }
-        }
-      }
-    },
     "/api/v1/auth/bulk-participant/status/{email}": {
       "get": {
         "summary": "Check bulk participant invitation status",
@@ -2319,6 +2185,81 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Bulk registration invitation not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/bulk-participant/resend-otp": {
+      "post": {
+        "summary": "Resend OTP for bulk participant",
+        "tags": [
+          "Authentication"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "Email address of the bulk participant",
+                    "example": "participant@example.com"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "New OTP sent successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "New OTP sent successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "email": {
+                          "type": "string"
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "bulkRegistrationNumber": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error or participant already registered"
           },
           "404": {
             "description": "Bulk registration invitation not found"
@@ -2791,6 +2732,59 @@
           },
           "404": {
             "description": "Bulk registration not found or not active"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/v1/bulk-registrations/update-sponsors": {
+      "post": {
+        "summary": "Update existing bulk registration owners to sponsor role",
+        "tags": [
+          "Bulk Registration"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "One-time utility endpoint to update existing bulk registration owners who have completed payments to have the 'sponsor' role",
+        "responses": {
+          "200": {
+            "description": "Bulk registration owners updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Updated 2 bulk registration owners to sponsor role"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "totalBulkRegistrations": {
+                          "type": "integer"
+                        },
+                        "usersUpdated": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
           },
           "500": {
             "description": "Server error"
@@ -4515,6 +4509,7 @@
     "/api/v1/registrations/{id}": {
       "get": {
         "summary": "Get specific registration",
+        "description": "Retrieve a registration by either registration ID or user ID. The system will automatically find the correct registration for the authenticated user.",
         "tags": [
           "Registrations"
         ],
@@ -4531,12 +4526,118 @@
             "schema": {
               "type": "string"
             },
-            "description": "Registration ID or User ID (both are supported for convenience)"
+            "description": "Registration ID or User ID. If a user ID is provided, the system will find the user's registration.",
+            "examples": {
+              "registrationId": {
+                "value": "{registrationId}",
+                "summary": "Using Registration ID"
+              },
+              "userId": {
+                "value": "{userId}",
+                "summary": "Using User ID"
+              }
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "Registration retrieved successfully"
+            "description": "Registration retrieved successfully (includes bulk registration details if applicable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Registration retrieved successfully"
+                    },
+                    "data": {
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/Registration"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "bulkRegistration": {
+                              "type": "object",
+                              "description": "Bulk registration details (only present for bulk registrations)",
+                              "properties": {
+                                "bulkRegistrationId": {
+                                  "type": "string"
+                                },
+                                "bulkRegistrationNumber": {
+                                  "type": "string"
+                                },
+                                "totalSlots": {
+                                  "type": "integer"
+                                },
+                                "usedSlots": {
+                                  "type": "integer"
+                                },
+                                "availableSlots": {
+                                  "type": "integer"
+                                },
+                                "status": {
+                                  "type": "string"
+                                },
+                                "canAddParticipants": {
+                                  "type": "boolean"
+                                },
+                                "participants": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "firstName": {
+                                        "type": "string"
+                                      },
+                                      "lastName": {
+                                        "type": "string"
+                                      },
+                                      "email": {
+                                        "type": "string"
+                                      },
+                                      "phoneNo": {
+                                        "type": "string"
+                                      },
+                                      "invitationStatus": {
+                                        "type": "string"
+                                      },
+                                      "invitationSentAt": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                      },
+                                      "addedAt": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                      }
+                                    }
+                                  }
+                                },
+                                "nextStep": {
+                                  "type": "string"
+                                },
+                                "addParticipantEndpoint": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access denied (if trying to access another user's registration)"
           },
           "404": {
             "description": "Registration not found"

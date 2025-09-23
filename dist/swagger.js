@@ -44,7 +44,7 @@ const options = {
                         id: {
                             type: 'string',
                             description: 'Unique user identifier',
-                            example: '68c6b7dac7cd959cc9eea5a3'
+                            example: '{userId}'
                         },
                         firstName: {
                             type: 'string',

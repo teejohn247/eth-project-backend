@@ -156,10 +156,10 @@ router.post('/', authenticateToken, validateRegistration, createRegistration);
  *         description: Registration ID or User ID. If a user ID is provided, the system will find the user's registration.
  *         examples:
  *           registrationId:
- *             value: "68d1f10bf6998743731936ed"
+ *             value: "{registrationId}"
  *             summary: Using Registration ID
  *           userId:
- *             value: "68cc2051204aeb64c4480e1b"
+ *             value: "{userId}"
  *             summary: Using User ID
  *     responses:
  *       200:

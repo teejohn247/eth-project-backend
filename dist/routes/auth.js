@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -96,11 +129,84 @@ router.post('/register', registerValidation, async (req, res) => {
 router.post('/verify-otp', otpValidation, async (req, res) => {
     try {
         const { email, otp, type } = req.body;
-        const user = await models_1.User.findOne({ email });
+        let user = await models_1.User.findOne({ email });
+        let isBulkParticipant = false;
+        let bulkRegistration = null;
+        let participant = null;
         if (!user) {
+            const { BulkRegistration } = await Promise.resolve().then(() => __importStar(require('../models')));
+            bulkRegistration = await BulkRegistration.findOne({
+                'participants.email': email
+            });
+            if (bulkRegistration) {
+                participant = bulkRegistration.participants.find((p) => p.email === email);
+                if (participant && !participant.participantId) {
+                    isBulkParticipant = true;
+                    const otpResult = await models_1.OTP.verifyOTP(email, otp, 'email_verification');
+                    if (!otpResult.valid) {
+                        res.status(400).json({
+                            success: false,
+                            message: otpResult.message
+                        });
+                        return;
+                    }
+                    user = new models_1.User({
+                        firstName: participant.firstName,
+                        lastName: participant.lastName,
+                        email: participant.email,
+                        role: 'contestant',
+                        isActive: true,
+                        isEmailVerified: true,
+                        isPasswordSet: false,
+                        emailVerifiedAt: new Date()
+                    });
+                    await user.save();
+                    const registration = new models_1.Registration({
+                        userId: user._id,
+                        registrationType: 'individual',
+                        isBulkParticipant: true,
+                        bulkRegistrationId: bulkRegistration._id,
+                        paidBy: bulkRegistration.ownerId
+                    });
+                    await registration.save();
+                    participant.participantId = user._id;
+                    participant.registrationId = registration._id;
+                    participant.invitationStatus = 'registered';
+                    participant.registeredAt = new Date();
+                    await bulkRegistration.save();
+                    res.json({
+                        success: true,
+                        message: 'OTP verified successfully. Your account has been created. Please set your password.',
+                        data: {
+                            otpType: 'email_verification',
+                            nextStep: 'set-password',
+                            isBulkParticipant: true,
+                            user: {
+                                id: user._id.toString(),
+                                firstName: user.firstName,
+                                lastName: user.lastName,
+                                email: user.email,
+                                role: user.role,
+                                isEmailVerified: user.isEmailVerified,
+                                isPasswordSet: user.isPasswordSet
+                            },
+                            registration: {
+                                registrationId: registration._id.toString(),
+                                registrationNumber: registration.registrationNumber,
+                                currentStep: registration.currentStep,
+                                status: registration.status,
+                                isBulkParticipant: true,
+                                bulkRegistrationNumber: bulkRegistration.bulkRegistrationNumber,
+                                paymentRequired: false
+                            }
+                        }
+                    });
+                    return;
+                }
+            }
             res.status(404).json({
                 success: false,
-                message: 'User not found'
+                message: 'User not found and no bulk participant invitation found for this email'
             });
             return;
         }
@@ -180,15 +286,16 @@ router.post('/verify-otp', otpValidation, async (req, res) => {
 router.post('/set-password', passwordValidation, async (req, res) => {
     try {
         const { email, password, otp } = req.body;
-        const user = await models_1.User.findOne({ email }).select('+password');
+        let user = await models_1.User.findOne({ email }).select('+password');
         if (!user) {
             res.status(404).json({
                 success: false,
-                message: 'User not found'
+                message: 'User not found. Please verify your OTP first.'
             });
             return;
         }
-        if (otp) {
+        const isBulkParticipant = !user.isPasswordSet && user.isEmailVerified;
+        if (otp && !isBulkParticipant) {
             const otpType = user.isEmailVerified ? 'password_reset' : 'email_verification';
             const otpResult = await models_1.OTP.verifyOTP(email, otp, otpType);
             if (!otpResult.valid) {
@@ -202,7 +309,7 @@ router.post('/set-password', passwordValidation, async (req, res) => {
                 user.isEmailVerified = true;
             }
         }
-        else {
+        else if (!isBulkParticipant) {
             if (!user.isEmailVerified) {
                 res.status(400).json({
                     success: false,
@@ -215,25 +322,47 @@ router.post('/set-password', passwordValidation, async (req, res) => {
         user.isPasswordSet = true;
         await user.save();
         const token = (0, jwt_1.generateToken)(user);
-        const isPasswordReset = user.isPasswordSet && otp;
-        const message = isPasswordReset
-            ? 'Password reset successfully. You can now login with your new password.'
-            : 'Password set successfully. You can now login.';
+        let message = '';
+        if (isBulkParticipant) {
+            message = 'Account created successfully. Your registration slot is already paid for!';
+        }
+        else {
+            const isPasswordReset = user.isPasswordSet && otp;
+            message = isPasswordReset
+                ? 'Password reset successfully. You can now login with your new password.'
+                : 'Password set successfully. You can now login.';
+        }
+        const responseData = {
+            token,
+            user: {
+                id: user._id.toString(),
+                firstName: user.firstName,
+                lastName: user.lastName,
+                email: user.email,
+                role: user.role,
+                isEmailVerified: user.isEmailVerified,
+                isPasswordSet: user.isPasswordSet
+            }
+        };
+        if (isBulkParticipant) {
+            const registrationDoc = await models_1.Registration.findOne({ userId: user._id, isBulkParticipant: true });
+            if (registrationDoc) {
+                const bulkRegDoc = await (await Promise.resolve().then(() => __importStar(require('../models')))).BulkRegistration.findById(registrationDoc.bulkRegistrationId);
+                responseData.registration = {
+                    registrationId: registrationDoc._id.toString(),
+                    registrationNumber: registrationDoc.registrationNumber,
+                    currentStep: registrationDoc.currentStep || 0,
+                    status: registrationDoc.status || 'draft',
+                    isBulkParticipant: true,
+                    bulkRegistrationNumber: bulkRegDoc?.bulkRegistrationNumber || '',
+                    paymentRequired: false
+                };
+            }
+        }
         res.json({
             success: true,
             message,
-            data: {
-                token,
-                user: {
-                    id: user._id.toString(),
-                    firstName: user.firstName,
-                    lastName: user.lastName,
-                    email: user.email,
-                    role: user.role,
-                    isEmailVerified: user.isEmailVerified,
-                    isPasswordSet: user.isPasswordSet
-                }
-            }
+            data: responseData
         });
     }
     catch (error) {
@@ -427,13 +556,10 @@ router.post('/resend-otp', emailValidation, async (req, res) => {
         });
     }
 });
-router.post('/bulk-participant/verify', [
-    (0, express_validator_1.body)('email').isEmail().withMessage('Please provide a valid email'),
-    (0, express_validator_1.body)('otp').isLength({ min: 4, max: 8 }).withMessage('OTP must be 4-8 characters'),
-    (0, express_validator_1.body)('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
-    (0, express_validator_1.body)('confirmPassword').notEmpty().withMessage('Password confirmation is required'),
-    handleValidation
-], bulkParticipantController_1.verifyBulkParticipantOTP);
 router.get('/bulk-participant/status/:email', bulkParticipantController_1.checkBulkParticipantStatus);
+router.post('/bulk-participant/resend-otp', [
+    (0, express_validator_1.body)('email').isEmail().withMessage('Please provide a valid email'),
+    handleValidation
+], bulkParticipantController_1.resendBulkParticipantOTP);
 exports.default = router;
 //# sourceMappingURL=auth.js.map

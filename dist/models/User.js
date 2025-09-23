@@ -69,7 +69,7 @@ const UserSchema = new mongoose_1.Schema({
     },
     role: {
         type: String,
-        enum: ['contestant', 'admin', 'judge'],
+        enum: ['contestant', 'admin', 'judge', 'sponsor'],
         default: 'contestant'
     },
     isEmailVerified: {

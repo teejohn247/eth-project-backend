@@ -5,7 +5,7 @@ export interface IUser extends Document {
     lastName: string;
     email: string;
     password?: string;
-    role: 'contestant' | 'admin' | 'judge';
+    role: 'contestant' | 'admin' | 'judge' | 'sponsor';
     isEmailVerified: boolean;
     isPasswordSet: boolean;
     emailVerificationToken?: string;

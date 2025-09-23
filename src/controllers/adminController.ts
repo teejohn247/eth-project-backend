@@ -63,6 +63,7 @@ export const getAllRegistrations = async (req: AuthenticatedRequest, res: Respon
     // Get registrations with pagination
     const registrations = await Registration.find(filter)
       .populate('userId', 'firstName lastName email role createdAt')
+      .populate('paidBy', 'firstName lastName email role')
       .sort(sort)
       .skip(skip)
       .limit(limitNumber)
@@ -72,11 +73,68 @@ export const getAllRegistrations = async (req: AuthenticatedRequest, res: Respon
     const totalCount = await Registration.countDocuments(filter);
     const totalPages = Math.ceil(totalCount / limitNumber);
 
+    // Enhance registrations with bulk data
+    const enhancedRegistrations = await Promise.all(
+      registrations.map(async (registration: any) => {
+        // Add bulk registration details for bulk registrations and bulk participants
+        if ((registration.registrationType === 'bulk' && registration.bulkRegistrationId) || 
+            (registration.isBulkParticipant && registration.bulkRegistrationId)) {
+          try {
+            const { BulkRegistration } = await import('../models');
+            const bulkRegistration = await BulkRegistration.findById(registration.bulkRegistrationId);
+            
+            if (bulkRegistration) {
+              registration.bulkRegistration = {
+                bulkRegistrationId: bulkRegistration._id,
+                bulkRegistrationNumber: bulkRegistration.bulkRegistrationNumber,
+                totalSlots: bulkRegistration.totalSlots,
+                usedSlots: bulkRegistration.usedSlots,
+                availableSlots: bulkRegistration.availableSlots,
+                status: bulkRegistration.status,
+                owner: {
+                  ownerId: bulkRegistration.ownerId
+                },
+                paymentInfo: {
+                  paymentStatus: bulkRegistration.paymentInfo.paymentStatus,
+                  paymentReference: bulkRegistration.paymentInfo.paymentReference,
+                  transactionId: bulkRegistration.paymentInfo.transactionId,
+                  paymentMethod: bulkRegistration.paymentInfo.paymentMethod,
+                  paidAt: bulkRegistration.paymentInfo.paidAt,
+                  amount: bulkRegistration.totalAmount,
+                  currency: bulkRegistration.currency,
+                  pricePerSlot: bulkRegistration.pricePerSlot
+                },
+                participants: bulkRegistration.participants.map(p => ({
+                  firstName: p.firstName,
+                  lastName: p.lastName,
+                  email: p.email,
+                  phoneNo: p.phoneNo,
+                  invitationStatus: p.invitationStatus,
+                  invitationSentAt: p.invitationSentAt,
+                  registeredAt: p.registeredAt,
+                  addedAt: p.addedAt,
+                  hasAccount: !!p.participantId,
+                  hasRegistration: !!p.registrationId
+                })),
+                canAddParticipants: bulkRegistration.status === 'active' && bulkRegistration.availableSlots > 0,
+                nextStep: bulkRegistration.status === 'active' ? 'add_participants' : 'payment',
+                addParticipantEndpoint: bulkRegistration.status === 'active' ? 
+                  `/api/v1/registrations/${registration._id}/participants` : undefined
+              };
+            }
+          } catch (error) {
+            console.error('Failed to fetch bulk registration info for admin registrations:', error);
+          }
+        }
+        return registration;
+      })
+    );
+
     res.status(200).json({
       success: true,
       message: 'All registrations retrieved successfully',
       data: {
-        registrations,
+        registrations: enhancedRegistrations,
         pagination: {
           currentPage: pageNumber,
           totalPages,

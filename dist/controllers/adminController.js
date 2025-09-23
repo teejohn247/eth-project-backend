@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getDashboardStats = exports.getAllUsers = exports.getAllTransactions = exports.getAllRegistrations = void 0;
 const models_1 = require("../models");
@@ -39,17 +72,70 @@ const getAllRegistrations = async (req, res) => {
         sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
         const registrations = await models_1.Registration.find(filter)
             .populate('userId', 'firstName lastName email role createdAt')
+            .populate('paidBy', 'firstName lastName email role')
             .sort(sort)
             .skip(skip)
             .limit(limitNumber)
             .lean();
         const totalCount = await models_1.Registration.countDocuments(filter);
         const totalPages = Math.ceil(totalCount / limitNumber);
+        const enhancedRegistrations = await Promise.all(registrations.map(async (registration) => {
+            if ((registration.registrationType === 'bulk' && registration.bulkRegistrationId) ||
+                (registration.isBulkParticipant && registration.bulkRegistrationId)) {
+                try {
+                    const { BulkRegistration } = await Promise.resolve().then(() => __importStar(require('../models')));
+                    const bulkRegistration = await BulkRegistration.findById(registration.bulkRegistrationId);
+                    if (bulkRegistration) {
+                        registration.bulkRegistration = {
+                            bulkRegistrationId: bulkRegistration._id,
+                            bulkRegistrationNumber: bulkRegistration.bulkRegistrationNumber,
+                            totalSlots: bulkRegistration.totalSlots,
+                            usedSlots: bulkRegistration.usedSlots,
+                            availableSlots: bulkRegistration.availableSlots,
+                            status: bulkRegistration.status,
+                            owner: {
+                                ownerId: bulkRegistration.ownerId
+                            },
+                            paymentInfo: {
+                                paymentStatus: bulkRegistration.paymentInfo.paymentStatus,
+                                paymentReference: bulkRegistration.paymentInfo.paymentReference,
+                                transactionId: bulkRegistration.paymentInfo.transactionId,
+                                paymentMethod: bulkRegistration.paymentInfo.paymentMethod,
+                                paidAt: bulkRegistration.paymentInfo.paidAt,
+                                amount: bulkRegistration.totalAmount,
+                                currency: bulkRegistration.currency,
+                                pricePerSlot: bulkRegistration.pricePerSlot
+                            },
+                            participants: bulkRegistration.participants.map(p => ({
+                                firstName: p.firstName,
+                                lastName: p.lastName,
+                                email: p.email,
+                                phoneNo: p.phoneNo,
+                                invitationStatus: p.invitationStatus,
+                                invitationSentAt: p.invitationSentAt,
+                                registeredAt: p.registeredAt,
+                                addedAt: p.addedAt,
+                                hasAccount: !!p.participantId,
+                                hasRegistration: !!p.registrationId
+                            })),
+                            canAddParticipants: bulkRegistration.status === 'active' && bulkRegistration.availableSlots > 0,
+                            nextStep: bulkRegistration.status === 'active' ? 'add_participants' : 'payment',
+                            addParticipantEndpoint: bulkRegistration.status === 'active' ?
+                                `/api/v1/registrations/${registration._id}/participants` : undefined
+                        };
+                    }
+                }
+                catch (error) {
+                    console.error('Failed to fetch bulk registration info for admin registrations:', error);
+                }
+            }
+            return registration;
+        }));
         res.status(200).json({
             success: true,
             message: 'All registrations retrieved successfully',
             data: {
-                registrations,
+                registrations: enhancedRegistrations,
                 pagination: {
                     currentPage: pageNumber,
                     totalPages,
