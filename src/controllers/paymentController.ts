@@ -911,7 +911,10 @@ export const updatePaymentTransaction = async (req: AuthenticatedRequest, res: R
     const {
       status,
       amount,
+      transAmount, // Alternative amount field used by some gateways
+      debitedAmount, // Another alternative amount field
       currency,
+      currencyCode, // Alternative currency field
       paymentMethod,
       gatewayReference,
       failureReason,
@@ -924,24 +927,55 @@ export const updatePaymentTransaction = async (req: AuthenticatedRequest, res: R
     const changes: any = {};
     const oldValues: any = {};
 
-    // Update status if provided
-    if (status && ['initiated', 'pending', 'successful', 'failed', 'cancelled', 'refunded'].includes(status)) {
-      if (transaction.status !== status) {
+    // Update status if provided (with flexible status mapping)
+    let statusToUpdate = status;
+    
+    // Map various status formats to our enum
+    if (statusToUpdate !== undefined) {
+      if (statusToUpdate === 'successful' || statusToUpdate === 'success' || statusToUpdate === 'completed' || 
+          statusToUpdate === '0' || statusToUpdate === 0 || statusToUpdate === 'SUCCESSFUL' || 
+          statusToUpdate === 'SUCCESS' || statusToUpdate === 'COMPLETED') {
+        statusToUpdate = 'successful';
+      } else if (statusToUpdate === 'failed' || statusToUpdate === 'failure' || statusToUpdate === 'error' || 
+                 statusToUpdate === '1' || statusToUpdate === 1 || statusToUpdate === 'FAILED' || 
+                 statusToUpdate === 'FAILURE' || statusToUpdate === 'ERROR') {
+        statusToUpdate = 'failed';
+      } else if (statusToUpdate === 'initiated' || statusToUpdate === 'INITIATED') {
+        statusToUpdate = 'initiated';
+      } else if (statusToUpdate === 'cancelled' || statusToUpdate === 'canceled' || statusToUpdate === 'CANCELLED' || 
+                 statusToUpdate === 'CANCELED') {
+        statusToUpdate = 'cancelled';
+      } else if (statusToUpdate === 'pending' || statusToUpdate === 'processing' || statusToUpdate === 'PENDING' || 
+                 statusToUpdate === 'PROCESSING') {
+        statusToUpdate = 'pending';
+      }
+    }
+    
+    if (statusToUpdate && ['initiated', 'pending', 'successful', 'failed', 'cancelled', 'refunded'].includes(statusToUpdate)) {
+      if (transaction.status !== statusToUpdate) {
         oldValues.status = transaction.status;
-        changes.status = status;
-        transaction.status = status;
+        changes.status = statusToUpdate;
+        transaction.status = statusToUpdate;
 
         // Set processedAt for successful transactions
-        if (status === 'successful' && !transaction.processedAt) {
+        if (statusToUpdate === 'successful' && !transaction.processedAt) {
           transaction.processedAt = new Date();
           changes.processedAt = transaction.processedAt;
         }
       }
     }
 
-    // Update amount if provided
-    if (amount !== undefined) {
-      const newAmount = parseFloat(amount.toString());
+    // Update amount if provided (check multiple possible field names)
+    let amountToUpdate = amount;
+    if (amountToUpdate === undefined && transAmount !== undefined) {
+      amountToUpdate = transAmount;
+    }
+    if (amountToUpdate === undefined && debitedAmount !== undefined) {
+      amountToUpdate = debitedAmount;
+    }
+    
+    if (amountToUpdate !== undefined) {
+      const newAmount = parseFloat(amountToUpdate.toString());
       if (!isNaN(newAmount) && transaction.amount !== newAmount) {
         oldValues.amount = transaction.amount;
         changes.amount = newAmount;
@@ -949,11 +983,16 @@ export const updatePaymentTransaction = async (req: AuthenticatedRequest, res: R
       }
     }
 
-    // Update currency if provided
-    if (currency && transaction.currency !== currency) {
+    // Update currency if provided (check multiple possible field names)
+    let currencyToUpdate = currency;
+    if (!currencyToUpdate && currencyCode) {
+      currencyToUpdate = currencyCode;
+    }
+    
+    if (currencyToUpdate && transaction.currency !== currencyToUpdate) {
       oldValues.currency = transaction.currency;
-      changes.currency = currency;
-      transaction.currency = currency;
+      changes.currency = currencyToUpdate;
+      transaction.currency = currencyToUpdate;
     }
 
     // Update payment method if provided

@@ -761,32 +761,67 @@ const updatePaymentTransaction = async (req, res) => {
             });
             return;
         }
-        const { status, amount, currency, paymentMethod, gatewayReference, failureReason, gatewayResponse, notes, ...otherData } = updateData;
+        const { status, amount, transAmount, debitedAmount, currency, currencyCode, paymentMethod, gatewayReference, failureReason, gatewayResponse, notes, ...otherData } = updateData;
         const changes = {};
         const oldValues = {};
-        if (status && ['initiated', 'pending', 'successful', 'failed', 'cancelled', 'refunded'].includes(status)) {
-            if (transaction.status !== status) {
+        let statusToUpdate = status;
+        if (statusToUpdate !== undefined) {
+            if (statusToUpdate === 'successful' || statusToUpdate === 'success' || statusToUpdate === 'completed' ||
+                statusToUpdate === '0' || statusToUpdate === 0 || statusToUpdate === 'SUCCESSFUL' ||
+                statusToUpdate === 'SUCCESS' || statusToUpdate === 'COMPLETED') {
+                statusToUpdate = 'successful';
+            }
+            else if (statusToUpdate === 'failed' || statusToUpdate === 'failure' || statusToUpdate === 'error' ||
+                statusToUpdate === '1' || statusToUpdate === 1 || statusToUpdate === 'FAILED' ||
+                statusToUpdate === 'FAILURE' || statusToUpdate === 'ERROR') {
+                statusToUpdate = 'failed';
+            }
+            else if (statusToUpdate === 'initiated' || statusToUpdate === 'INITIATED') {
+                statusToUpdate = 'initiated';
+            }
+            else if (statusToUpdate === 'cancelled' || statusToUpdate === 'canceled' || statusToUpdate === 'CANCELLED' ||
+                statusToUpdate === 'CANCELED') {
+                statusToUpdate = 'cancelled';
+            }
+            else if (statusToUpdate === 'pending' || statusToUpdate === 'processing' || statusToUpdate === 'PENDING' ||
+                statusToUpdate === 'PROCESSING') {
+                statusToUpdate = 'pending';
+            }
+        }
+        if (statusToUpdate && ['initiated', 'pending', 'successful', 'failed', 'cancelled', 'refunded'].includes(statusToUpdate)) {
+            if (transaction.status !== statusToUpdate) {
                 oldValues.status = transaction.status;
-                changes.status = status;
-                transaction.status = status;
-                if (status === 'successful' && !transaction.processedAt) {
+                changes.status = statusToUpdate;
+                transaction.status = statusToUpdate;
+                if (statusToUpdate === 'successful' && !transaction.processedAt) {
                     transaction.processedAt = new Date();
                     changes.processedAt = transaction.processedAt;
                 }
             }
         }
-        if (amount !== undefined) {
-            const newAmount = parseFloat(amount.toString());
+        let amountToUpdate = amount;
+        if (amountToUpdate === undefined && transAmount !== undefined) {
+            amountToUpdate = transAmount;
+        }
+        if (amountToUpdate === undefined && debitedAmount !== undefined) {
+            amountToUpdate = debitedAmount;
+        }
+        if (amountToUpdate !== undefined) {
+            const newAmount = parseFloat(amountToUpdate.toString());
             if (!isNaN(newAmount) && transaction.amount !== newAmount) {
                 oldValues.amount = transaction.amount;
                 changes.amount = newAmount;
                 transaction.amount = newAmount;
             }
         }
-        if (currency && transaction.currency !== currency) {
+        let currencyToUpdate = currency;
+        if (!currencyToUpdate && currencyCode) {
+            currencyToUpdate = currencyCode;
+        }
+        if (currencyToUpdate && transaction.currency !== currencyToUpdate) {
             oldValues.currency = transaction.currency;
-            changes.currency = currency;
-            transaction.currency = currency;
+            changes.currency = currencyToUpdate;
+            transaction.currency = currencyToUpdate;
         }
         if (paymentMethod && transaction.paymentMethod !== paymentMethod) {
             oldValues.paymentMethod = transaction.paymentMethod;
