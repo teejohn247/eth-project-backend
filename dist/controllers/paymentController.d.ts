@@ -7,4 +7,6 @@ export declare const handlePaymentWebhook: (req: Request, res: Response) => Prom
 export declare const refundPayment: (req: AuthenticatedRequest, res: Response) => Promise<void>;
 export declare const savePaymentInfo: (req: AuthenticatedRequest, res: Response) => Promise<void>;
 export declare const getAllPayments: (req: AuthenticatedRequest, res: Response) => Promise<void>;
+export declare const updatePaymentTransaction: (req: AuthenticatedRequest, res: Response) => Promise<void>;
+export declare const createTransaction: (req: AuthenticatedRequest, res: Response) => Promise<void>;
 //# sourceMappingURL=paymentController.d.ts.map

@@ -22,7 +22,7 @@ export const generateToken = (user: IUser): string => {
   };
 
   return jwt.sign(payload, JWT_SECRET, {
-    expiresIn: JWT_EXPIRES_IN,
+    // No expiresIn - token will never expire
     issuer: 'edo-talent-hunt',
     audience: 'edo-talent-hunt-users'
   } as jwt.SignOptions);

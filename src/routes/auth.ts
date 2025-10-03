@@ -548,7 +548,7 @@ router.post('/set-password', passwordValidation, async (req: Request, res: Respo
     // Determine response message based on context
     let message = '';
     if (isBulkParticipant) {
-      message = 'Account created successfully. Your registration slot is already paid for!';
+      message = 'Account created successfully.';
     } else {
       const isPasswordReset = user.isPasswordSet && otp;
       message = isPasswordReset 
