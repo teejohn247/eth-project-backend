@@ -324,7 +324,7 @@ router.post('/set-password', passwordValidation, async (req, res) => {
         const token = (0, jwt_1.generateToken)(user);
         let message = '';
         if (isBulkParticipant) {
-            message = 'Account created successfully. Your registration slot is already paid for!';
+            message = 'Account created successfully.';
         }
         else {
             const isPasswordReset = user.isPasswordSet && otp;

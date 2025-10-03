@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAllPayments = exports.savePaymentInfo = exports.refundPayment = exports.handlePaymentWebhook = exports.getPaymentStatus = exports.verifyPayment = exports.initializePayment = void 0;
+exports.createTransaction = exports.updatePaymentTransaction = exports.getAllPayments = exports.savePaymentInfo = exports.refundPayment = exports.handlePaymentWebhook = exports.getPaymentStatus = exports.verifyPayment = exports.initializePayment = void 0;
 const Registration_1 = __importDefault(require("../models/Registration"));
 const PaymentTransaction_1 = __importDefault(require("../models/PaymentTransaction"));
 const crypto_1 = __importDefault(require("crypto"));
@@ -728,4 +728,417 @@ const getAllPayments = async (req, res) => {
     }
 };
 exports.getAllPayments = getAllPayments;
+const updatePaymentTransaction = async (req, res) => {
+    try {
+        const { reference } = req.params;
+        const updateData = req.body;
+        if (req.user?.role !== 'admin') {
+            res.status(403).json({
+                success: false,
+                message: 'Access denied. Admin role required.'
+            });
+            return;
+        }
+        if (!updateData || Object.keys(updateData).length === 0) {
+            res.status(400).json({
+                success: false,
+                message: 'Update data is required'
+            });
+            return;
+        }
+        let transaction;
+        const isObjectId = /^[0-9a-fA-F]{24}$/.test(reference);
+        if (isObjectId) {
+            transaction = await PaymentTransaction_1.default.findById(reference);
+        }
+        else {
+            transaction = await PaymentTransaction_1.default.findOne({ reference: reference });
+        }
+        if (!transaction) {
+            res.status(404).json({
+                success: false,
+                message: 'Transaction not found'
+            });
+            return;
+        }
+        const { status, amount, currency, paymentMethod, gatewayReference, failureReason, gatewayResponse, notes, ...otherData } = updateData;
+        const changes = {};
+        const oldValues = {};
+        if (status && ['initiated', 'pending', 'successful', 'failed', 'cancelled', 'refunded'].includes(status)) {
+            if (transaction.status !== status) {
+                oldValues.status = transaction.status;
+                changes.status = status;
+                transaction.status = status;
+                if (status === 'successful' && !transaction.processedAt) {
+                    transaction.processedAt = new Date();
+                    changes.processedAt = transaction.processedAt;
+                }
+            }
+        }
+        if (amount !== undefined) {
+            const newAmount = parseFloat(amount.toString());
+            if (!isNaN(newAmount) && transaction.amount !== newAmount) {
+                oldValues.amount = transaction.amount;
+                changes.amount = newAmount;
+                transaction.amount = newAmount;
+            }
+        }
+        if (currency && transaction.currency !== currency) {
+            oldValues.currency = transaction.currency;
+            changes.currency = currency;
+            transaction.currency = currency;
+        }
+        if (paymentMethod && transaction.paymentMethod !== paymentMethod) {
+            oldValues.paymentMethod = transaction.paymentMethod;
+            changes.paymentMethod = paymentMethod;
+            transaction.paymentMethod = paymentMethod;
+        }
+        if (gatewayReference && transaction.gatewayReference !== gatewayReference) {
+            oldValues.gatewayReference = transaction.gatewayReference;
+            changes.gatewayReference = gatewayReference;
+            transaction.gatewayReference = gatewayReference;
+        }
+        if (failureReason !== undefined) {
+            if (transaction.failureReason !== failureReason) {
+                oldValues.failureReason = transaction.failureReason;
+                changes.failureReason = failureReason;
+                transaction.failureReason = failureReason;
+            }
+        }
+        if (gatewayResponse) {
+            const updatedGatewayResponse = {
+                ...transaction.gatewayResponse,
+                ...gatewayResponse,
+                adminUpdate: {
+                    updatedAt: new Date(),
+                    updatedBy: req.user?.userId,
+                    changes: changes
+                }
+            };
+            transaction.gatewayResponse = updatedGatewayResponse;
+            changes.gatewayResponse = 'updated';
+        }
+        if (notes) {
+            const adminNotes = {
+                note: notes,
+                addedBy: req.user?.userId,
+                addedAt: new Date()
+            };
+            if (!transaction.gatewayResponse) {
+                transaction.gatewayResponse = {};
+            }
+            if (!transaction.gatewayResponse.adminNotes) {
+                transaction.gatewayResponse.adminNotes = [];
+            }
+            transaction.gatewayResponse.adminNotes.push(adminNotes);
+            changes.adminNotes = 'added';
+        }
+        transaction.updatedAt = new Date();
+        await transaction.save();
+        if (changes.status) {
+            const registration = await Registration_1.default.findById(transaction.registrationId);
+            if (registration) {
+                let registrationPaymentStatus = registration.paymentInfo.paymentStatus;
+                if (changes.status === 'successful') {
+                    registrationPaymentStatus = 'completed';
+                    registration.paymentInfo.paidAt = new Date();
+                    const paymentStep = 8;
+                    if (!registration.completedSteps.includes(paymentStep)) {
+                        registration.completedSteps.push(paymentStep);
+                        registration.currentStep = Math.max(registration.currentStep, paymentStep);
+                    }
+                    if (registration.registrationType !== 'bulk' && registration.status === 'draft') {
+                        registration.status = 'submitted';
+                        registration.submittedAt = new Date();
+                    }
+                }
+                else if (changes.status === 'failed') {
+                    registrationPaymentStatus = 'failed';
+                }
+                else if (changes.status === 'refunded') {
+                    registrationPaymentStatus = 'refunded';
+                }
+                registration.paymentInfo.paymentStatus = registrationPaymentStatus;
+                if (changes.amount)
+                    registration.paymentInfo.amount = changes.amount;
+                if (changes.currency)
+                    registration.paymentInfo.currency = changes.currency;
+                if (changes.paymentMethod)
+                    registration.paymentInfo.paymentMethod = changes.paymentMethod;
+                if (changes.gatewayReference)
+                    registration.paymentInfo.transactionId = changes.gatewayReference;
+                await registration.save();
+                if (registration.registrationType === 'bulk' && registration.bulkRegistrationId) {
+                    try {
+                        const { BulkRegistration } = await Promise.resolve().then(() => __importStar(require('../models')));
+                        const bulkRegistration = await BulkRegistration.findById(registration.bulkRegistrationId);
+                        if (bulkRegistration) {
+                            bulkRegistration.paymentInfo.paymentStatus = registrationPaymentStatus;
+                            if (changes.currency)
+                                bulkRegistration.currency = changes.currency;
+                            if (changes.paymentMethod)
+                                bulkRegistration.paymentInfo.paymentMethod = changes.paymentMethod;
+                            if (changes.gatewayReference)
+                                bulkRegistration.paymentInfo.transactionId = changes.gatewayReference;
+                            if (changes.amount) {
+                                bulkRegistration.totalAmount = changes.amount;
+                                if (bulkRegistration.totalSlots > 0) {
+                                    bulkRegistration.pricePerSlot = changes.amount / bulkRegistration.totalSlots;
+                                }
+                            }
+                            if (registrationPaymentStatus === 'completed') {
+                                bulkRegistration.status = 'active';
+                                bulkRegistration.paymentInfo.paidAt = new Date();
+                                try {
+                                    const { User } = await Promise.resolve().then(() => __importStar(require('../models')));
+                                    await User.findByIdAndUpdate(bulkRegistration.ownerId, { role: 'sponsor' });
+                                    console.log(`✅ Updated user ${bulkRegistration.ownerId} role to sponsor after payment update`);
+                                }
+                                catch (error) {
+                                    console.error('Failed to update user role to sponsor:', error);
+                                }
+                            }
+                            else if (registrationPaymentStatus === 'failed') {
+                                bulkRegistration.status = 'payment_pending';
+                            }
+                            await bulkRegistration.save();
+                        }
+                    }
+                    catch (error) {
+                        console.error('Failed to update bulk registration:', error);
+                    }
+                }
+            }
+        }
+        const responseData = {
+            transactionId: transaction._id,
+            reference: transaction.reference,
+            status: transaction.status,
+            amount: transaction.amount,
+            currency: transaction.currency,
+            paymentMethod: transaction.paymentMethod,
+            gatewayReference: transaction.gatewayReference,
+            processedAt: transaction.processedAt,
+            updatedAt: transaction.updatedAt,
+            changes: changes,
+            oldValues: oldValues
+        };
+        res.status(200).json({
+            success: true,
+            message: 'Payment transaction updated successfully',
+            data: responseData
+        });
+    }
+    catch (error) {
+        console.error('Update payment transaction error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update payment transaction',
+            error: process.env.NODE_ENV === 'development' ? error : undefined
+        });
+    }
+};
+exports.updatePaymentTransaction = updatePaymentTransaction;
+const createTransaction = async (req, res) => {
+    try {
+        const { registrationId } = req.params;
+        const transactionData = req.body;
+        if (!transactionData || Object.keys(transactionData).length === 0) {
+            res.status(400).json({
+                success: false,
+                message: 'Transaction data is required'
+            });
+            return;
+        }
+        if (req.user?.role !== 'admin') {
+            res.status(403).json({
+                success: false,
+                message: 'Access denied. Admin role required.'
+            });
+            return;
+        }
+        console.log(`🔍 Admin looking for registration ${registrationId}`);
+        const registration = await Registration_1.default.findById(registrationId);
+        if (!registration) {
+            console.log(`❌ Registration not found: ${registrationId}`);
+            res.status(404).json({
+                success: false,
+                message: 'Registration not found'
+            });
+            return;
+        }
+        console.log(`✅ Registration found: ${registration._id} (User: ${registration.userId})`);
+        const { reference, amount, transAmount, currency = 'NGN', status = 'pending', paymentMethod, gateway, transactionId, gatewayReference, email, ...otherData } = transactionData;
+        const transactionAmount = transAmount ? parseFloat(transAmount.toString()) :
+            (amount ? parseFloat(amount.toString()) : 1090);
+        const transactionReference = reference || `ETH_${Date.now()}_${crypto_1.default.randomBytes(8).toString('hex')}`;
+        const existingTransaction = await PaymentTransaction_1.default.findOne({
+            reference: transactionReference
+        });
+        if (existingTransaction) {
+            res.status(409).json({
+                success: false,
+                message: 'Transaction with this reference already exists',
+                data: {
+                    existingReference: transactionReference,
+                    existingStatus: existingTransaction.status
+                }
+            });
+            return;
+        }
+        let mappedStatus = 'pending';
+        if (status === 'successful' || status === 'success' || status === 'completed' ||
+            status === '0' || status === 0 || status === 'SUCCESSFUL' ||
+            status === 'SUCCESS' || status === 'COMPLETED') {
+            mappedStatus = 'successful';
+        }
+        else if (status === 'failed' || status === 'failure' || status === 'error' ||
+            status === '1' || status === 1 || status === 'FAILED' ||
+            status === 'FAILURE' || status === 'ERROR') {
+            mappedStatus = 'failed';
+        }
+        else if (status === 'initiated' || status === 'INITIATED') {
+            mappedStatus = 'initiated';
+        }
+        else if (status === 'cancelled' || status === 'canceled' || status === 'CANCELLED' ||
+            status === 'CANCELED') {
+            mappedStatus = 'cancelled';
+        }
+        const transaction = new PaymentTransaction_1.default({
+            registrationId: registration._id,
+            userId: registration.userId,
+            reference: transactionReference,
+            amount: transactionAmount,
+            currency: currency,
+            status: mappedStatus,
+            paymentMethod: paymentMethod,
+            gatewayReference: transactionId || gatewayReference,
+            gatewayResponse: {
+                frontendData: transactionData,
+                createdAt: new Date(),
+                createdByAdmin: req.user?.userId
+            }
+        });
+        if (mappedStatus === 'successful') {
+            transaction.processedAt = new Date();
+        }
+        await transaction.save();
+        const registrationPaymentStatus = mappedStatus === 'successful' ? 'completed' :
+            mappedStatus === 'failed' ? 'failed' : 'pending';
+        registration.paymentInfo = {
+            ...registration.paymentInfo,
+            paymentReference: transactionReference,
+            amount: transactionAmount,
+            currency: currency,
+            paymentStatus: registrationPaymentStatus,
+            transactionId: transaction.gatewayReference,
+            paymentMethod: paymentMethod,
+            paymentResponse: transactionData,
+            paidAt: mappedStatus === 'successful' ? new Date() : registration.paymentInfo.paidAt
+        };
+        if (mappedStatus === 'successful') {
+            const paymentStep = 8;
+            if (!registration.completedSteps.includes(paymentStep)) {
+                registration.completedSteps.push(paymentStep);
+                registration.currentStep = Math.max(registration.currentStep, paymentStep);
+            }
+            if (registration.registrationType !== 'bulk' && registration.status === 'draft') {
+                registration.status = 'submitted';
+                registration.submittedAt = new Date();
+            }
+        }
+        if (registration.registrationType === 'bulk' && registration.bulkRegistrationId) {
+            try {
+                const { BulkRegistration } = await Promise.resolve().then(() => __importStar(require('../models')));
+                const bulkRegistration = await BulkRegistration.findById(registration.bulkRegistrationId);
+                if (bulkRegistration) {
+                    bulkRegistration.paymentInfo = {
+                        paymentStatus: registrationPaymentStatus === 'completed' ? 'completed' :
+                            registrationPaymentStatus === 'failed' ? 'failed' : 'pending',
+                        paymentReference: transactionReference,
+                        transactionId: transaction.gatewayReference,
+                        paymentMethod: paymentMethod,
+                        paidAt: mappedStatus === 'successful' ? new Date() : undefined,
+                        paymentResponse: transactionData
+                    };
+                    if (mappedStatus === 'successful') {
+                        bulkRegistration.status = 'active';
+                        try {
+                            const { User } = await Promise.resolve().then(() => __importStar(require('../models')));
+                            await User.findByIdAndUpdate(bulkRegistration.ownerId, { role: 'sponsor' });
+                            console.log(`✅ Updated user ${bulkRegistration.ownerId} role to sponsor after transaction creation`);
+                        }
+                        catch (error) {
+                            console.error('Failed to update user role to sponsor:', error);
+                        }
+                    }
+                    else if (mappedStatus === 'failed') {
+                        bulkRegistration.status = 'payment_pending';
+                    }
+                    await bulkRegistration.save();
+                }
+            }
+            catch (error) {
+                console.error('Failed to update bulk registration:', error);
+            }
+        }
+        await registration.save();
+        const responseData = {
+            transactionId: transaction._id,
+            reference: transactionReference,
+            status: mappedStatus,
+            amount: transactionAmount,
+            currency: currency,
+            paymentMethod: paymentMethod,
+            gatewayReference: transaction.gatewayReference,
+            registrationId: registration._id,
+            registrationStatus: registration.status,
+            currentStep: registration.currentStep,
+            completedSteps: registration.completedSteps,
+            paymentStatus: registration.paymentInfo.paymentStatus,
+            createdAt: transaction.createdAt,
+            processedAt: transaction.processedAt
+        };
+        if (registration.registrationType === 'bulk' && registration.bulkRegistrationId) {
+            try {
+                const { BulkRegistration } = await Promise.resolve().then(() => __importStar(require('../models')));
+                const bulkRegistration = await BulkRegistration.findById(registration.bulkRegistrationId);
+                if (bulkRegistration) {
+                    responseData.bulkRegistration = {
+                        bulkRegistrationId: bulkRegistration._id,
+                        bulkRegistrationNumber: bulkRegistration.bulkRegistrationNumber,
+                        totalSlots: bulkRegistration.totalSlots,
+                        usedSlots: bulkRegistration.usedSlots,
+                        availableSlots: bulkRegistration.availableSlots,
+                        status: bulkRegistration.status,
+                        canAddParticipants: bulkRegistration.status === 'active' && mappedStatus === 'successful',
+                        nextStep: bulkRegistration.status === 'active' ? 'add_participants' : 'payment'
+                    };
+                }
+            }
+            catch (error) {
+                console.error('Failed to fetch bulk registration info for response:', error);
+            }
+        }
+        const message = registration.registrationType === 'bulk' && mappedStatus === 'successful'
+            ? 'Transaction created successfully. You can now add participants to your bulk registration.'
+            : mappedStatus === 'successful'
+                ? 'Transaction created successfully. Payment completed.'
+                : 'Transaction created successfully.';
+        res.status(201).json({
+            success: true,
+            message: message,
+            data: responseData
+        });
+    }
+    catch (error) {
+        console.error('Create transaction error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to create transaction',
+            error: process.env.NODE_ENV === 'development' ? error : undefined
+        });
+    }
+};
+exports.createTransaction = createTransaction;
 //# sourceMappingURL=paymentController.js.map

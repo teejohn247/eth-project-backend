@@ -16,7 +16,6 @@ const generateToken = (user) => {
         role: user.role
     };
     return jsonwebtoken_1.default.sign(payload, JWT_SECRET, {
-        expiresIn: JWT_EXPIRES_IN,
         issuer: 'edo-talent-hunt',
         audience: 'edo-talent-hunt-users'
     });

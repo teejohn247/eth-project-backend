@@ -4423,6 +4423,457 @@
         }
       }
     },
+    "/api/v1/payments/update/{reference}": {
+      "put": {
+        "summary": "Update payment transaction (Admin only)",
+        "tags": [
+          "Payments"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reference",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Payment reference",
+            "example": "ETH_1632345678_abc123def"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "initiated",
+                      "pending",
+                      "successful",
+                      "failed",
+                      "cancelled",
+                      "refunded"
+                    ],
+                    "description": "Update transaction status",
+                    "example": "successful"
+                  },
+                  "amount": {
+                    "type": "number",
+                    "description": "Update transaction amount",
+                    "example": 1090
+                  },
+                  "currency": {
+                    "type": "string",
+                    "description": "Update currency",
+                    "example": "NGN"
+                  },
+                  "paymentMethod": {
+                    "type": "string",
+                    "description": "Update payment method",
+                    "example": "card"
+                  },
+                  "gatewayReference": {
+                    "type": "string",
+                    "description": "Update gateway reference/transaction ID",
+                    "example": "1234567890"
+                  },
+                  "failureReason": {
+                    "type": "string",
+                    "description": "Reason for failure (if status is failed)",
+                    "example": "Insufficient funds"
+                  },
+                  "gatewayResponse": {
+                    "type": "object",
+                    "description": "Additional gateway response data to merge",
+                    "additionalProperties": true,
+                    "example": {
+                      "channel": "card",
+                      "bank": "Test Bank",
+                      "card_type": "visa"
+                    }
+                  },
+                  "notes": {
+                    "type": "string",
+                    "description": "Admin notes for this update",
+                    "example": "Manually updated payment status after gateway confirmation"
+                  }
+                },
+                "example": {
+                  "status": "successful",
+                  "amount": 1090,
+                  "currency": "NGN",
+                  "paymentMethod": "card",
+                  "gatewayReference": "1234567890",
+                  "notes": "Payment confirmed manually after gateway issue"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment transaction updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Payment transaction updated successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "transactionId": {
+                          "type": "string",
+                          "example": "64b5f2a5e123456789abcdef"
+                        },
+                        "reference": {
+                          "type": "string",
+                          "example": "ETH_1632345678_abc123def"
+                        },
+                        "status": {
+                          "type": "string",
+                          "example": "successful"
+                        },
+                        "amount": {
+                          "type": "number",
+                          "example": 1090
+                        },
+                        "currency": {
+                          "type": "string",
+                          "example": "NGN"
+                        },
+                        "paymentMethod": {
+                          "type": "string",
+                          "example": "card"
+                        },
+                        "gatewayReference": {
+                          "type": "string",
+                          "example": "1234567890"
+                        },
+                        "processedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2024-01-01T12:00:00.000Z"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2024-01-01T12:05:00.000Z"
+                        },
+                        "changes": {
+                          "type": "object",
+                          "description": "Fields that were changed in this update",
+                          "example": {
+                            "status": "successful",
+                            "gatewayReference": "1234567890",
+                            "adminNotes": "added"
+                          }
+                        },
+                        "oldValues": {
+                          "type": "object",
+                          "description": "Previous values of changed fields",
+                          "example": {
+                            "status": "pending",
+                            "gatewayReference": null
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Update data is required"
+          },
+          "403": {
+            "description": "Admin access required"
+          },
+          "404": {
+            "description": "Transaction not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/v1/payments/create/{registrationId}": {
+      "post": {
+        "summary": "Create transaction from frontend payload (Admin only)",
+        "tags": [
+          "Payment"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registrationId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Registration ID for which to create the transaction",
+            "example": "64b5f2a5e123456789abcdef"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "Transaction payload from frontend/payment gateway",
+                "properties": {
+                  "reference": {
+                    "type": "string",
+                    "description": "Payment reference (will be generated if not provided)",
+                    "example": "ETH_1632345678_abc123def"
+                  },
+                  "amount": {
+                    "type": "number",
+                    "description": "Transaction amount",
+                    "example": 1090
+                  },
+                  "transAmount": {
+                    "type": "string",
+                    "description": "Transaction amount (alternative field used by some gateways)",
+                    "example": "1090"
+                  },
+                  "currency": {
+                    "type": "string",
+                    "description": "Currency code",
+                    "default": "NGN",
+                    "example": "NGN"
+                  },
+                  "status": {
+                    "type": "string",
+                    "description": "Transaction status",
+                    "enum": [
+                      "pending",
+                      "initiated",
+                      "successful",
+                      "success",
+                      "completed",
+                      "failed",
+                      "failure",
+                      "error",
+                      "cancelled",
+                      "canceled",
+                      "0",
+                      "1"
+                    ],
+                    "example": "successful"
+                  },
+                  "paymentMethod": {
+                    "type": "string",
+                    "description": "Payment method used",
+                    "example": "card"
+                  },
+                  "gateway": {
+                    "type": "string",
+                    "description": "Payment gateway used",
+                    "example": "paystack"
+                  },
+                  "transactionId": {
+                    "type": "string",
+                    "description": "Gateway transaction ID",
+                    "example": "1234567890"
+                  },
+                  "gatewayReference": {
+                    "type": "string",
+                    "description": "Gateway reference (alternative to transactionId)",
+                    "example": "GATEWAY_REF_123"
+                  },
+                  "email": {
+                    "type": "string",
+                    "description": "Customer email",
+                    "example": "user@example.com"
+                  }
+                },
+                "additionalProperties": true,
+                "example": {
+                  "reference": "ETH_1632345678_abc123def",
+                  "transAmount": "1090",
+                  "currency": "NGN",
+                  "status": "0",
+                  "paymentMethod": "card",
+                  "gateway": "paystack",
+                  "transactionId": "1234567890",
+                  "email": "user@example.com",
+                  "metadata": {
+                    "custom_field": "custom_value"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Transaction created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Transaction created successfully. Payment completed."
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "transactionId": {
+                          "type": "string",
+                          "example": "64b5f2a5e123456789abcdef"
+                        },
+                        "reference": {
+                          "type": "string",
+                          "example": "ETH_1632345678_abc123def"
+                        },
+                        "status": {
+                          "type": "string",
+                          "example": "successful"
+                        },
+                        "amount": {
+                          "type": "number",
+                          "example": 1090
+                        },
+                        "currency": {
+                          "type": "string",
+                          "example": "NGN"
+                        },
+                        "paymentMethod": {
+                          "type": "string",
+                          "example": "card"
+                        },
+                        "gatewayReference": {
+                          "type": "string",
+                          "example": "1234567890"
+                        },
+                        "registrationId": {
+                          "type": "string",
+                          "example": "64b5f2a5e123456789abcdef"
+                        },
+                        "registrationStatus": {
+                          "type": "string",
+                          "example": "submitted"
+                        },
+                        "currentStep": {
+                          "type": "number",
+                          "example": 8
+                        },
+                        "completedSteps": {
+                          "type": "array",
+                          "items": {
+                            "type": "number"
+                          },
+                          "example": [
+                            1,
+                            2,
+                            3,
+                            4,
+                            5,
+                            6,
+                            7,
+                            8
+                          ]
+                        },
+                        "paymentStatus": {
+                          "type": "string",
+                          "example": "completed"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2024-01-01T12:00:00.000Z"
+                        },
+                        "processedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2024-01-01T12:00:00.000Z"
+                        },
+                        "bulkRegistration": {
+                          "type": "object",
+                          "description": "Bulk registration info (only for bulk registrations)",
+                          "properties": {
+                            "bulkRegistrationId": {
+                              "type": "string"
+                            },
+                            "bulkRegistrationNumber": {
+                              "type": "string"
+                            },
+                            "totalSlots": {
+                              "type": "number"
+                            },
+                            "usedSlots": {
+                              "type": "number"
+                            },
+                            "availableSlots": {
+                              "type": "number"
+                            },
+                            "status": {
+                              "type": "string"
+                            },
+                            "canAddParticipants": {
+                              "type": "boolean"
+                            },
+                            "nextStep": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Transaction data is required"
+          },
+          "403": {
+            "description": "Admin access required"
+          },
+          "404": {
+            "description": "Registration not found"
+          },
+          "409": {
+            "description": "Transaction with this reference already exists"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
     "/api/v1/registrations": {
       "get": {
         "summary": "Get user's registrations",
