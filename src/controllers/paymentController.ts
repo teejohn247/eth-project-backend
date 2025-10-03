@@ -1242,7 +1242,7 @@ export const createTransaction = async (req: AuthenticatedRequest, res: Response
       paymentMethod: paymentMethod,
       gatewayReference: transactionId || gatewayReference,
       gatewayResponse: {
-        frontendPayload: transactionData,
+        frontendData: transactionData,
         createdAt: new Date(),
         createdByAdmin: req.user?.userId // Track which admin created this
       }

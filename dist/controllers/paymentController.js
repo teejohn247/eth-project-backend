@@ -1014,7 +1014,7 @@ const createTransaction = async (req, res) => {
             paymentMethod: paymentMethod,
             gatewayReference: transactionId || gatewayReference,
             gatewayResponse: {
-                frontendPayload: transactionData,
+                frontendData: transactionData,
                 createdAt: new Date(),
                 createdByAdmin: req.user?.userId
             }
