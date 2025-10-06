@@ -40,12 +40,19 @@ const router = Router();
  *                   example: "1.0.0"
  */
 // Health check endpoint
-router.get('/health', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Edo Talent Hunt API is running',
+router.get('/health', async (req, res) => {
+  const mongoose = require('mongoose');
+  
+  // Check database connection status
+  const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+  const isHealthy = mongoose.connection.readyState === 1;
+  
+  res.status(isHealthy ? 200 : 503).json({
+    success: isHealthy,
+    message: isHealthy ? 'Edo Talent Hunt API is running' : 'API is starting up',
     timestamp: new Date().toISOString(),
     version: '1.0.0',
+    database: dbStatus,
     endpoints: {
       authentication: '/api/v1/auth',
       user: '/api/v1/user',

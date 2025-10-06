@@ -248,18 +248,16 @@ const createGracefulShutdown = (server: any) => (signal: string) => {
 // Start server
 const startServer = async () => {
   try {
-    // Start HTTP server immediately for Cloud Run health checks
+    // Connect to database FIRST before starting server
+    await connectDatabase();
+    
+    // Start HTTP server after database connection is ready
     const server = app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📱 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🌐 API Base URL: http://localhost:${PORT}/api/v1`);
       console.log(`📚 Interactive API Documentation: http://localhost:${PORT}/api-docs`);
       console.log(`🔍 Health Check: http://localhost:${PORT}/api/v1/health`);
-    });
-    
-    // Connect to database in background (non-blocking)
-    connectDatabase().catch((error) => {
-      console.error('❌ Failed to connect to MongoDB on startup, will retry:', error);
     });
     
     // Verify email service (optional, won't stop server if fails)

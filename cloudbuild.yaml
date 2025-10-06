@@ -28,7 +28,7 @@ steps:
       - '--max-instances'
       - '10'
       - '--min-instances'
-      - '0'
+      - '1'
       - '--concurrency'
       - '80'
       - '--timeout'
