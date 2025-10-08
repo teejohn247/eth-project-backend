@@ -278,10 +278,6 @@ exports.validateAuditionInfo = [
         .withMessage('Please specify other requirement')
         .isLength({ max: 100 })
         .withMessage('Other requirement cannot exceed 100 characters'),
-    (0, express_validator_1.body)('hasInstrument')
-        .optional()
-        .isIn(['Yes', 'No'])
-        .withMessage('Has instrument must be Yes or No'),
     exports.handleValidationErrors
 ];
 exports.validateTermsConditions = [

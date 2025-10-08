@@ -344,11 +344,6 @@ export const validateAuditionInfo = [
     .isLength({ max: 100 })
     .withMessage('Other requirement cannot exceed 100 characters'),
   
-  body('hasInstrument')
-    .optional()
-    .isIn(['Yes', 'No'])
-    .withMessage('Has instrument must be Yes or No'),
-  
   handleValidationErrors
 ];
 
