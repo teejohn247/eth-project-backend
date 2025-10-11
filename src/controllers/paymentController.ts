@@ -538,9 +538,9 @@ export const savePaymentInfo = async (req: AuthenticatedRequest, res: Response):
         reference: paymentReference,
         amount: paymentAmount || 0, // Remove default 1090, use 0 if no amount provided
         currency: currency,
-        status: status || 'pending'
+        status: status == 0 || status == '0' ? 'successful' : "pending"
       });
-    }
+    } 
 
     // Update transaction with flexible data
     if (paymentAmount) transaction.amount = paymentAmount;
