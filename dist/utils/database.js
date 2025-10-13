@@ -10,28 +10,36 @@ const connectDatabase = async () => {
     try {
         const options = {
             maxPoolSize: 10,
+            minPoolSize: 2,
             serverSelectionTimeoutMS: 30000,
             socketTimeoutMS: 45000,
             connectTimeoutMS: 30000,
-            bufferCommands: false,
+            bufferCommands: true,
             retryWrites: true,
-            retryReads: true
+            retryReads: true,
+            maxIdleTimeMS: 300000
         };
+        console.log('🔌 Connecting to MongoDB...');
         await mongoose_1.default.connect(MONGODB_URI, options);
         console.log('✅ Connected to MongoDB successfully');
+        console.log(`📊 Database: ${mongoose_1.default.connection.name}`);
+        console.log(`🌐 Host: ${mongoose_1.default.connection.host}`);
         mongoose_1.default.connection.on('error', (error) => {
             console.error('❌ MongoDB connection error:', error);
         });
         mongoose_1.default.connection.on('disconnected', () => {
-            console.warn('⚠️ MongoDB disconnected');
+            console.warn('⚠️ MongoDB disconnected. Will attempt to reconnect...');
         });
         mongoose_1.default.connection.on('reconnected', () => {
-            console.log('🔄 MongoDB reconnected');
+            console.log('🔄 MongoDB reconnected successfully');
+        });
+        mongoose_1.default.connection.on('connecting', () => {
+            console.log('🔄 MongoDB reconnecting...');
         });
     }
     catch (error) {
         console.error('❌ Failed to connect to MongoDB:', error);
-        process.exit(1);
+        throw error;
     }
 };
 exports.connectDatabase = connectDatabase;
