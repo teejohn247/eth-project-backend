@@ -177,15 +177,13 @@ const createGracefulShutdown = (server) => (signal) => {
 };
 const startServer = async () => {
     try {
+        await (0, database_1.connectDatabase)();
         const server = app.listen(PORT, () => {
             console.log(`🚀 Server running on port ${PORT}`);
             console.log(`📱 Environment: ${process.env.NODE_ENV || 'development'}`);
             console.log(`🌐 API Base URL: http://localhost:${PORT}/api/v1`);
             console.log(`📚 Interactive API Documentation: http://localhost:${PORT}/api-docs`);
             console.log(`🔍 Health Check: http://localhost:${PORT}/api/v1/health`);
-        });
-        (0, database_1.connectDatabase)().catch((error) => {
-            console.error('❌ Failed to connect to MongoDB on startup, will retry:', error);
         });
         emailService_1.default.verifyConnection().catch((error) => {
             console.warn('⚠️ Email service verification failed. Email features may not work properly.');

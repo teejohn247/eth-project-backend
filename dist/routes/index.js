@@ -13,12 +13,16 @@ const location_1 = __importDefault(require("./location"));
 const admin_1 = __importDefault(require("./admin"));
 const complaint_1 = __importDefault(require("./complaint"));
 const router = (0, express_1.Router)();
-router.get('/health', (req, res) => {
-    res.json({
-        success: true,
-        message: 'Edo Talent Hunt API is running',
+router.get('/health', async (req, res) => {
+    const mongoose = require('mongoose');
+    const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+    const isHealthy = mongoose.connection.readyState === 1;
+    res.status(isHealthy ? 200 : 503).json({
+        success: isHealthy,
+        message: isHealthy ? 'Edo Talent Hunt API is running' : 'API is starting up',
         timestamp: new Date().toISOString(),
         version: '1.0.0',
+        database: dbStatus,
         endpoints: {
             authentication: '/api/v1/auth',
             user: '/api/v1/user',
