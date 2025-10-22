@@ -16,12 +16,12 @@ class EmailService {
 
   constructor() {
     const config: EmailConfig = {
-      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+      host: process.env.EMAIL_HOST || 'smtp-relay.brevo.com',
       port: parseInt(process.env.EMAIL_PORT || '587'),
       secure: false, // true for 465, false for other ports
       auth: {
-        user: process.env.EMAIL_USER || '',
-        pass: process.env.EMAIL_PASS || ''
+        user: process.env.EMAIL_USER || '99c77c001@smtp-brevo.com',
+        pass: process.env.BREVO_SMTP_KEY || process.env.EMAIL_PASS || ''
       }
     };
 
@@ -33,9 +33,10 @@ class EmailService {
       hasPassword: !!config.auth.pass
     });
 
-    this.fromEmail = process.env.EMAIL_FROM || 'noreply@edotalenthunt.com';
+    this.fromEmail = process.env.EMAIL_FROM || 'edotalenthunt@themakersacad.com';
     this.transporter = nodemailer.createTransport(config);
   }
+  
 
   async sendOTPEmail(email: string, otp: string, type: 'verification' | 'password_reset'): Promise<void> {
     try {

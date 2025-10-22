@@ -472,7 +472,7 @@ const savePaymentInfo = async (req, res) => {
                 reference: paymentReference,
                 amount: paymentAmount || 0,
                 currency: currency,
-                status: status || 'pending'
+                status: status == 0 || status == '0' ? 'successful' : "pending"
             });
         }
         if (paymentAmount)

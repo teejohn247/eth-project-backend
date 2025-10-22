@@ -7,12 +7,12 @@ const nodemailer_1 = __importDefault(require("nodemailer"));
 class EmailService {
     constructor() {
         const config = {
-            host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+            host: process.env.EMAIL_HOST || 'smtp-relay.brevo.com',
             port: parseInt(process.env.EMAIL_PORT || '587'),
             secure: false,
             auth: {
-                user: process.env.EMAIL_USER || '',
-                pass: process.env.EMAIL_PASS || ''
+                user: process.env.EMAIL_USER || '99c77c001@smtp-brevo.com',
+                pass: process.env.BREVO_SMTP_KEY || process.env.EMAIL_PASS || ''
             }
         };
         console.log('📧 Email configuration:', {
@@ -21,7 +21,7 @@ class EmailService {
             user: config.auth.user,
             hasPassword: !!config.auth.pass
         });
-        this.fromEmail = process.env.EMAIL_FROM || 'noreply@edotalenthunt.com';
+        this.fromEmail = process.env.EMAIL_FROM || 'edotalenthunt@themakersacad.com';
         this.transporter = nodemailer_1.default.createTransport(config);
     }
     async sendOTPEmail(email, otp, type) {
