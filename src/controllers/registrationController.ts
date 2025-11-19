@@ -709,6 +709,7 @@ export const updateRegistration = async (req: AuthenticatedRequest, res: Respons
 
     const registration = await findRegistrationByIdOrUserId(id, req.user?.userId!);
 
+
     if (!registration) {
       res.status(404).json({
         success: false,
@@ -718,13 +719,13 @@ export const updateRegistration = async (req: AuthenticatedRequest, res: Respons
     }
 
     // Prevent updates if registration is already submitted
-    if (registration.status !== 'draft') {
-      res.status(400).json({
-        success: false,
-        message: 'Cannot update a submitted registration'
-      });
-      return;
-    }
+    // if (registration.status !== 'draft') {
+    //   res.status(400).json({
+    //     success: false,
+    //     message: 'Cannot update a submitted registration'
+    //   });
+    //   return;
+    // }
 
     // Update registration
     Object.assign(registration, updateData);

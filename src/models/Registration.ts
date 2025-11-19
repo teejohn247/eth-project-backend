@@ -2,6 +2,8 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IRegistration extends Document {
   userId: mongoose.Types.ObjectId;
+  issueCategory: string;
+  comment: string;
   registrationNumber: string;
   registrationType: 'individual' | 'group' | 'bulk';
   isBulkParticipant?: boolean;
@@ -129,7 +131,8 @@ const RegistrationSchema = new Schema<IRegistration>({
   isBulkParticipant: { type: Boolean, default: false },
   bulkRegistrationId: { type: Schema.Types.ObjectId, ref: 'BulkRegistration' },
   paidBy: { type: Schema.Types.ObjectId, ref: 'User' }, // User who paid for this registration
-  
+  issueCategory: { type: String},
+  comment: { type: String},
   personalInfo: {
     firstName: String,
     lastName: String,
