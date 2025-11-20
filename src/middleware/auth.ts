@@ -35,7 +35,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
         message: 'User not found'
       });
       return;
-    }
+    } 
 
     req.user = decoded;
     next();
