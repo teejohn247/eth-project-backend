@@ -40,10 +40,10 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     req.user = decoded;
     next();
   } catch (error) {
-    res.status(403).json({
-      success: false,
-      message: 'Invalid or expired token'
-    });
+    // res.status(403).json({
+    //   success: false,
+    //   message: 'Invalid or expired token'
+    // });
   }
 };
 
