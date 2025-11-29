@@ -26,6 +26,7 @@
   "license": "MIT",
   "dependencies": {
     "@types/multer": "^2.0.0",
+    "@types/pdfkit": "^0.17.4",
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.8",
     "axios": "^1.12.2",
@@ -42,6 +43,7 @@
     "mongoose": "^7.5.0",
     "multer": "^2.0.2",
     "nodemailer": "^6.9.4",
+    "pdfkit": "^0.17.2",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1"
   },

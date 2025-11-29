@@ -41,6 +41,8 @@ const RegistrationSchema = new mongoose_1.Schema({
     isBulkParticipant: { type: Boolean, default: false },
     bulkRegistrationId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'BulkRegistration' },
     paidBy: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User' },
+    issueCategory: { type: String },
+    comment: { type: String },
     personalInfo: {
         firstName: String,
         lastName: String,
