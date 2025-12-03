@@ -248,6 +248,123 @@ const options: swaggerJsdoc.Options = {
               example: 'john.doe@example.com'
             }
           }
+        },
+        Ticket: {
+          type: 'object',
+          properties: {
+            _id: {
+              type: 'string',
+              description: 'Ticket ID'
+            },
+            ticketType: {
+              type: 'string',
+              enum: ['regular', 'vip', 'table_of_5', 'table_of_10'],
+              description: 'Type of ticket'
+            },
+            name: {
+              type: 'string',
+              description: 'Ticket name'
+            },
+            description: {
+              type: 'string',
+              description: 'Ticket description'
+            },
+            price: {
+              type: 'number',
+              description: 'Ticket price'
+            },
+            currency: {
+              type: 'string',
+              default: 'NGN',
+              description: 'Currency code'
+            },
+            isActive: {
+              type: 'boolean',
+              description: 'Whether ticket is available for purchase'
+            },
+            availableQuantity: {
+              type: 'number',
+              description: 'Available ticket quantity (null if unlimited)'
+            },
+            soldQuantity: {
+              type: 'number',
+              description: 'Number of tickets sold'
+            }
+          }
+        },
+        TicketPurchase: {
+          type: 'object',
+          properties: {
+            purchaseReference: {
+              type: 'string',
+              description: 'Unique purchase reference'
+            },
+            firstName: {
+              type: 'string',
+              description: 'Purchaser first name'
+            },
+            lastName: {
+              type: 'string',
+              description: 'Purchaser last name'
+            },
+            email: {
+              type: 'string',
+              format: 'email',
+              description: 'Purchaser email'
+            },
+            phone: {
+              type: 'string',
+              description: 'Purchaser phone number'
+            },
+            tickets: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  ticketType: {
+                    type: 'string',
+                    enum: ['regular', 'vip', 'vvip']
+                  },
+                  quantity: {
+                    type: 'number'
+                  },
+                  unitPrice: {
+                    type: 'number'
+                  },
+                  totalPrice: {
+                    type: 'number'
+                  }
+                }
+              }
+            },
+            totalAmount: {
+              type: 'number',
+              description: 'Total purchase amount'
+            },
+            currency: {
+              type: 'string',
+              default: 'NGN'
+            },
+            paymentStatus: {
+              type: 'string',
+              enum: ['pending', 'processing', 'completed', 'failed', 'refunded']
+            },
+            paymentReference: {
+              type: 'string',
+              description: 'Payment transaction reference'
+            },
+            ticketNumbers: {
+              type: 'array',
+              items: {
+                type: 'string'
+              },
+              description: 'Generated ticket numbers (available after payment)'
+            },
+            ticketSent: {
+              type: 'boolean',
+              description: 'Whether ticket email was sent'
+            }
+          }
         }
       }
     },
@@ -291,6 +408,10 @@ const options: swaggerJsdoc.Options = {
         {
           name: 'Complaints',
           description: 'Support complaint management endpoints for users and admins'
+        },
+        {
+          name: 'Tickets',
+          description: 'Event ticket purchase and management endpoints'
         }
     ]
   },

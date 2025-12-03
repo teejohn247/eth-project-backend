@@ -16,8 +16,8 @@ export interface IPaymentTransaction extends Document {
 }
 
 const PaymentTransactionSchema = new Schema<IPaymentTransaction>({
-  registrationId: { type: Schema.Types.ObjectId, ref: 'Registration', required: true },
-  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  registrationId: { type: Schema.Types.ObjectId, ref: 'Registration', required: false },
+  userId: { type: Schema.Types.ObjectId, ref: 'User', required: false },
   reference: { type: String, unique: true, required: true },
   amount: { type: Number, required: true },
   currency: { type: String, default: 'NGN' },

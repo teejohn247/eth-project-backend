@@ -7,6 +7,7 @@ import paymentRoutes from './payment';
 import locationRoutes from './location';
 import adminRoutes from './admin';
 import complaintRoutes from './complaint';
+import ticketRoutes from './ticket';
 
 const router = Router();
 
@@ -62,6 +63,7 @@ router.get('/health', async (req, res) => {
            locations: '/api/v1/locations',
            admin: '/api/v1/admin',
            complaints: '/api/v1/complaints',
+           tickets: '/api/v1/tickets',
            documentation: '/api-docs'
     }
   });
@@ -76,5 +78,6 @@ router.use('/payments', paymentRoutes);
 router.use('/locations', locationRoutes);
 router.use('/admin', adminRoutes);
 router.use('/complaints', complaintRoutes);
+router.use('/tickets', ticketRoutes);
 
 export default router;

@@ -1,6 +1,8 @@
 import mongoose, { Document } from 'mongoose';
 export interface IRegistration extends Document {
     userId: mongoose.Types.ObjectId;
+    issueCategory: string;
+    comment: string;
     registrationNumber: string;
     registrationType: 'individual' | 'group' | 'bulk';
     isBulkParticipant?: boolean;

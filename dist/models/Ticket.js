@@ -34,29 +34,49 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importStar(require("mongoose"));
-const PaymentTransactionSchema = new mongoose_1.Schema({
-    registrationId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Registration', required: false },
-    userId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: false },
-    reference: { type: String, unique: true, required: true },
-    amount: { type: Number, required: true },
-    currency: { type: String, default: 'NGN' },
-    status: {
+const TicketSchema = new mongoose_1.Schema({
+    ticketType: {
         type: String,
-        enum: ['initiated', 'pending', 'successful', 'failed', 'cancelled', 'refunded'],
-        default: 'initiated'
+        enum: ['regular', 'vip', 'table_of_5', 'table_of_10'],
+        required: true,
+        unique: true
     },
-    paymentMethod: String,
-    gatewayReference: String,
-    gatewayResponse: mongoose_1.Schema.Types.Mixed,
-    failureReason: String,
-    processedAt: Date
+    name: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    description: {
+        type: String,
+        trim: true
+    },
+    price: {
+        type: Number,
+        required: true,
+        min: 0
+    },
+    currency: {
+        type: String,
+        default: 'NGN',
+        required: true
+    },
+    isActive: {
+        type: Boolean,
+        default: true
+    },
+    availableQuantity: {
+        type: Number,
+        min: 0
+    },
+    soldQuantity: {
+        type: Number,
+        default: 0,
+        min: 0
+    }
 }, {
     timestamps: true
 });
-PaymentTransactionSchema.index({ reference: 1 });
-PaymentTransactionSchema.index({ registrationId: 1 });
-PaymentTransactionSchema.index({ userId: 1 });
-PaymentTransactionSchema.index({ status: 1 });
-PaymentTransactionSchema.index({ createdAt: -1 });
-exports.default = mongoose_1.default.model('PaymentTransaction', PaymentTransactionSchema);
-//# sourceMappingURL=PaymentTransaction.js.map
+TicketSchema.index({ ticketType: 1 });
+TicketSchema.index({ isActive: 1 });
+exports.default = mongoose_1.default.model('Ticket', TicketSchema);
+//# sourceMappingURL=Ticket.js.map

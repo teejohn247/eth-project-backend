@@ -635,13 +635,6 @@ const updateRegistration = async (req, res) => {
             });
             return;
         }
-        if (registration.status !== 'draft') {
-            res.status(400).json({
-                success: false,
-                message: 'Cannot update a submitted registration'
-            });
-            return;
-        }
         Object.assign(registration, updateData);
         await registration.save();
         res.status(200).json({
