@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface ITicket extends Document {
-  ticketType: 'regular' | 'vip' | 'vvip';
+  ticketType: 'regular' | 'vip' | 'table_of_5' | 'table_of_10';
   name: string;
   description?: string;
   price: number;
@@ -16,7 +16,7 @@ export interface ITicket extends Document {
 const TicketSchema = new Schema<ITicket>({
   ticketType: {
     type: String,
-    enum: ['regular', 'vip', 'vvip'],
+    enum: ['regular', 'vip', 'table_of_5', 'table_of_10'],
     required: true,
     unique: true
   },

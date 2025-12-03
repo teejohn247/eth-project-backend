@@ -1164,7 +1164,7 @@ class EmailService {
       const startIndex = tickets.slice(0, ticketIndex).reduce((sum, t) => sum + t.quantity, 0);
       return Array.from({ length: ticket.quantity }, (_, i) => ({
         ticketNumber: ticketNumbers[startIndex + i],
-        ticketType: ticket.ticketType as 'regular' | 'vip' | 'vvip',
+        ticketType: ticket.ticketType as 'regular' | 'vip' | 'table_of_5' | 'table_of_10',
         price: ticket.unitPrice
       }));
     });

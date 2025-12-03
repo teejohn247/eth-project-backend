@@ -7,7 +7,7 @@ export interface ITicketPurchase extends Document {
     phone: string;
     tickets: Array<{
         ticketId: mongoose.Types.ObjectId;
-        ticketType: 'regular' | 'vip' | 'vvip';
+        ticketType: 'regular' | 'vip' | 'table_of_5' | 'table_of_10';
         quantity: number;
         unitPrice: number;
         totalPrice: number;

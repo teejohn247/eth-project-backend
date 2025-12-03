@@ -1,6 +1,6 @@
 import mongoose, { Document } from 'mongoose';
 export interface ITicket extends Document {
-    ticketType: 'regular' | 'vip' | 'vvip';
+    ticketType: 'regular' | 'vip' | 'table_of_5' | 'table_of_10';
     name: string;
     description?: string;
     price: number;
