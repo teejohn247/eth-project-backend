@@ -249,6 +249,7 @@ export class TicketPdfGenerator {
         width: height,
         align: 'center'
       });
+      
     
     doc.restore();
 
