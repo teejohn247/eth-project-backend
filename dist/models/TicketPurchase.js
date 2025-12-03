@@ -71,7 +71,7 @@ const TicketPurchaseSchema = new mongoose_1.Schema({
             },
             ticketType: {
                 type: String,
-                enum: ['regular', 'vip', 'vvip'],
+                enum: ['regular', 'vip', 'table_of_5', 'table_of_10'],
                 required: true
             },
             quantity: {

@@ -1,7 +1,7 @@
 export declare class TicketPdfGenerator {
     static generateAllTicketsPdf(tickets: Array<{
         ticketNumber: string;
-        ticketType: 'regular' | 'vip' | 'vvip';
+        ticketType: 'regular' | 'vip' | 'table_of_5' | 'table_of_10';
         price: number;
     }>, purchaseData: {
         firstName: string;

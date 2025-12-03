@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 const TicketSchema = new mongoose.Schema({
   ticketType: {
     type: String,
-    enum: ['regular', 'vip', 'vvip'],
+    enum: ['regular', 'vip', 'table_of_5', 'table_of_10'],
     required: true,
     unique: true
   },
@@ -65,10 +65,18 @@ const tickets = [
     isActive: true
   },
   {
-    ticketType: 'vvip',
-    name: 'VVIP Ticket',
-    description: 'Very VIP access with front-row seating, meet & greet, and exclusive perks',
-    price: 30000,
+    ticketType: 'table_of_5',
+    name: 'Table of 5',
+    description: 'Table seating for 5 people with premium experience',
+    price: 1000000,
+    currency: 'NGN',
+    isActive: true
+  },
+  {
+    ticketType: 'table_of_10',
+    name: 'Table of 10',
+    description: 'Table seating for 10 people with premium experience',
+    price: 1500000,
     currency: 'NGN',
     isActive: true
   }

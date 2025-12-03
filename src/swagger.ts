@@ -258,7 +258,7 @@ const options: swaggerJsdoc.Options = {
             },
             ticketType: {
               type: 'string',
-              enum: ['regular', 'vip', 'vvip'],
+              enum: ['regular', 'vip', 'table_of_5', 'table_of_10'],
               description: 'Type of ticket'
             },
             name: {

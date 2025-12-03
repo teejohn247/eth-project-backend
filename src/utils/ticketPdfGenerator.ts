@@ -2,7 +2,7 @@ import PDFDocument from 'pdfkit';
 
 interface TicketData {
   ticketNumber: string;
-  ticketType: 'regular' | 'vip' | 'vvip';
+  ticketType: 'regular' | 'vip' | 'table_of_5' | 'table_of_10';
   firstName: string;
   lastName: string;
   email: string;
@@ -18,7 +18,7 @@ export class TicketPdfGenerator {
   static async generateAllTicketsPdf(
     tickets: Array<{
       ticketNumber: string;
-      ticketType: 'regular' | 'vip' | 'vvip';
+      ticketType: 'regular' | 'vip' | 'table_of_5' | 'table_of_10';
       price: number;
     }>,
     purchaseData: {
@@ -256,7 +256,8 @@ export class TicketPdfGenerator {
     const typeLabels = {
       regular: 'REGULAR',
       vip: 'VIP',
-      vvip: 'VVIP'
+      table_of_5: 'TABLE OF 5',
+      table_of_10: 'TABLE OF 10'
     };
     const typeLabel = typeLabels[ticketData.ticketType];
 

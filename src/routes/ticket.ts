@@ -20,7 +20,7 @@ const router = express.Router();
  *           type: string
  *         ticketType:
  *           type: string
- *           enum: [regular, vip, vvip]
+ *           enum: [regular, vip, table_of_5, table_of_10]
  *         name:
  *           type: string
  *         description:
@@ -112,7 +112,7 @@ router.get('/', getTickets);
  *         required: true
  *         schema:
  *           type: string
- *           enum: [regular, vip, vvip]
+ *           enum: [regular, vip, table_of_5, table_of_10]
  *         description: Ticket type
  *     responses:
  *       200:

@@ -31,10 +31,10 @@ exports.getTickets = getTickets;
 const getTicketByType = async (req, res) => {
     try {
         const { ticketType } = req.params;
-        if (!['regular', 'vip', 'vvip'].includes(ticketType)) {
+        if (!['regular', 'vip', 'table_of_5', 'table_of_10'].includes(ticketType)) {
             res.status(400).json({
                 success: false,
-                message: 'Invalid ticket type. Must be regular, vip, or vvip'
+                message: 'Invalid ticket type. Must be regular, vip, table_of_5, or table_of_10'
             });
             return;
         }
@@ -91,10 +91,10 @@ const purchaseTickets = async (req, res) => {
                 });
                 return;
             }
-            if (!['regular', 'vip', 'vvip'].includes(ticketType)) {
+            if (!['regular', 'vip', 'table_of_5', 'table_of_10'].includes(ticketType)) {
                 res.status(400).json({
                     success: false,
-                    message: `Invalid ticket type: ${ticketType}. Must be regular, vip, or vvip`
+                    message: `Invalid ticket type: ${ticketType}. Must be regular, vip, table_of_5, or table_of_10`
                 });
                 return;
             }
