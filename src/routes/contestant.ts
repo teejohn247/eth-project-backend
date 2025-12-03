@@ -131,7 +131,11 @@ const router = express.Router();
  * @swagger
  * /api/v1/contestants/promote/{registrationId}:
  *   post:
- *     summary: Promote a registration to contestant (Admin only)
+ *     summary: Toggle registration to/from contestant (Admin only)
+ *     description: |
+ *       This endpoint acts as a toggle:
+ *       - If registration is NOT a contestant: Promotes registration to contestant
+ *       - If registration IS already a contestant: Removes contestant status
  *     tags: [Contestants]
  *     security:
  *       - bearerAuth: []
@@ -141,10 +145,10 @@ const router = express.Router();
  *         required: true
  *         schema:
  *           type: string
- *         description: Registration ID to promote
+ *         description: Registration ID to promote or demote
  *     responses:
- *       201:
- *         description: Registration promoted to contestant successfully
+ *       200:
+ *         description: Toggle successful - promotes to contestant or removes contestant status
  *         content:
  *           application/json:
  *             schema:
@@ -155,11 +159,11 @@ const router = express.Router();
  *                   example: true
  *                 message:
  *                   type: string
- *                   example: "Registration promoted to contestant successfully"
+ *                   description: Success message indicating the action taken
  *                 data:
- *                   $ref: '#/components/schemas/Contestant'
+ *                   description: Contestant data when promoted, or object with removed flag when demoted
  *       400:
- *         description: Registration already a contestant or not qualified
+ *         description: Registration not qualified, approved, or submitted
  *       403:
  *         description: Access denied. Admin role required
  *       404:
