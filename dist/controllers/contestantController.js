@@ -30,10 +30,16 @@ const promoteToContestant = async (req, res) => {
         }
         const existingContestant = await Contestant_1.default.findOne({ registrationId });
         if (existingContestant) {
-            res.status(400).json({
-                success: false,
-                message: 'This registration is already a contestant',
-                data: existingContestant
+            const contestantId = existingContestant._id;
+            const contestantData = existingContestant.toObject();
+            await Contestant_1.default.findByIdAndDelete(contestantId);
+            res.status(200).json({
+                success: true,
+                message: 'Contestant removed successfully',
+                data: {
+                    ...contestantData,
+                    removed: true
+                }
             });
             return;
         }
@@ -74,7 +80,7 @@ const promoteToContestant = async (req, res) => {
             totalVoteAmount: 0
         });
         await contestant.save();
-        res.status(201).json({
+        res.status(200).json({
             success: true,
             message: 'Registration promoted to contestant successfully',
             data: contestant

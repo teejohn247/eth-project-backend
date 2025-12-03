@@ -32,13 +32,23 @@ export const promoteToContestant = async (req: AuthenticatedRequest, res: Respon
       return;
     }
 
-    // Check if registration is already a contestant
+    // Check if registration is already a contestant (toggle functionality)
     const existingContestant = await Contestant.findOne({ registrationId });
     if (existingContestant) {
-      res.status(400).json({
-        success: false,
-        message: 'This registration is already a contestant',
-        data: existingContestant
+      // Remove contestant (toggle off)
+      const contestantId = existingContestant._id;
+      const contestantData = existingContestant.toObject();
+      
+      // Delete the contestant
+      await Contestant.findByIdAndDelete(contestantId);
+      
+      res.status(200).json({
+        success: true,
+        message: 'Contestant removed successfully',
+        data: {
+          ...contestantData,
+          removed: true
+        }
       });
       return;
     }
@@ -57,7 +67,7 @@ export const promoteToContestant = async (req: AuthenticatedRequest, res: Respon
     const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
     const contestantNumber = `CNT${timestamp}${random}`;
 
-    // Create contestant from registration data
+    // Create contestant from registration data (toggle on)
     const contestant = new Contestant({
       userId: registration.userId,
       registrationId: registration._id,
@@ -87,7 +97,7 @@ export const promoteToContestant = async (req: AuthenticatedRequest, res: Respon
 
     await contestant.save();
 
-    res.status(201).json({
+    res.status(200).json({
       success: true,
       message: 'Registration promoted to contestant successfully',
       data: contestant
