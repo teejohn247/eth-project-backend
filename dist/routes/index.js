@@ -13,6 +13,7 @@ const location_1 = __importDefault(require("./location"));
 const admin_1 = __importDefault(require("./admin"));
 const complaint_1 = __importDefault(require("./complaint"));
 const ticket_1 = __importDefault(require("./ticket"));
+const contestant_1 = __importDefault(require("./contestant"));
 const router = (0, express_1.Router)();
 router.get('/health', async (req, res) => {
     const mongoose = require('mongoose');
@@ -34,6 +35,7 @@ router.get('/health', async (req, res) => {
             admin: '/api/v1/admin',
             complaints: '/api/v1/complaints',
             tickets: '/api/v1/tickets',
+            contestants: '/api/v1/contestants',
             documentation: '/api-docs'
         }
     });
@@ -47,5 +49,6 @@ router.use('/locations', location_1.default);
 router.use('/admin', admin_1.default);
 router.use('/complaints', complaint_1.default);
 router.use('/tickets', ticket_1.default);
+router.use('/contestants', contestant_1.default);
 exports.default = router;
 //# sourceMappingURL=index.js.map

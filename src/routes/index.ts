@@ -8,6 +8,7 @@ import locationRoutes from './location';
 import adminRoutes from './admin';
 import complaintRoutes from './complaint';
 import ticketRoutes from './ticket';
+import contestantRoutes from './contestant';
 
 const router = Router();
 
@@ -64,6 +65,7 @@ router.get('/health', async (req, res) => {
            admin: '/api/v1/admin',
            complaints: '/api/v1/complaints',
            tickets: '/api/v1/tickets',
+           contestants: '/api/v1/contestants',
            documentation: '/api-docs'
     }
   });
@@ -79,5 +81,6 @@ router.use('/locations', locationRoutes);
 router.use('/admin', adminRoutes);
 router.use('/complaints', complaintRoutes);
 router.use('/tickets', ticketRoutes);
+router.use('/contestants', contestantRoutes);
 
 export default router;
