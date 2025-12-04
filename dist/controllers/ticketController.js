@@ -65,10 +65,10 @@ exports.getTicketByType = getTicketByType;
 const purchaseTickets = async (req, res) => {
     try {
         const { firstName, lastName, email, phone, tickets: ticketArray } = req.body;
-        if (!firstName || !lastName || !email || !phone || !ticketArray || !Array.isArray(ticketArray) || ticketArray.length === 0) {
+        if (!firstName || !lastName || !email || !ticketArray || !Array.isArray(ticketArray) || ticketArray.length === 0) {
             res.status(400).json({
                 success: false,
-                message: 'Missing required fields: firstName, lastName, email, phone, and tickets array are required'
+                message: 'Missing required fields: firstName, lastName, email, and tickets array are required'
             });
             return;
         }
@@ -133,7 +133,7 @@ const purchaseTickets = async (req, res) => {
             firstName,
             lastName,
             email,
-            phone,
+            phone: phone || '',
             tickets: ticketDetails,
             totalAmount,
             currency: 'NGN',
