@@ -391,6 +391,18 @@ router.post('/verify-payment/:paymentReference', verifyVotePayment);
  *           type: integer
  *           default: 20
  *         description: Number of contestants per page
+ *       - in: query
+ *         name: name
+ *         schema:
+ *           type: string
+ *         description: Search contestants by name (first name, last name, or full name)
+ *         example: John
+ *       - in: query
+ *         name: contestantNumber
+ *         schema:
+ *           type: string
+ *         description: Search contestants by contestant number
+ *         example: CNT-001
  *     responses:
  *       200:
  *         description: Contestants retrieved successfully

@@ -145,9 +145,25 @@ ContestantSchema.index({ talentCategory: 1 });
 // Pre-save middleware to generate contestant number
 ContestantSchema.pre('save', async function(next) {
   if (this.isNew && !this.contestantNumber) {
-    const timestamp = Date.now().toString().slice(-6);
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    this.contestantNumber = `CNT${timestamp}${random}`;
+    // Find the highest existing contestant number
+    const ContestantModel = mongoose.model('Contestant');
+    const lastContestant = await ContestantModel.findOne(
+      { contestantNumber: { $regex: /^CNT-\d+$/ } },
+      {},
+      { sort: { contestantNumber: -1 } }
+    ).lean() as any;
+
+    let nextNumber = 1;
+    if (lastContestant && lastContestant.contestantNumber) {
+      // Extract the number from the last contestant (e.g., "CNT-007" -> 7)
+      const match = lastContestant.contestantNumber.match(/CNT-(\d+)/);
+      if (match) {
+        nextNumber = parseInt(match[1], 10) + 1;
+      }
+    }
+
+    // Format as CNT-001, CNT-002, etc.
+    this.contestantNumber = `CNT-${nextNumber.toString().padStart(3, '0')}`;
   }
   next();
 });

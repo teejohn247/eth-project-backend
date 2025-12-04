@@ -114,9 +114,16 @@ ContestantSchema.index({ totalVotes: -1 });
 ContestantSchema.index({ talentCategory: 1 });
 ContestantSchema.pre('save', async function (next) {
     if (this.isNew && !this.contestantNumber) {
-        const timestamp = Date.now().toString().slice(-6);
-        const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-        this.contestantNumber = `CNT${timestamp}${random}`;
+        const ContestantModel = mongoose_1.default.model('Contestant');
+        const lastContestant = await ContestantModel.findOne({ contestantNumber: { $regex: /^CNT-\d+$/ } }, {}, { sort: { contestantNumber: -1 } }).lean();
+        let nextNumber = 1;
+        if (lastContestant && lastContestant.contestantNumber) {
+            const match = lastContestant.contestantNumber.match(/CNT-(\d+)/);
+            if (match) {
+                nextNumber = parseInt(match[1], 10) + 1;
+            }
+        }
+        this.contestantNumber = `CNT-${nextNumber.toString().padStart(3, '0')}`;
     }
     next();
 });
