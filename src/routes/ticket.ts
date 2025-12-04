@@ -138,7 +138,6 @@ router.get('/:ticketType', getTicketByType);
  *               - firstName
  *               - lastName
  *               - email
- *               - phone
  *               - tickets
  *             properties:
  *               firstName:

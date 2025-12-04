@@ -70,10 +70,10 @@ export const purchaseTickets = async (req: Request, res: Response): Promise<void
     const { firstName, lastName, email, phone, tickets: ticketArray } = req.body;
 
     // Validate required fields
-    if (!firstName || !lastName || !email || !phone || !ticketArray || !Array.isArray(ticketArray) || ticketArray.length === 0) {
+    if (!firstName || !lastName || !email || !ticketArray || !Array.isArray(ticketArray) || ticketArray.length === 0) {
       res.status(400).json({
         success: false,
-        message: 'Missing required fields: firstName, lastName, email, phone, and tickets array are required'
+        message: 'Missing required fields: firstName, lastName, email, and tickets array are required'
       });
       return;
     }
@@ -163,7 +163,7 @@ export const purchaseTickets = async (req: Request, res: Response): Promise<void
       firstName,
       lastName,
       email,
-      phone,
+      phone: phone || '', // Phone is optional
       tickets: ticketDetails,
       totalAmount,
       currency: 'NGN',
