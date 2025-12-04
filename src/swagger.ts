@@ -19,7 +19,7 @@ const options: swaggerJsdoc.Options = {
     servers: [
       {
         url: process.env.NODE_ENV === 'production' 
-          ? 'https://eth-project-backend-1086159474664.europe-west1.run.app' 
+          ? 'https://eth-project-backend-staging-1086159474664.europe-west1.run.app' 
           : 'http://localhost:3001',
         description: process.env.NODE_ENV === 'production' ? 'Production server (Google Cloud Run)' : 'Development server'
       }

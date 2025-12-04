@@ -176,7 +176,8 @@ class TicketPdfGenerator {
         const typeLabels = {
             regular: 'REGULAR',
             vip: 'VIP',
-            vvip: 'VVIP'
+            table_of_5: 'TABLE OF 5',
+            table_of_10: 'TABLE OF 10'
         };
         const typeLabel = typeLabels[ticketData.ticketType];
         doc.save();
