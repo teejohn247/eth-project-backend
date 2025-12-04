@@ -50,9 +50,15 @@ const promoteToContestant = async (req, res) => {
             });
             return;
         }
-        const timestamp = Date.now().toString().slice(-6);
-        const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-        const contestantNumber = `CNT${timestamp}${random}`;
+        const lastContestant = await Contestant_1.default.findOne({ contestantNumber: { $regex: /^CNT-\d+$/ } }, {}, { sort: { contestantNumber: -1 } }).lean();
+        let nextNumber = 1;
+        if (lastContestant && lastContestant.contestantNumber) {
+            const match = lastContestant.contestantNumber.match(/CNT-(\d+)/);
+            if (match) {
+                nextNumber = parseInt(match[1], 10) + 1;
+            }
+        }
+        const contestantNumber = `CNT-${nextNumber.toString().padStart(3, '0')}`;
         const contestant = new Contestant_1.default({
             userId: registration.userId,
             registrationId: registration._id,
@@ -98,12 +104,49 @@ const promoteToContestant = async (req, res) => {
 exports.promoteToContestant = promoteToContestant;
 const getContestants = async (req, res) => {
     try {
-        const { status, talentCategory, sortBy = 'totalVotes', order = 'desc', page = 1, limit = 20 } = req.query;
+        const { status, talentCategory, sortBy = 'totalVotes', order = 'desc', page = 1, limit = 20, name, contestantNumber } = req.query;
         const query = {};
-        if (status)
+        if (status) {
             query.status = status;
-        if (talentCategory)
+        }
+        if (talentCategory) {
             query.talentCategory = talentCategory;
+        }
+        const searchConditions = [];
+        if (name) {
+            const nameTerm = name.trim();
+            if (nameTerm) {
+                searchConditions.push({
+                    $or: [
+                        { firstName: { $regex: nameTerm, $options: 'i' } },
+                        { lastName: { $regex: nameTerm, $options: 'i' } },
+                        {
+                            $expr: {
+                                $regexMatch: {
+                                    input: { $concat: ['$firstName', ' ', '$lastName'] },
+                                    regex: nameTerm,
+                                    options: 'i'
+                                }
+                            }
+                        }
+                    ]
+                });
+            }
+        }
+        if (contestantNumber) {
+            const numberTerm = contestantNumber.trim();
+            if (numberTerm) {
+                searchConditions.push({
+                    contestantNumber: { $regex: numberTerm, $options: 'i' }
+                });
+            }
+        }
+        if (searchConditions.length === 1) {
+            Object.assign(query, searchConditions[0]);
+        }
+        else if (searchConditions.length > 1) {
+            query.$and = searchConditions;
+        }
         const sortOptions = {};
         sortOptions[sortBy] = order === 'desc' ? -1 : 1;
         const skip = (Number(page) - 1) * Number(limit);

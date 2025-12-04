@@ -62,10 +62,24 @@ export const promoteToContestant = async (req: AuthenticatedRequest, res: Respon
       return;
     }
 
-    // Generate contestant number
-    const timestamp = Date.now().toString().slice(-6);
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    const contestantNumber = `CNT${timestamp}${random}`;
+    // Generate contestant number (sequential: CNT-001, CNT-002, etc.)
+    const lastContestant = await Contestant.findOne(
+      { contestantNumber: { $regex: /^CNT-\d+$/ } },
+      {},
+      { sort: { contestantNumber: -1 } }
+    ).lean();
+
+    let nextNumber = 1;
+    if (lastContestant && lastContestant.contestantNumber) {
+      // Extract the number from the last contestant (e.g., "CNT-007" -> 7)
+      const match = lastContestant.contestantNumber.match(/CNT-(\d+)/);
+      if (match) {
+        nextNumber = parseInt(match[1], 10) + 1;
+      }
+    }
+
+    // Format as CNT-001, CNT-002, etc.
+    const contestantNumber = `CNT-${nextNumber.toString().padStart(3, '0')}`;
 
     // Create contestant from registration data (toggle on)
     const contestant = new Contestant({
@@ -115,11 +129,72 @@ export const promoteToContestant = async (req: AuthenticatedRequest, res: Respon
 // Get all contestants
 export const getContestants = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { status, talentCategory, sortBy = 'totalVotes', order = 'desc', page = 1, limit = 20 } = req.query;
+    const { 
+      status, 
+      talentCategory, 
+      sortBy = 'totalVotes', 
+      order = 'desc', 
+      page = 1, 
+      limit = 20,
+      name,
+      contestantNumber
+    } = req.query;
 
     const query: any = {};
-    if (status) query.status = status;
-    if (talentCategory) query.talentCategory = talentCategory;
+
+    // Status filter
+    if (status) {
+      query.status = status;
+    }
+
+    // Talent category filter
+    if (talentCategory) {
+      query.talentCategory = talentCategory;
+    }
+
+    // Build search conditions array
+    const searchConditions: any[] = [];
+
+    // Search by name (first name, last name, or full name) - regex enabled
+    if (name) {
+      const nameTerm = (name as string).trim();
+      if (nameTerm) {
+        searchConditions.push({
+          $or: [
+            { firstName: { $regex: nameTerm, $options: 'i' } },
+            { lastName: { $regex: nameTerm, $options: 'i' } },
+            { 
+              $expr: {
+                $regexMatch: {
+                  input: { $concat: ['$firstName', ' ', '$lastName'] },
+                  regex: nameTerm,
+                  options: 'i'
+                }
+              }
+            }
+          ]
+        });
+      }
+    }
+
+    // Search by contestant number - regex enabled
+    if (contestantNumber) {
+      const numberTerm = (contestantNumber as string).trim();
+      if (numberTerm) {
+        searchConditions.push({
+          contestantNumber: { $regex: numberTerm, $options: 'i' }
+        });
+      }
+    }
+
+    // Apply search conditions
+    if (searchConditions.length === 1) {
+      // Single condition - merge directly
+      Object.assign(query, searchConditions[0]);
+    } else if (searchConditions.length > 1) {
+      // Multiple conditions - use $and
+      query.$and = searchConditions;
+    }
 
     const sortOptions: any = {};
     sortOptions[sortBy as string] = order === 'desc' ? -1 : 1;
