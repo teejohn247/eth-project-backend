@@ -4,7 +4,7 @@ export interface ITicketPurchase extends Document {
     firstName: string;
     lastName: string;
     email: string;
-    phone: string;
+    phone?: string;
     tickets: Array<{
         ticketId: mongoose.Types.ObjectId;
         ticketType: 'regular' | 'vip' | 'table_of_5' | 'table_of_10';
