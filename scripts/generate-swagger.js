@@ -20,7 +20,7 @@ const options = {
     },
     servers: [
       {
-        url: 'https://eth-project-backend-1086159474664.europe-west1.run.app',
+        url: 'https://eth-project-backend-staging-1086159474664.europe-west1.run.app',
         description: 'Production server (Google Cloud Run)'
       },
       {
