@@ -5,7 +5,7 @@ export interface ITicketPurchase extends Document {
   firstName: string;
   lastName: string;
   email: string;
-  phone: string;
+  phone?: string;
   tickets: Array<{
     ticketId: mongoose.Types.ObjectId;
     ticketType: 'regular' | 'vip' | 'table_of_5' | 'table_of_10';
@@ -51,8 +51,9 @@ const TicketPurchaseSchema = new Schema<ITicketPurchase>({
   },
   phone: {
     type: String,
-    required: true,
-    trim: true
+    required: false,
+    trim: true,
+    default: ''
   },
   tickets: [{
     ticketId: {

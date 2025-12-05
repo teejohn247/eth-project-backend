@@ -60,8 +60,9 @@ const TicketPurchaseSchema = new mongoose_1.Schema({
     },
     phone: {
         type: String,
-        required: true,
-        trim: true
+        required: false,
+        trim: true,
+        default: ''
     },
     tickets: [{
             ticketId: {
