@@ -132,8 +132,8 @@ export const getContestants = async (req: Request, res: Response): Promise<void>
     const { 
       status, 
       talentCategory, 
-      sortBy = 'totalVotes', 
-      order = 'desc', 
+      sortBy = 'contestantNumber', 
+      order = 'asc', 
       page = 1, 
       limit = 2000000,
       searchQuery
