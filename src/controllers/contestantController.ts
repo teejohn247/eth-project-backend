@@ -135,9 +135,8 @@ export const getContestants = async (req: Request, res: Response): Promise<void>
       sortBy = 'totalVotes', 
       order = 'desc', 
       page = 1, 
-      limit = 20,
-      name,
-      contestantNumber
+      limit = 2000000,
+      searchQuery
     } = req.query;
 
     const query: any = {};
@@ -152,48 +151,26 @@ export const getContestants = async (req: Request, res: Response): Promise<void>
       query.talentCategory = talentCategory;
     }
 
-    // Build search conditions array
-    const searchConditions: any[] = [];
-
-    // Search by name (first name, last name, or full name) - regex enabled
-    if (name) {
-      const nameTerm = (name as string).trim();
-      if (nameTerm) {
-        searchConditions.push({
-          $or: [
-            { firstName: { $regex: nameTerm, $options: 'i' } },
-            { lastName: { $regex: nameTerm, $options: 'i' } },
-            { 
-              $expr: {
-                $regexMatch: {
-                  input: { $concat: ['$firstName', ' ', '$lastName'] },
-                  regex: nameTerm,
-                  options: 'i'
-                }
+    // Search query - searches both name and contestant number
+    if (searchQuery) {
+      const searchTerm = (searchQuery as string).trim();
+      if (searchTerm) {
+        // Search both name and contestant number
+        query.$or = [
+          { firstName: { $regex: searchTerm, $options: 'i' } },
+          { lastName: { $regex: searchTerm, $options: 'i' } },
+          { 
+            $expr: {
+              $regexMatch: {
+                input: { $concat: ['$firstName', ' ', '$lastName'] },
+                regex: searchTerm,
+                options: 'i'
               }
             }
-          ]
-        });
+          },
+          { contestantNumber: { $regex: searchTerm, $options: 'i' } }
+        ];
       }
-    }
-
-    // Search by contestant number - regex enabled
-    if (contestantNumber) {
-      const numberTerm = (contestantNumber as string).trim();
-      if (numberTerm) {
-        searchConditions.push({
-          contestantNumber: { $regex: numberTerm, $options: 'i' }
-        });
-      }
-    }
-
-    // Apply search conditions
-    if (searchConditions.length === 1) {
-      // Single condition - merge directly
-      Object.assign(query, searchConditions[0]);
-    } else if (searchConditions.length > 1) {
-      // Multiple conditions - use $and
-      query.$and = searchConditions;
     }
 
     const sortOptions: any = {};
