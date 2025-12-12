@@ -135,9 +135,8 @@ export const getContestants = async (req: Request, res: Response): Promise<void>
       sortBy = 'totalVotes', 
       order = 'desc', 
       page = 1, 
-      limit = 20,
-      name,
-      contestantNumber
+      limit = 2000000,
+      searchQuery
     } = req.query;
 
     const query: any = {};
@@ -152,48 +151,26 @@ export const getContestants = async (req: Request, res: Response): Promise<void>
       query.talentCategory = talentCategory;
     }
 
-    // Build search conditions array
-    const searchConditions: any[] = [];
-
-    // Search by name (first name, last name, or full name) - regex enabled
-    if (name) {
-      const nameTerm = (name as string).trim();
-      if (nameTerm) {
-        searchConditions.push({
-          $or: [
-            { firstName: { $regex: nameTerm, $options: 'i' } },
-            { lastName: { $regex: nameTerm, $options: 'i' } },
-            { 
-              $expr: {
-                $regexMatch: {
-                  input: { $concat: ['$firstName', ' ', '$lastName'] },
-                  regex: nameTerm,
-                  options: 'i'
-                }
+    // Search query - searches both name and contestant number
+    if (searchQuery) {
+      const searchTerm = (searchQuery as string).trim();
+      if (searchTerm) {
+        // Search both name and contestant number
+        query.$or = [
+          { firstName: { $regex: searchTerm, $options: 'i' } },
+          { lastName: { $regex: searchTerm, $options: 'i' } },
+          { 
+            $expr: {
+              $regexMatch: {
+                input: { $concat: ['$firstName', ' ', '$lastName'] },
+                regex: searchTerm,
+                options: 'i'
               }
             }
-          ]
-        });
+          },
+          { contestantNumber: { $regex: searchTerm, $options: 'i' } }
+        ];
       }
-    }
-
-    // Search by contestant number - regex enabled
-    if (contestantNumber) {
-      const numberTerm = (contestantNumber as string).trim();
-      if (numberTerm) {
-        searchConditions.push({
-          contestantNumber: { $regex: numberTerm, $options: 'i' }
-        });
-      }
-    }
-
-    // Apply search conditions
-    if (searchConditions.length === 1) {
-      // Single condition - merge directly
-      Object.assign(query, searchConditions[0]);
-    } else if (searchConditions.length > 1) {
-      // Multiple conditions - use $and
-      query.$and = searchConditions;
     }
 
     const sortOptions: any = {};
@@ -412,74 +389,139 @@ export const voteForContestant = async (req: Request, res: Response): Promise<vo
 };
 
 // Verify vote payment
+// This endpoint is called only on successful payment, so we always approve and process
+// Accepts any payment reference and creates records if they don't exist
 export const verifyVotePayment = async (req: Request, res: Response): Promise<void> => {
   try {
     const { paymentReference } = req.params;
-    const paymentData = req.body;
+    const paymentData = req.body; // Accept and save all data from frontend
 
     // Find vote by payment reference
-    const vote = await Vote.findOne({ paymentReference })
+    let vote = await Vote.findOne({ paymentReference })
       .populate('contestantId');
 
     if (!vote) {
-      res.status(404).json({
-        success: false,
-        message: 'Vote not found'
+      // Create vote record if it doesn't exist
+      // Extract data from payment data (handle both formats)
+      let contestantId = paymentData.contestantId || paymentData.metadata?.contestantId;
+      let contestantEmail = paymentData.contestantEmail || paymentData.metadata?.contestantEmail || paymentData.customer?.email || paymentData.customerId;
+      let numberOfVotes = paymentData.numberOfVotes || paymentData.metadata?.numberOfVotes || 1;
+      let amountPaid = paymentData.amount || paymentData.amountPaid || paymentData.transAmount || paymentData.debitedAmount || 0;
+
+      // Handle metadata array format (insightTag/insightTagValue)
+      if (paymentData.metadata && Array.isArray(paymentData.metadata)) {
+        const metadataMap: any = {};
+        paymentData.metadata.forEach((item: any) => {
+          if (item.insightTag && item.insightTagValue) {
+            metadataMap[item.insightTag] = item.insightTagValue;
+          }
+        });
+        
+        if (metadataMap.contestantId) contestantId = metadataMap.contestantId;
+        if (metadataMap.votesPurchased) numberOfVotes = parseInt(metadataMap.votesPurchased) || numberOfVotes;
+        if (metadataMap.amountPaid) amountPaid = parseFloat(metadataMap.amountPaid) || amountPaid;
+        if (metadataMap.contestantName && !contestantEmail) {
+          // Try to find contestant by name if email not provided
+          const contestantByName = await Contestant.findOne({
+            $or: [
+              { firstName: { $regex: metadataMap.contestantName.split(' ')[0], $options: 'i' } },
+              { lastName: { $regex: metadataMap.contestantName.split(' ').slice(1).join(' '), $options: 'i' } }
+            ]
+          });
+          if (contestantByName) {
+            contestantId = contestantByName._id.toString();
+            contestantEmail = contestantByName.email;
+          }
+        }
+      }
+
+      // Handle status: 0 = success, 1 = failed
+      if (paymentData.status === 0 || paymentData.status === '0') {
+        // Payment successful, proceed
+      } else if (paymentData.status === 1 || paymentData.status === '1') {
+        res.status(400).json({
+          success: false,
+          message: 'Payment failed'
+        });
+        return;
+      }
+
+      if (!contestantId) {
+        res.status(400).json({
+          success: false,
+          message: 'Contestant ID is required in payment data'
+        });
+        return;
+      }
+
+      // Find contestant
+      const contestant = await Contestant.findById(contestantId);
+      if (!contestant) {
+        res.status(404).json({
+          success: false,
+          message: 'Contestant not found'
+        });
+        return;
+      }
+
+      // Create payment transaction
+      const transactionAmount = typeof amountPaid === 'number' ? amountPaid : parseFloat(amountPaid) || paymentData.transAmount || 0;
+      const paymentTransaction = new PaymentTransaction({
+        registrationId: null,
+        userId: null,
+        reference: paymentReference,
+        amount: transactionAmount,
+        currency: paymentData.currencyCode || paymentData.currency || 'NGN',
+        status: 'initiated',
+        paymentMethod: paymentData.channelId?.toString() || paymentData.paymentMethod || paymentData.gateway || 'unknown',
+        gatewayResponse: paymentData
       });
-      return;
+      await paymentTransaction.save();
+
+      // Create vote record
+      vote = new Vote({
+        contestantId: contestant._id,
+        contestantEmail: contestantEmail || contestant.email,
+        numberOfVotes: typeof numberOfVotes === 'number' ? numberOfVotes : parseInt(numberOfVotes) || 1,
+        amountPaid: typeof amountPaid === 'number' ? amountPaid : parseFloat(amountPaid) || 0,
+        currency: paymentData.currencyCode || paymentData.currency || 'NGN',
+        voterInfo: {
+          firstName: paymentData.customerFirstName || paymentData.voterInfo?.firstName,
+          lastName: paymentData.customerLastName || paymentData.voterInfo?.lastName,
+          email: paymentData.customerId || paymentData.voterInfo?.email,
+          phone: paymentData.customerPhoneNumber || paymentData.voterInfo?.phone
+        },
+        paymentReference: paymentReference,
+        paymentTransactionId: paymentTransaction._id,
+        paymentStatus: 'pending',
+        paymentMethod: paymentData.channelId?.toString() || paymentData.paymentMethod || paymentData.gateway || 'unknown',
+        notes: paymentData.statusMessage || paymentData.notes
+      });
+      await vote.save();
     }
 
-    // Map payment status
-    let mappedStatus: 'pending' | 'processing' | 'completed' | 'failed' | 'refunded' = 'pending';
-    const statusValue = paymentData.status || paymentData.transaction_status || paymentData.paymentStatus;
-
-    if (statusValue === '0' || statusValue === 0 ||
-        statusValue === 'successful' || statusValue === 'success' ||
-        statusValue === 'completed' || statusValue === 'paid') {
-      mappedStatus = 'completed';
-    } else if (statusValue === '1' || statusValue === 1 ||
-               statusValue === 'failed' || statusValue === 'failure' ||
-               statusValue === 'declined' || statusValue === 'error') {
-      mappedStatus = 'failed';
-    } else if (statusValue === 'processing' || statusValue === 'pending') {
-      mappedStatus = 'processing';
-    }
-
-    // Update vote payment status
+    // Always approve payment since this endpoint is only called on success
     const previousStatus = vote.paymentStatus;
-    vote.paymentStatus = mappedStatus;
+    vote.paymentStatus = 'completed';
     await vote.save();
 
     // Update payment transaction if exists
     if (vote.paymentTransactionId) {
       const paymentTransaction = await PaymentTransaction.findById(vote.paymentTransactionId);
       if (paymentTransaction) {
-        paymentTransaction.status = mappedStatus === 'completed' ? 'successful' : 
-                                    mappedStatus === 'failed' ? 'failed' : 'pending';
-        paymentTransaction.gatewayResponse = paymentData;
-        if (mappedStatus === 'completed') {
-          paymentTransaction.processedAt = new Date();
-        }
+        paymentTransaction.status = 'successful';
+        paymentTransaction.gatewayResponse = paymentData; // Save all data from frontend
+        paymentTransaction.processedAt = new Date();
         await paymentTransaction.save();
       }
     }
 
-    // If payment completed and wasn't already counted, update contestant stats
-    if (mappedStatus === 'completed' && previousStatus !== 'completed') {
+    // If payment wasn't already counted, update contestant stats
+    if (previousStatus !== 'completed') {
       const contestant = await Contestant.findById(vote.contestantId);
       if (contestant) {
         contestant.totalVotes += vote.numberOfVotes;
         contestant.totalVoteAmount += vote.amountPaid;
-        await contestant.save();
-      }
-    }
-
-    // If payment failed and was previously completed, reverse the vote count
-    if (mappedStatus === 'failed' && previousStatus === 'completed') {
-      const contestant = await Contestant.findById(vote.contestantId);
-      if (contestant) {
-        contestant.totalVotes = Math.max(0, contestant.totalVotes - vote.numberOfVotes);
-        contestant.totalVoteAmount = Math.max(0, contestant.totalVoteAmount - vote.amountPaid);
         await contestant.save();
       }
     }
@@ -489,7 +531,7 @@ export const verifyVotePayment = async (req: Request, res: Response): Promise<vo
       message: 'Vote payment verified successfully',
       data: {
         voteId: vote._id,
-        paymentStatus: mappedStatus,
+        paymentStatus: 'completed',
         contestantId: vote.contestantId,
         numberOfVotes: vote.numberOfVotes,
         amountPaid: vote.amountPaid

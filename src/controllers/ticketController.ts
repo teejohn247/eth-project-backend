@@ -70,10 +70,10 @@ export const purchaseTickets = async (req: Request, res: Response): Promise<void
     const { firstName, lastName, email, phone, tickets: ticketArray } = req.body;
 
     // Validate required fields
-    if (!firstName || !lastName || !email || !phone || !ticketArray || !Array.isArray(ticketArray) || ticketArray.length === 0) {
+    if (!firstName || !lastName || !email || !ticketArray || !Array.isArray(ticketArray) || ticketArray.length === 0) {
       res.status(400).json({
         success: false,
-        message: 'Missing required fields: firstName, lastName, email, phone, and tickets array are required'
+        message: 'Missing required fields: firstName, lastName, email, and tickets array are required'
       });
       return;
     }
@@ -163,7 +163,7 @@ export const purchaseTickets = async (req: Request, res: Response): Promise<void
       firstName,
       lastName,
       email,
-      phone,
+      phone: phone || '', // Phone is optional
       tickets: ticketDetails,
       totalAmount,
       currency: 'NGN',
@@ -268,32 +268,140 @@ export const purchaseTickets = async (req: Request, res: Response): Promise<void
 };
 
 // Verify payment and generate tickets
+// This endpoint is called only on successful payment, so we always approve and process
+// Accepts any payment reference and creates records if they don't exist
 export const verifyTicketPayment = async (req: Request, res: Response): Promise<void> => {
   try {
     const { paymentReference } = req.params;
-    const paymentData = req.body;
+    const paymentData = req.body; // Accept and save all data from frontend
 
-    // Find payment transaction
-    const paymentTransaction = await PaymentTransaction.findOne({ reference: paymentReference });
+    // Find or create payment transaction
+    let paymentTransaction = await PaymentTransaction.findOne({ reference: paymentReference });
 
     if (!paymentTransaction) {
-      res.status(404).json({
-        success: false,
-        message: 'Payment transaction not found'
+      // Create payment transaction if it doesn't exist
+      // Handle different payload formats
+      const amount = paymentData.transAmount || paymentData.amount || paymentData.amountPaid || paymentData.debitedAmount || 0;
+      paymentTransaction = new PaymentTransaction({
+        registrationId: null,
+        userId: null,
+        reference: paymentReference,
+        amount: typeof amount === 'number' ? amount : parseFloat(amount) || 0,
+        currency: paymentData.currencyCode || paymentData.currency || 'NGN',
+        status: 'initiated',
+        paymentMethod: paymentData.channelId?.toString() || paymentData.paymentMethod || paymentData.gateway || 'unknown',
+        gatewayResponse: paymentData
       });
-      return;
+      await paymentTransaction.save();
     }
 
-    // Find ticket purchase
-    const ticketPurchase = await TicketPurchase.findOne({ paymentReference });
+    // Find or create ticket purchase
+    let ticketPurchase = await TicketPurchase.findOne({ paymentReference });
 
     if (!ticketPurchase) {
-      res.status(404).json({
-        success: false,
-        message: 'Ticket purchase not found'
+      // Extract ticket data from payment data or use defaults
+      // Handle different payload formats
+      const email = paymentData.customerId || paymentData.customer?.email || paymentData.email || 'unknown@example.com';
+      const firstName = paymentData.customerFirstName || paymentData.customer?.firstName || paymentData.customer?.name?.split(' ')[0] || 'Unknown';
+      const lastName = paymentData.customerLastName || paymentData.customer?.lastName || paymentData.customer?.name?.split(' ').slice(1).join(' ') || 'User';
+      // Phone is optional - use empty string if not provided
+      const phone = paymentData.customerPhoneNumber || paymentData.customer?.phone || paymentData.phone || '';
+
+      // Process tickets from payment data - need to look up ticket IDs
+      const ticketDetails: Array<{
+        ticketId: any;
+        ticketType: 'regular' | 'vip' | 'table_of_5' | 'table_of_10';
+        quantity: number;
+        unitPrice: number;
+        totalPrice: number;
+      }> = [];
+
+      if (paymentData.tickets && Array.isArray(paymentData.tickets) && paymentData.tickets.length > 0) {
+        for (const ticketItem of paymentData.tickets) {
+          const ticketType = ticketItem.ticketType;
+          const quantity = ticketItem.quantity || 1;
+          
+          if (ticketType && ['regular', 'vip', 'table_of_5', 'table_of_10'].includes(ticketType)) {
+            const ticket = await Ticket.findOne({ ticketType, isActive: true });
+            if (ticket) {
+              const unitPrice = ticketItem.unitPrice || ticket.price;
+              const totalPrice = unitPrice * quantity;
+              ticketDetails.push({
+                ticketId: ticket._id,
+                ticketType: ticket.ticketType,
+                quantity,
+                unitPrice,
+                totalPrice
+              });
+            }
+          }
+        }
+      }
+
+      // If no tickets found, infer from amount or create default
+      if (ticketDetails.length === 0) {
+        const amount = paymentTransaction.amount;
+        
+        // Try to match amount to ticket prices
+        const allTickets = await Ticket.find({ isActive: true }).sort({ price: 1 });
+        
+        // Find best matching ticket(s) based on amount
+        let matched = false;
+        for (const ticket of allTickets) {
+          if (amount >= ticket.price && amount % ticket.price === 0) {
+            const quantity = amount / ticket.price;
+            ticketDetails.push({
+              ticketId: ticket._id,
+              ticketType: ticket.ticketType,
+              quantity: Math.floor(quantity),
+              unitPrice: ticket.price,
+              totalPrice: ticket.price * Math.floor(quantity)
+            });
+            matched = true;
+            break;
+          }
+        }
+        
+        // If no match, create default regular ticket
+        if (!matched) {
+          const defaultTicket = await Ticket.findOne({ ticketType: 'regular', isActive: true });
+          if (defaultTicket) {
+            ticketDetails.push({
+              ticketId: defaultTicket._id,
+              ticketType: 'regular',
+              quantity: 1,
+              unitPrice: defaultTicket.price,
+              totalPrice: defaultTicket.price
+            });
+          }
+        }
+      }
+
+      // Create ticket purchase if it doesn't exist
+      ticketPurchase = new TicketPurchase({
+        purchaseReference: `TKT_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`,
+        firstName,
+        lastName,
+        email,
+        phone,
+        tickets: ticketDetails,
+        totalAmount: paymentTransaction.amount,
+        currency: paymentTransaction.currency,
+        paymentStatus: 'pending',
+        paymentReference: paymentReference,
+        paymentTransactionId: paymentTransaction._id,
+        ticketNumbers: [],
+        ticketSent: false
       });
-      return;
+      await ticketPurchase.save();
     }
+
+    // Always approve payment since this endpoint is only called on success
+    // Save all payment data from frontend
+    paymentTransaction.status = 'successful';
+    paymentTransaction.gatewayResponse = paymentData; // Save all data from frontend
+    paymentTransaction.processedAt = new Date();
+    await paymentTransaction.save();
 
     // Check if already processed
     if (ticketPurchase.paymentStatus === 'completed') {
@@ -309,100 +417,76 @@ export const verifyTicketPayment = async (req: Request, res: Response): Promise<
       return;
     }
 
-    // Map payment status
-    let mappedStatus: 'pending' | 'processing' | 'completed' | 'failed' | 'refunded' = 'pending';
-    const statusValue = paymentData.status || paymentData.transaction_status || paymentData.paymentStatus;
-
-    if (statusValue === '0' || statusValue === 0 ||
-        statusValue === 'successful' || statusValue === 'success' ||
-        statusValue === 'completed' || statusValue === 'paid') {
-      mappedStatus = 'completed';
-    } else if (statusValue === '1' || statusValue === 1 ||
-               statusValue === 'failed' || statusValue === 'failure' ||
-               statusValue === 'declined' || statusValue === 'error') {
-      mappedStatus = 'failed';
-    } else if (statusValue === 'processing' || statusValue === 'pending') {
-      mappedStatus = 'processing';
-    }
-
-    // Update payment transaction
-    paymentTransaction.status = mappedStatus === 'completed' ? 'successful' : 
-                                mappedStatus === 'failed' ? 'failed' : 'pending';
-    paymentTransaction.gatewayResponse = paymentData;
-    if (mappedStatus === 'completed') {
-      paymentTransaction.processedAt = new Date();
-    }
-    await paymentTransaction.save();
-
-    // If payment successful, update status (tickets already generated at purchase)
-    if (mappedStatus === 'completed') {
-      // Tickets are already generated at purchase time, just update payment status
-      ticketPurchase.paymentStatus = 'completed';
-      
-      // If tickets weren't sent yet, send them now
-      if (!ticketPurchase.ticketSent && ticketPurchase.ticketNumbers && ticketPurchase.ticketNumbers.length > 0) {
-        try {
-          await emailService.sendTicketEmail(
-            ticketPurchase.email,
-            ticketPurchase.firstName,
-            ticketPurchase.lastName,
-            ticketPurchase.purchaseReference,
-            ticketPurchase.tickets,
-            ticketPurchase.ticketNumbers,
-            ticketPurchase.totalAmount
-          );
-          ticketPurchase.ticketSent = true;
-          ticketPurchase.ticketSentAt = new Date();
-        } catch (error: any) {
-          console.error('Failed to send ticket email after payment verification:', error);
-          // Don't fail if email fails
-        }
-      }
-      
-      await ticketPurchase.save();
-
-      // Update sold quantities for tickets (only if not already updated)
-      for (const ticketItem of ticketPurchase.tickets) {
-        const ticket = await Ticket.findById(ticketItem.ticketId);
-        if (ticket) {
-          // Check if we need to update sold quantity (only update once)
-          const currentSold = ticket.soldQuantity || 0;
-          const expectedSold = currentSold + ticketItem.quantity;
-          if (ticket.soldQuantity < expectedSold) {
-            ticket.soldQuantity += ticketItem.quantity;
-            await ticket.save();
+    // Generate ticket numbers if they don't exist
+    if (!ticketPurchase.ticketNumbers || ticketPurchase.ticketNumbers.length === 0) {
+      const ticketNumbers: string[] = [];
+      if (ticketPurchase.tickets && ticketPurchase.tickets.length > 0) {
+        for (const ticketItem of ticketPurchase.tickets) {
+          for (let i = 0; i < ticketItem.quantity; i++) {
+            const timestamp = Date.now();
+            const random = crypto.randomBytes(4).toString('hex').toUpperCase();
+            const ticketTypePrefix = ticketItem.ticketType.toUpperCase().replace('_', '-');
+            ticketNumbers.push(`ETH-${ticketTypePrefix}-${timestamp}-${random}`);
           }
         }
       }
-
-      const message = ticketPurchase.ticketSent
-        ? 'Payment verified successfully. Tickets already sent to email.'
-        : 'Payment verified successfully. Tickets sent to email.';
-
-      res.status(200).json({
-        success: true,
-        message,
-        data: {
-          purchaseReference: ticketPurchase.purchaseReference,
-          ticketNumbers: ticketPurchase.ticketNumbers || [],
-          ticketSent: ticketPurchase.ticketSent,
-          email: ticketPurchase.email
-        }
-      });
-    } else {
-      // Payment failed or pending
-      ticketPurchase.paymentStatus = mappedStatus;
+      ticketPurchase.ticketNumbers = ticketNumbers;
       await ticketPurchase.save();
-
-      res.status(200).json({
-        success: false,
-        message: `Payment status: ${mappedStatus}`,
-        data: {
-          purchaseReference: ticketPurchase.purchaseReference,
-          paymentStatus: mappedStatus
-        }
-      });
     }
+
+    // Update payment status to completed
+    ticketPurchase.paymentStatus = 'completed';
+    
+    // If tickets weren't sent yet, send them now
+    if (!ticketPurchase.ticketSent && ticketPurchase.ticketNumbers && ticketPurchase.ticketNumbers.length > 0) {
+      try {
+        await emailService.sendTicketEmail(
+          ticketPurchase.email,
+          ticketPurchase.firstName,
+          ticketPurchase.lastName,
+          ticketPurchase.purchaseReference,
+          ticketPurchase.tickets,
+          ticketPurchase.ticketNumbers,
+          ticketPurchase.totalAmount
+        );
+        ticketPurchase.ticketSent = true;
+        ticketPurchase.ticketSentAt = new Date();
+      } catch (error: any) {
+        console.error('Failed to send ticket email after payment verification:', error);
+        // Don't fail if email fails
+      }
+    }
+    
+    await ticketPurchase.save();
+
+    // Update sold quantities for tickets (only if not already updated)
+    for (const ticketItem of ticketPurchase.tickets) {
+      const ticket = await Ticket.findById(ticketItem.ticketId);
+      if (ticket) {
+        // Check if we need to update sold quantity (only update once)
+        const currentSold = ticket.soldQuantity || 0;
+        const expectedSold = currentSold + ticketItem.quantity;
+        if (ticket.soldQuantity < expectedSold) {
+          ticket.soldQuantity += ticketItem.quantity;
+          await ticket.save();
+        }
+      }
+    }
+
+    const message = ticketPurchase.ticketSent
+      ? 'Payment verified successfully. Tickets already sent to email.'
+      : 'Payment verified successfully. Tickets sent to email.';
+
+    res.status(200).json({
+      success: true,
+      message,
+      data: {
+        purchaseReference: ticketPurchase.purchaseReference,
+        ticketNumbers: ticketPurchase.ticketNumbers || [],
+        ticketSent: ticketPurchase.ticketSent,
+        email: ticketPurchase.email
+      }
+    });
   } catch (error) {
     console.error('Verify ticket payment error:', error);
     res.status(500).json({
