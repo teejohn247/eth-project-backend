@@ -402,7 +402,7 @@ const handlePaymentWebhook = async (req, res) => {
                 paymentTransactionId: paymentTransaction._id,
                 paymentStatus: 'pending',
                 paymentMethod: data.paymentMethod || data.channelId?.toString() || payload.channelId?.toString() || 'unknown',
-                notes: data.statusMessage || payload.statusMessage
+                notes: "From Webhook"
             });
             await vote.save();
         }

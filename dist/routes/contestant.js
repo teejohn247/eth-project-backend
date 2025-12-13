@@ -11,6 +11,7 @@ router.post('/promote/:registrationId', auth_1.authenticateToken, auth_1.require
 router.post('/vote', contestantController_1.voteForContestant);
 router.post('/verify-payment/:paymentReference', contestantController_1.verifyVotePayment);
 router.get('/', contestantController_1.getContestants);
+router.get('/votes', contestantController_1.getAllVotes);
 router.get('/:contestantId/votes', contestantController_1.getContestantVotes);
 router.get('/:contestantId', contestantController_1.getContestant);
 exports.default = router;

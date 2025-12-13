@@ -6,4 +6,5 @@ export declare const getContestant: (req: Request, res: Response) => Promise<voi
 export declare const voteForContestant: (req: Request, res: Response) => Promise<void>;
 export declare const verifyVotePayment: (req: Request, res: Response) => Promise<void>;
 export declare const getContestantVotes: (req: Request, res: Response) => Promise<void>;
+export declare const getAllVotes: (req: Request, res: Response) => Promise<void>;
 //# sourceMappingURL=contestantController.d.ts.map
