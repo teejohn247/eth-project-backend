@@ -303,61 +303,272 @@ export const getPaymentStatus = async (req: AuthenticatedRequest, res: Response)
 };
 
 // Payment webhook handler (for Paystack/Credo webhooks)
+// Original webhook handler - COMMENTED OUT
+// export const handlePaymentWebhook = async (req: Request, res: Response): Promise<void> => {
+//   try {
+//     const payload = req.body;
+//     const signature = req.headers['x-paystack-signature'] as string;
+
+//     // Verify webhook signature (you should use your actual webhook secret)
+//     const webhookSecret = process.env.PAYSTACK_WEBHOOK_SECRET || 'your-webhook-secret';
+//     const hash = crypto.createHmac('sha512', webhookSecret).update(JSON.stringify(payload)).digest('hex');
+
+//     if (hash !== signature) {
+//       res.status(400).json({
+//         success: false,
+//         message: 'Invalid webhook signature'
+//       });
+//       return;
+//     }
+
+//     const { event, data } = payload;
+
+//     if (event === 'charge.success') {
+//       const { reference, status, amount, currency } = data;
+
+//       // Find and update transaction
+//       const transaction = await PaymentTransaction.findOne({ reference });
+      
+//       if (transaction) {
+//         transaction.status = status === 'success' ? 'successful' : 'failed';
+//         transaction.gatewayResponse = data;
+//         transaction.processedAt = new Date();
+//         await transaction.save();
+
+//         // Update registration payment status
+//         const registration = await Registration.findById(transaction.registrationId);
+//         if (registration && status === 'success') {
+//           registration.paymentInfo.paymentStatus = 'completed';
+//           registration.paymentInfo.paidAt = new Date();
+//           registration.paymentInfo.paymentResponse = data;
+          
+//           // Mark payment step as completed
+//           if (!registration.completedSteps.includes(7)) {
+//             registration.completedSteps.push(7);
+//           }
+//           registration.currentStep = Math.max(7, registration.currentStep);
+          
+//           await registration.save();
+//         }
+//       }
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       message: 'Webhook processed successfully'
+//     });
+//   } catch (error) {
+//     console.error('Payment webhook error:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Webhook processing failed',
+//       error: process.env.NODE_ENV === 'development' ? error : undefined
+//     });
+//   }
+// };
+
+// New unified webhook handler for both registration and vote payments
+// Signature verification function for Credo webhooks
+const verifySignature = (signature: string, token: string, businessCode: string): boolean => {
+  try {
+    // Construct the signed content as per Credo docs
+    const signedContent = `${token}${businessCode}`;
+    
+    // Create SHA512 hash
+    const hash = crypto
+      .createHash('sha512')
+      .update(signedContent)
+      .digest('hex');
+    
+    // Compare with provided signature
+    return hash === signature;
+  } catch (error) {
+    console.error('Signature verification error:', error);
+    return false;
+  }
+};
+
 export const handlePaymentWebhook = async (req: Request, res: Response): Promise<void> => {
   try {
     const payload = req.body;
-    const signature = req.headers['x-paystack-signature'] as string;
+    console.log({payload})
+    // const signature = req.headers['x-signature'] as string;
 
-    // Verify webhook signature (you should use your actual webhook secret)
-    const webhookSecret = process.env.PAYSTACK_WEBHOOK_SECRET || 'your-webhook-secret';
-    const hash = crypto.createHmac('sha512', webhookSecret).update(JSON.stringify(payload)).digest('hex');
+    // if (!signature) {
+    //   console.error('❌ No signature provided in webhook');
+    //   res.status(401).json({
+    //     success: false,
+    //     message: 'No signature provided'
+    //   });
+    //   return;
+    // }
 
-    if (hash !== signature) {
-      res.status(400).json({
-        success: false,
-        message: 'Invalid webhook signature'
+    // // Verify webhook signature using Credo's method
+    // const isValidSignature = verifySignature(
+    //   signature,
+    //   payload.token || payload.data?.token || '',
+    //   payload.businessCode || payload.data?.businessCode || ''
+    // );
+
+    // if (!isValidSignature) {
+    //   console.error('❌ Invalid webhook signature');
+    //   res.status(401).json({
+    //     success: false,
+    //     message: 'Invalid signature'
+    //   });
+    //   return;
+    // }
+
+    console.log('✅ Webhook signature verified');
+
+    console.log('📥 Vote payment webhook received:', JSON.stringify(payload, null, 2));
+
+    // Extract payment reference and metadata
+    const reference = payload.transRef || payload.reference || payload.businessRef;
+    const metadata = payload.metadata || [];
+    
+    // Import Vote and Contestant models
+    const Vote = (await import('../models/Vote')).default;
+    const Contestant = (await import('../models/Contestant')).default;
+
+    // Check if this payment reference has already been processed
+    const existingVote = await Vote.findOne({ paymentReference: reference });
+    const existingTransaction = await PaymentTransaction.findOne({ reference: reference });
+    
+    if (existingVote || existingTransaction) {
+      console.log(`⏭️  Payment reference ${reference} already processed - ignoring webhook`);
+      res.status(200).json({
+        success: true,
+        message: 'Payment already processed - webhook ignored'
       });
       return;
     }
-
-    const { event, data } = payload;
-
-    if (event === 'charge.success') {
-      const { reference, status, amount, currency } = data;
-
-      // Find and update transaction
-      const transaction = await PaymentTransaction.findOne({ reference });
-      
-      if (transaction) {
-        transaction.status = status === 'success' ? 'successful' : 'failed';
-        transaction.gatewayResponse = data;
-        transaction.processedAt = new Date();
-        await transaction.save();
-
-        // Update registration payment status
-        const registration = await Registration.findById(transaction.registrationId);
-        if (registration && status === 'success') {
-          registration.paymentInfo.paymentStatus = 'completed';
-          registration.paymentInfo.paidAt = new Date();
-          registration.paymentInfo.paymentResponse = data;
-          
-          // Mark payment step as completed
-          if (!registration.completedSteps.includes(7)) {
-            registration.completedSteps.push(7);
-          }
-          registration.currentStep = Math.max(7, registration.currentStep);
-          
-          await registration.save();
+    
+    // Handle vote payment
+    console.log('Processing vote payment...');
+    
+    // Extract vote data from metadata
+    let contestantId, numberOfVotes, amountPaid;
+    if (Array.isArray(metadata)) {
+      const metadataMap: any = {};
+      metadata.forEach((item: any) => {
+        if (item.insightTag && item.insightTagValue) {
+          metadataMap[item.insightTag] = item.insightTagValue;
         }
+      });
+      
+      contestantId = metadataMap.contestantId;
+      numberOfVotes = parseInt(metadataMap.votesPurchased) || 1;
+      amountPaid = parseFloat(metadataMap.amountPaid) || payload.transAmount || payload.amount || 0;
+    }
+
+    // Check if payment was successful (status: 0 = success)
+    if (payload.status !== 0 && payload.status !== '0') {
+      console.log('❌ Vote payment failed');
+      res.status(200).json({ success: true, message: 'Failed payment acknowledged' });
+      return;
+    }
+
+    // Find or create vote
+    let vote = await Vote.findOne({ paymentReference: reference });
+
+    if (!vote) {
+      console.log('Creating new vote record...');
+      
+      if (!contestantId) {
+        console.error('❌ No contestant ID in metadata');
+        res.status(200).json({ success: true, message: 'Webhook received but missing contestant ID' });
+        return;
+      }
+
+      // Find contestant
+      const contestant = await Contestant.findById(contestantId);
+      if (!contestant) {
+        console.error(`❌ Contestant not found: ${contestantId}`);
+        res.status(200).json({ success: true, message: 'Webhook received but contestant not found' });
+        return;
+      }
+
+      // Create payment transaction
+      const paymentTransaction = new PaymentTransaction({
+        registrationId: null,
+        userId: null,
+        reference: reference,
+        amount: amountPaid,
+        currency: payload.currencyCode || 'NGN',
+        status: 'initiated',
+        paymentMethod: payload.channelId?.toString() || 'unknown',
+        gatewayResponse: payload
+      });
+      await paymentTransaction.save();
+
+      // Create vote
+      vote = new Vote({
+        contestantId: contestant._id,
+        contestantEmail: payload.customerId || contestant.email,
+        numberOfVotes: numberOfVotes,
+        amountPaid: amountPaid,
+        currency: payload.currencyCode || 'NGN',
+        voterInfo: {
+          firstName: payload.customerFirstName,
+          lastName: payload.customerLastName,
+          email: payload.customerId,
+          phone: payload.customerPhoneNumber
+        },
+        paymentReference: reference,
+        paymentTransactionId: paymentTransaction._id,
+        paymentStatus: 'pending',
+        paymentMethod: payload.channelId?.toString() || 'unknown',
+        notes: payload.statusMessage
+      });
+      await vote.save();
+    }
+
+    // Update vote status to completed
+    const previousStatus = vote.paymentStatus;
+    vote.paymentStatus = 'completed';
+    await vote.save();
+
+    // Update payment transaction
+    if (vote.paymentTransactionId) {
+      const paymentTransaction = await PaymentTransaction.findById(vote.paymentTransactionId);
+      if (paymentTransaction) {
+        paymentTransaction.status = 'successful';
+        paymentTransaction.gatewayResponse = payload;
+        paymentTransaction.processedAt = new Date();
+        await paymentTransaction.save();
       }
     }
 
+    // Update contestant stats if not already counted
+    if (previousStatus !== 'completed') {
+      const contestantId = vote.contestantId && typeof vote.contestantId === 'object' && vote.contestantId._id 
+        ? vote.contestantId._id 
+        : vote.contestantId;
+      
+      const contestant = await Contestant.findById(contestantId);
+      if (contestant) {
+        await Contestant.updateOne(
+          { _id: contestantId },
+          { 
+            $inc: { 
+              totalVotes: vote.numberOfVotes,
+              totalVoteAmount: vote.amountPaid
+            }
+          }
+        );
+        console.log(`✅ Updated contestant ${contestant.contestantNumber}: +${vote.numberOfVotes} votes, +₦${vote.amountPaid}`);
+      }
+    }
+
+    console.log('✅ Vote payment processed successfully');
     res.status(200).json({
       success: true,
-      message: 'Webhook processed successfully'
+      message: 'Vote payment processed successfully'
     });
+
   } catch (error) {
-    console.error('Payment webhook error:', error);
+    console.error('❌ Payment webhook error:', error);
     res.status(500).json({
       success: false,
       message: 'Webhook processing failed',
