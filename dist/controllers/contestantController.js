@@ -104,7 +104,7 @@ const promoteToContestant = async (req, res) => {
 exports.promoteToContestant = promoteToContestant;
 const getContestants = async (req, res) => {
     try {
-        const { status, talentCategory, sortBy = 'totalVotes', order = 'desc', page = 1, limit = 20, name, contestantNumber } = req.query;
+        const { status, talentCategory, sortBy = 'contestantNumber', order = 'asc', page = 1, limit = 2000000, searchQuery } = req.query;
         const query = {};
         if (status) {
             query.status = status;
@@ -112,40 +112,24 @@ const getContestants = async (req, res) => {
         if (talentCategory) {
             query.talentCategory = talentCategory;
         }
-        const searchConditions = [];
-        if (name) {
-            const nameTerm = name.trim();
-            if (nameTerm) {
-                searchConditions.push({
-                    $or: [
-                        { firstName: { $regex: nameTerm, $options: 'i' } },
-                        { lastName: { $regex: nameTerm, $options: 'i' } },
-                        {
-                            $expr: {
-                                $regexMatch: {
-                                    input: { $concat: ['$firstName', ' ', '$lastName'] },
-                                    regex: nameTerm,
-                                    options: 'i'
-                                }
+        if (searchQuery) {
+            const searchTerm = searchQuery.trim();
+            if (searchTerm) {
+                query.$or = [
+                    { firstName: { $regex: searchTerm, $options: 'i' } },
+                    { lastName: { $regex: searchTerm, $options: 'i' } },
+                    {
+                        $expr: {
+                            $regexMatch: {
+                                input: { $concat: ['$firstName', ' ', '$lastName'] },
+                                regex: searchTerm,
+                                options: 'i'
                             }
                         }
-                    ]
-                });
+                    },
+                    { contestantNumber: { $regex: searchTerm, $options: 'i' } }
+                ];
             }
-        }
-        if (contestantNumber) {
-            const numberTerm = contestantNumber.trim();
-            if (numberTerm) {
-                searchConditions.push({
-                    contestantNumber: { $regex: numberTerm, $options: 'i' }
-                });
-            }
-        }
-        if (searchConditions.length === 1) {
-            Object.assign(query, searchConditions[0]);
-        }
-        else if (searchConditions.length > 1) {
-            query.$and = searchConditions;
         }
         const sortOptions = {};
         sortOptions[sortBy] = order === 'desc' ? -1 : 1;
@@ -246,13 +230,6 @@ const voteForContestant = async (req, res) => {
             res.status(400).json({
                 success: false,
                 message: 'Contestant email does not match'
-            });
-            return;
-        }
-        if (contestant.status !== 'active') {
-            res.status(400).json({
-                success: false,
-                message: `Cannot vote for contestant with status: ${contestant.status}`
             });
             return;
         }
@@ -426,11 +403,21 @@ const verifyVotePayment = async (req, res) => {
             }
         }
         if (previousStatus !== 'completed') {
-            const contestant = await Contestant_1.default.findById(vote.contestantId);
+            const contestantId = vote.contestantId && typeof vote.contestantId === 'object' && vote.contestantId._id
+                ? vote.contestantId._id
+                : vote.contestantId;
+            const contestant = await Contestant_1.default.findById(contestantId);
             if (contestant) {
-                contestant.totalVotes += vote.numberOfVotes;
-                contestant.totalVoteAmount += vote.amountPaid;
-                await contestant.save();
+                await Contestant_1.default.updateOne({ _id: contestantId }, {
+                    $inc: {
+                        totalVotes: vote.numberOfVotes,
+                        totalVoteAmount: vote.amountPaid
+                    }
+                });
+                console.log(`✅ Updated contestant ${contestant.contestantNumber}: +${vote.numberOfVotes} votes, +₦${vote.amountPaid}`);
+            }
+            else {
+                console.error(`❌ Contestant not found for ID: ${contestantId}`);
             }
         }
         res.status(200).json({
@@ -439,7 +426,7 @@ const verifyVotePayment = async (req, res) => {
             data: {
                 voteId: vote._id,
                 paymentStatus: 'completed',
-                contestantId: vote.contestantId,
+                contestantId: vote.contestantId?._id || vote.contestantId,
                 numberOfVotes: vote.numberOfVotes,
                 amountPaid: vote.amountPaid
             }
