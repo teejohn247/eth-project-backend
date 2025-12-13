@@ -301,6 +301,26 @@ const verifyVotePayment = async (req, res) => {
     try {
         const { paymentReference } = req.params;
         const paymentData = req.body;
+        const existingVote = await Vote_1.default.findOne({ paymentReference });
+        const existingTransaction = await PaymentTransaction_1.default.findOne({ reference: paymentReference });
+        if (existingVote || existingTransaction) {
+            console.log(`⏭️  Payment reference ${paymentReference} already processed - returning existing vote`);
+            const vote = existingVote || await Vote_1.default.findOne({ paymentReference }).populate('contestantId');
+            if (vote) {
+                res.status(200).json({
+                    success: true,
+                    message: 'Vote payment already processed',
+                    data: {
+                        voteId: vote._id,
+                        paymentStatus: vote.paymentStatus,
+                        contestantId: vote.contestantId?._id || vote.contestantId,
+                        numberOfVotes: vote.numberOfVotes,
+                        amountPaid: vote.amountPaid
+                    }
+                });
+                return;
+            }
+        }
         let vote = await Vote_1.default.findOne({ paymentReference })
             .populate('contestantId');
         if (!vote) {
