@@ -396,6 +396,32 @@ export const verifyVotePayment = async (req: Request, res: Response): Promise<vo
     const { paymentReference } = req.params;
     const paymentData = req.body; // Accept and save all data from frontend
 
+    // Check if this payment reference has already been processed
+    const existingVote = await Vote.findOne({ paymentReference });
+    const existingTransaction = await PaymentTransaction.findOne({ reference: paymentReference });
+    
+    if (existingVote || existingTransaction) {
+      console.log(`⏭️  Payment reference ${paymentReference} already processed - returning existing vote`);
+      
+      // Return existing vote data
+      const vote = existingVote || await Vote.findOne({ paymentReference }).populate('contestantId');
+      
+      if (vote) {
+        res.status(200).json({
+          success: true,
+          message: 'Vote payment already processed',
+          data: {
+            voteId: vote._id,
+            paymentStatus: vote.paymentStatus,
+            contestantId: vote.contestantId?._id || vote.contestantId,
+            numberOfVotes: vote.numberOfVotes,
+            amountPaid: vote.amountPaid
+          }
+        });
+        return;
+      }
+    }
+
     // Find vote by payment reference
     let vote = await Vote.findOne({ paymentReference })
       .populate('contestantId');
@@ -596,6 +622,97 @@ export const getContestantVotes = async (req: Request, res: Response): Promise<v
     });
   } catch (error) {
     console.error('Get contestant votes error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve votes',
+      error: process.env.NODE_ENV === 'development' ? error : undefined
+    });
+  }
+};
+
+// Get all votes with filtering
+export const getAllVotes = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { 
+      page = 1, 
+      limit = 50, 
+      paymentStatus,
+      contestantId,
+      searchQuery,
+      sortBy = 'createdAt',
+      order = 'desc'
+    } = req.query;
+
+    const query: any = {};
+
+    // Filter by payment status
+    if (paymentStatus) {
+      query.paymentStatus = paymentStatus;
+    }
+
+    // Filter by contestant ID
+    if (contestantId) {
+      query.contestantId = contestantId;
+    }
+
+    // Search query - searches across multiple fields
+    if (searchQuery) {
+      const searchTerm = (searchQuery as string).trim();
+      if (searchTerm) {
+        query.$or = [
+          { paymentReference: { $regex: searchTerm, $options: 'i' } },
+          { contestantEmail: { $regex: searchTerm, $options: 'i' } },
+          { 'voterInfo.firstName': { $regex: searchTerm, $options: 'i' } },
+          { 'voterInfo.lastName': { $regex: searchTerm, $options: 'i' } },
+          { 'voterInfo.email': { $regex: searchTerm, $options: 'i' } },
+          { 'voterInfo.phone': { $regex: searchTerm, $options: 'i' } },
+          { 
+            $expr: {
+              $regexMatch: {
+                input: { $concat: ['$voterInfo.firstName', ' ', '$voterInfo.lastName'] },
+                regex: searchTerm,
+                options: 'i'
+              }
+            }
+          }
+        ];
+      }
+    }
+
+    const sortOptions: any = {};
+    sortOptions[sortBy as string] = order === 'desc' ? -1 : 1;
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const votes = await Vote.find(query)
+      .sort(sortOptions)
+      .skip(skip)
+      .limit(Number(limit))
+      .populate('contestantId', 'contestantNumber firstName lastName email profilePhoto')
+      .populate('paymentTransactionId', 'reference amount currency status');
+
+    const total = await Vote.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      message: 'Votes retrieved successfully',
+      data: {
+        votes,
+        pagination: {
+          currentPage: Number(page),
+          totalPages: Math.ceil(total / Number(limit)),
+          totalCount: total,
+          limit: Number(limit)
+        },
+        filters: {
+          paymentStatus,
+          contestantId,
+          searchQuery
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Get all votes error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve votes',

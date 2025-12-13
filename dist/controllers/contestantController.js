@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getContestantVotes = exports.verifyVotePayment = exports.voteForContestant = exports.getContestant = exports.getContestants = exports.promoteToContestant = void 0;
+exports.getAllVotes = exports.getContestantVotes = exports.verifyVotePayment = exports.voteForContestant = exports.getContestant = exports.getContestants = exports.promoteToContestant = void 0;
 const Registration_1 = __importDefault(require("../models/Registration"));
 const Contestant_1 = __importDefault(require("../models/Contestant"));
 const Vote_1 = __importDefault(require("../models/Vote"));
@@ -301,6 +301,26 @@ const verifyVotePayment = async (req, res) => {
     try {
         const { paymentReference } = req.params;
         const paymentData = req.body;
+        const existingVote = await Vote_1.default.findOne({ paymentReference });
+        const existingTransaction = await PaymentTransaction_1.default.findOne({ reference: paymentReference });
+        if (existingVote || existingTransaction) {
+            console.log(`⏭️  Payment reference ${paymentReference} already processed - returning existing vote`);
+            const vote = existingVote || await Vote_1.default.findOne({ paymentReference }).populate('contestantId');
+            if (vote) {
+                res.status(200).json({
+                    success: true,
+                    message: 'Vote payment already processed',
+                    data: {
+                        voteId: vote._id,
+                        paymentStatus: vote.paymentStatus,
+                        contestantId: vote.contestantId?._id || vote.contestantId,
+                        numberOfVotes: vote.numberOfVotes,
+                        amountPaid: vote.amountPaid
+                    }
+                });
+                return;
+            }
+        }
         let vote = await Vote_1.default.findOne({ paymentReference })
             .populate('contestantId');
         if (!vote) {
@@ -480,4 +500,75 @@ const getContestantVotes = async (req, res) => {
     }
 };
 exports.getContestantVotes = getContestantVotes;
+const getAllVotes = async (req, res) => {
+    try {
+        const { page = 1, limit = 50, paymentStatus, contestantId, searchQuery, sortBy = 'createdAt', order = 'desc' } = req.query;
+        const query = {};
+        if (paymentStatus) {
+            query.paymentStatus = paymentStatus;
+        }
+        if (contestantId) {
+            query.contestantId = contestantId;
+        }
+        if (searchQuery) {
+            const searchTerm = searchQuery.trim();
+            if (searchTerm) {
+                query.$or = [
+                    { paymentReference: { $regex: searchTerm, $options: 'i' } },
+                    { contestantEmail: { $regex: searchTerm, $options: 'i' } },
+                    { 'voterInfo.firstName': { $regex: searchTerm, $options: 'i' } },
+                    { 'voterInfo.lastName': { $regex: searchTerm, $options: 'i' } },
+                    { 'voterInfo.email': { $regex: searchTerm, $options: 'i' } },
+                    { 'voterInfo.phone': { $regex: searchTerm, $options: 'i' } },
+                    {
+                        $expr: {
+                            $regexMatch: {
+                                input: { $concat: ['$voterInfo.firstName', ' ', '$voterInfo.lastName'] },
+                                regex: searchTerm,
+                                options: 'i'
+                            }
+                        }
+                    }
+                ];
+            }
+        }
+        const sortOptions = {};
+        sortOptions[sortBy] = order === 'desc' ? -1 : 1;
+        const skip = (Number(page) - 1) * Number(limit);
+        const votes = await Vote_1.default.find(query)
+            .sort(sortOptions)
+            .skip(skip)
+            .limit(Number(limit))
+            .populate('contestantId', 'contestantNumber firstName lastName email profilePhoto')
+            .populate('paymentTransactionId', 'reference amount currency status');
+        const total = await Vote_1.default.countDocuments(query);
+        res.status(200).json({
+            success: true,
+            message: 'Votes retrieved successfully',
+            data: {
+                votes,
+                pagination: {
+                    currentPage: Number(page),
+                    totalPages: Math.ceil(total / Number(limit)),
+                    totalCount: total,
+                    limit: Number(limit)
+                },
+                filters: {
+                    paymentStatus,
+                    contestantId,
+                    searchQuery
+                }
+            }
+        });
+    }
+    catch (error) {
+        console.error('Get all votes error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to retrieve votes',
+            error: process.env.NODE_ENV === 'development' ? error : undefined
+        });
+    }
+};
+exports.getAllVotes = getAllVotes;
 //# sourceMappingURL=contestantController.js.map

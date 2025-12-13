@@ -6,7 +6,8 @@ import {
   getContestant,
   voteForContestant,
   verifyVotePayment,
-  getContestantVotes
+  getContestantVotes,
+  getAllVotes
 } from '../controllers/contestantController';
 
 const router = express.Router();
@@ -500,6 +501,89 @@ router.get('/', getContestants);
  *       500:
  *         description: Server error
  */
+/**
+ * @swagger
+ * /api/v1/contestants/votes:
+ *   get:
+ *     summary: Get all votes with filtering and search
+ *     tags: [Contestants]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *         description: Number of items per page
+ *       - in: query
+ *         name: paymentStatus
+ *         schema:
+ *           type: string
+ *           enum: [pending, processing, completed, failed, refunded]
+ *         description: Filter by payment status
+ *       - in: query
+ *         name: contestantId
+ *         schema:
+ *           type: string
+ *         description: Filter by contestant ID
+ *       - in: query
+ *         name: searchQuery
+ *         schema:
+ *           type: string
+ *         description: Search in payment reference, voter info, contestant email
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           default: createdAt
+ *         description: Field to sort by
+ *       - in: query
+ *         name: order
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
+ *         description: Sort order
+ *     responses:
+ *       200:
+ *         description: Votes retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     votes:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Vote'
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         currentPage:
+ *                           type: integer
+ *                         totalPages:
+ *                           type: integer
+ *                         totalCount:
+ *                           type: integer
+ *                         limit:
+ *                           type: integer
+ *       500:
+ *         description: Server error
+ */
+router.get('/votes', getAllVotes);
+
 router.get('/:contestantId/votes', getContestantVotes);
 
 /**
