@@ -423,9 +423,12 @@ export const handlePaymentWebhook = async (req: Request, res: Response): Promise
 
     console.log('📥 Vote payment webhook received:', JSON.stringify(payload, null, 2));
 
+    // Extract data from nested structure (payload.data or direct payload)
+    const data = payload.data || payload;
+    
     // Extract payment reference and metadata
-    const reference = payload.transRef || payload.reference || payload.businessRef;
-    const metadata = payload.metadata || [];
+    const reference = data.transRef || data.reference || data.businessRef || payload.transRef || payload.reference || payload.businessRef;
+    const metadata = data.metadata || payload.metadata || [];
     
     // Import Vote and Contestant models
     const Vote = (await import('../models/Vote')).default;
@@ -443,7 +446,7 @@ export const handlePaymentWebhook = async (req: Request, res: Response): Promise
       });
       return;
     }
-    
+
     // Handle vote payment
     console.log('Processing vote payment...');
     
@@ -459,11 +462,15 @@ export const handlePaymentWebhook = async (req: Request, res: Response): Promise
       
       contestantId = metadataMap.contestantId;
       numberOfVotes = parseInt(metadataMap.votesPurchased) || 1;
-      amountPaid = parseFloat(metadataMap.amountPaid) || payload.transAmount || payload.amount || 0;
+      amountPaid = parseFloat(metadataMap.amountPaid) || data.transAmount || data.amount || payload.transAmount || payload.amount || 0;
     }
 
-    // Check if payment was successful (status: 0 = success)
-    if (payload.status !== 0 && payload.status !== '0') {
+    // Check if payment was successful (status: 0 = success, or event is TRANSACTION.SUCCESSFUL)
+    const isSuccessful = (payload.event === 'TRANSACTION.SUCCESSFUL') || 
+                        (data.status === 0 || data.status === '0') || 
+                        (payload.status === 0 || payload.status === '0');
+    
+    if (!isSuccessful) {
       console.log('❌ Vote payment failed');
       res.status(200).json({ success: true, message: 'Failed payment acknowledged' });
       return;
@@ -495,31 +502,38 @@ export const handlePaymentWebhook = async (req: Request, res: Response): Promise
         userId: null,
         reference: reference,
         amount: amountPaid,
-        currency: payload.currencyCode || 'NGN',
+        currency: data.currencyCode || payload.currencyCode || 'NGN',
         status: 'initiated',
-        paymentMethod: payload.channelId?.toString() || 'unknown',
+        paymentMethod: data.paymentMethod || data.channelId?.toString() || payload.channelId?.toString() || 'unknown',
         gatewayResponse: payload
       });
       await paymentTransaction.save();
 
+      // Extract customer info from nested structure
+      const customer = data.customer || {};
+      const customerEmail = customer.customerEmail || data.customerId || payload.customerId || contestant.email;
+      const customerFirstName = customer.firstName || payload.customerFirstName || '';
+      const customerLastName = customer.lastName || payload.customerLastName || '';
+      const customerPhone = customer.phoneNo || payload.customerPhoneNumber || '';
+
       // Create vote
       vote = new Vote({
         contestantId: contestant._id,
-        contestantEmail: payload.customerId || contestant.email,
+        contestantEmail: customerEmail,
         numberOfVotes: numberOfVotes,
         amountPaid: amountPaid,
-        currency: payload.currencyCode || 'NGN',
+        currency: data.currencyCode || payload.currencyCode || 'NGN',
         voterInfo: {
-          firstName: payload.customerFirstName,
-          lastName: payload.customerLastName,
-          email: payload.customerId,
-          phone: payload.customerPhoneNumber
+          firstName: customerFirstName,
+          lastName: customerLastName,
+          email: customerEmail,
+          phone: customerPhone
         },
         paymentReference: reference,
         paymentTransactionId: paymentTransaction._id,
         paymentStatus: 'pending',
-        paymentMethod: payload.channelId?.toString() || 'unknown',
-        notes: payload.statusMessage
+        paymentMethod: data.paymentMethod || data.channelId?.toString() || payload.channelId?.toString() || 'unknown',
+        notes: "From Webhook"
       });
       await vote.save();
     }

@@ -11,7 +11,7 @@ router.post('/initialize/:registrationId', auth_1.authenticateToken, paymentCont
 router.post('/verify/:reference', paymentController_1.verifyPayment);
 router.get('/status/:registrationId', auth_1.authenticateToken, paymentController_1.getPaymentStatus);
 router.post('/webhook', paymentController_1.handlePaymentWebhook);
-router.post('/voting-webhook', paymentController_1.handlePaymentWebhookVotes);
+router.post('/voting-webhook', paymentController_1.handlePaymentWebhook);
 router.post('/refund/:reference', auth_1.authenticateToken, (0, auth_1.requireRole)('admin'), paymentController_1.refundPayment);
 router.post('/save-info/:registrationId?', auth_1.authenticateToken, paymentController_1.savePaymentInfo);
 router.post('/save-info', auth_1.authenticateToken, paymentController_1.savePaymentInfo);
