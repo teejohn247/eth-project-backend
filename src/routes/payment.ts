@@ -8,7 +8,7 @@ import {
   savePaymentInfo,
   getAllPayments,
   updatePaymentTransaction,
-  createTransaction
+  createTransaction,
 } from '../controllers/paymentController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { validatePayment } from '../middleware/validation';
@@ -179,6 +179,9 @@ router.get('/status/:registrationId', authenticateToken, getPaymentStatus);
  *         description: Invalid webhook signature
  */
 router.post('/webhook', handlePaymentWebhook);
+
+router.post('/voting-webhook', handlePaymentWebhook);
+
 
 /**
  * @swagger

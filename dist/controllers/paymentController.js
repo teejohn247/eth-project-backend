@@ -300,48 +300,145 @@ const getPaymentStatus = async (req, res) => {
     }
 };
 exports.getPaymentStatus = getPaymentStatus;
+const verifySignature = (signature, token, businessCode) => {
+    try {
+        const signedContent = `${token}${businessCode}`;
+        const hash = crypto_1.default
+            .createHash('sha512')
+            .update(signedContent)
+            .digest('hex');
+        return hash === signature;
+    }
+    catch (error) {
+        console.error('Signature verification error:', error);
+        return false;
+    }
+};
 const handlePaymentWebhook = async (req, res) => {
     try {
         const payload = req.body;
-        const signature = req.headers['x-paystack-signature'];
-        const webhookSecret = process.env.PAYSTACK_WEBHOOK_SECRET || 'your-webhook-secret';
-        const hash = crypto_1.default.createHmac('sha512', webhookSecret).update(JSON.stringify(payload)).digest('hex');
-        if (hash !== signature) {
-            res.status(400).json({
+        const signature = req.headers['x-signature'];
+        if (!signature) {
+            console.error('❌ No signature provided in webhook');
+            res.status(401).json({
                 success: false,
-                message: 'Invalid webhook signature'
+                message: 'No signature provided'
             });
             return;
         }
-        const { event, data } = payload;
-        if (event === 'charge.success') {
-            const { reference, status, amount, currency } = data;
-            const transaction = await PaymentTransaction_1.default.findOne({ reference });
-            if (transaction) {
-                transaction.status = status === 'success' ? 'successful' : 'failed';
-                transaction.gatewayResponse = data;
-                transaction.processedAt = new Date();
-                await transaction.save();
-                const registration = await Registration_1.default.findById(transaction.registrationId);
-                if (registration && status === 'success') {
-                    registration.paymentInfo.paymentStatus = 'completed';
-                    registration.paymentInfo.paidAt = new Date();
-                    registration.paymentInfo.paymentResponse = data;
-                    if (!registration.completedSteps.includes(7)) {
-                        registration.completedSteps.push(7);
-                    }
-                    registration.currentStep = Math.max(7, registration.currentStep);
-                    await registration.save();
+        const isValidSignature = verifySignature(signature, payload.token || payload.data?.token || '', payload.businessCode || payload.data?.businessCode || '');
+        if (!isValidSignature) {
+            console.error('❌ Invalid webhook signature');
+            res.status(401).json({
+                success: false,
+                message: 'Invalid signature'
+            });
+            return;
+        }
+        console.log('✅ Webhook signature verified');
+        console.log('📥 Vote payment webhook received:', JSON.stringify(payload, null, 2));
+        const reference = payload.transRef || payload.reference || payload.businessRef;
+        const metadata = payload.metadata || [];
+        console.log('Processing vote payment...');
+        let contestantId, numberOfVotes, amountPaid;
+        if (Array.isArray(metadata)) {
+            const metadataMap = {};
+            metadata.forEach((item) => {
+                if (item.insightTag && item.insightTagValue) {
+                    metadataMap[item.insightTag] = item.insightTagValue;
                 }
+            });
+            contestantId = metadataMap.contestantId;
+            numberOfVotes = parseInt(metadataMap.votesPurchased) || 1;
+            amountPaid = parseFloat(metadataMap.amountPaid) || payload.transAmount || payload.amount || 0;
+        }
+        if (payload.status !== 0 && payload.status !== '0') {
+            console.log('❌ Vote payment failed');
+            res.status(200).json({ success: true, message: 'Failed payment acknowledged' });
+            return;
+        }
+        const Vote = (await Promise.resolve().then(() => __importStar(require('../models/Vote')))).default;
+        const Contestant = (await Promise.resolve().then(() => __importStar(require('../models/Contestant')))).default;
+        let vote = await Vote.findOne({ paymentReference: reference });
+        if (!vote) {
+            console.log('Creating new vote record...');
+            if (!contestantId) {
+                console.error('❌ No contestant ID in metadata');
+                res.status(200).json({ success: true, message: 'Webhook received but missing contestant ID' });
+                return;
+            }
+            const contestant = await Contestant.findById(contestantId);
+            if (!contestant) {
+                console.error(`❌ Contestant not found: ${contestantId}`);
+                res.status(200).json({ success: true, message: 'Webhook received but contestant not found' });
+                return;
+            }
+            const paymentTransaction = new PaymentTransaction_1.default({
+                registrationId: null,
+                userId: null,
+                reference: reference,
+                amount: amountPaid,
+                currency: payload.currencyCode || 'NGN',
+                status: 'initiated',
+                paymentMethod: payload.channelId?.toString() || 'unknown',
+                gatewayResponse: payload
+            });
+            await paymentTransaction.save();
+            vote = new Vote({
+                contestantId: contestant._id,
+                contestantEmail: payload.customerId || contestant.email,
+                numberOfVotes: numberOfVotes,
+                amountPaid: amountPaid,
+                currency: payload.currencyCode || 'NGN',
+                voterInfo: {
+                    firstName: payload.customerFirstName,
+                    lastName: payload.customerLastName,
+                    email: payload.customerId,
+                    phone: payload.customerPhoneNumber
+                },
+                paymentReference: reference,
+                paymentTransactionId: paymentTransaction._id,
+                paymentStatus: 'pending',
+                paymentMethod: payload.channelId?.toString() || 'unknown',
+                notes: payload.statusMessage
+            });
+            await vote.save();
+        }
+        const previousStatus = vote.paymentStatus;
+        vote.paymentStatus = 'completed';
+        await vote.save();
+        if (vote.paymentTransactionId) {
+            const paymentTransaction = await PaymentTransaction_1.default.findById(vote.paymentTransactionId);
+            if (paymentTransaction) {
+                paymentTransaction.status = 'successful';
+                paymentTransaction.gatewayResponse = payload;
+                paymentTransaction.processedAt = new Date();
+                await paymentTransaction.save();
             }
         }
+        if (previousStatus !== 'completed') {
+            const contestantId = vote.contestantId && typeof vote.contestantId === 'object' && vote.contestantId._id
+                ? vote.contestantId._id
+                : vote.contestantId;
+            const contestant = await Contestant.findById(contestantId);
+            if (contestant) {
+                await Contestant.updateOne({ _id: contestantId }, {
+                    $inc: {
+                        totalVotes: vote.numberOfVotes,
+                        totalVoteAmount: vote.amountPaid
+                    }
+                });
+                console.log(`✅ Updated contestant ${contestant.contestantNumber}: +${vote.numberOfVotes} votes, +₦${vote.amountPaid}`);
+            }
+        }
+        console.log('✅ Vote payment processed successfully');
         res.status(200).json({
             success: true,
-            message: 'Webhook processed successfully'
+            message: 'Vote payment processed successfully'
         });
     }
     catch (error) {
-        console.error('Payment webhook error:', error);
+        console.error('❌ Payment webhook error:', error);
         res.status(500).json({
             success: false,
             message: 'Webhook processing failed',
