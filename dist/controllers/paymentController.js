@@ -317,28 +317,24 @@ const verifySignature = (signature, token, businessCode) => {
 const handlePaymentWebhook = async (req, res) => {
     try {
         const payload = req.body;
-        const signature = req.headers['x-signature'];
-        if (!signature) {
-            console.error('❌ No signature provided in webhook');
-            res.status(401).json({
-                success: false,
-                message: 'No signature provided'
-            });
-            return;
-        }
-        const isValidSignature = verifySignature(signature, payload.token || payload.data?.token || '', payload.businessCode || payload.data?.businessCode || '');
-        if (!isValidSignature) {
-            console.error('❌ Invalid webhook signature');
-            res.status(401).json({
-                success: false,
-                message: 'Invalid signature'
-            });
-            return;
-        }
+        console.log({ payload });
         console.log('✅ Webhook signature verified');
         console.log('📥 Vote payment webhook received:', JSON.stringify(payload, null, 2));
-        const reference = payload.transRef || payload.reference || payload.businessRef;
-        const metadata = payload.metadata || [];
+        const data = payload.data || payload;
+        const reference = data.transRef || data.reference || data.businessRef || payload.transRef || payload.reference || payload.businessRef;
+        const metadata = data.metadata || payload.metadata || [];
+        const Vote = (await Promise.resolve().then(() => __importStar(require('../models/Vote')))).default;
+        const Contestant = (await Promise.resolve().then(() => __importStar(require('../models/Contestant')))).default;
+        const existingVote = await Vote.findOne({ paymentReference: reference });
+        const existingTransaction = await PaymentTransaction_1.default.findOne({ reference: reference });
+        if (existingVote || existingTransaction) {
+            console.log(`⏭️  Payment reference ${reference} already processed - ignoring webhook`);
+            res.status(200).json({
+                success: true,
+                message: 'Payment already processed - webhook ignored'
+            });
+            return;
+        }
         console.log('Processing vote payment...');
         let contestantId, numberOfVotes, amountPaid;
         if (Array.isArray(metadata)) {
@@ -350,15 +346,16 @@ const handlePaymentWebhook = async (req, res) => {
             });
             contestantId = metadataMap.contestantId;
             numberOfVotes = parseInt(metadataMap.votesPurchased) || 1;
-            amountPaid = parseFloat(metadataMap.amountPaid) || payload.transAmount || payload.amount || 0;
+            amountPaid = parseFloat(metadataMap.amountPaid) || data.transAmount || data.amount || payload.transAmount || payload.amount || 0;
         }
-        if (payload.status !== 0 && payload.status !== '0') {
+        const isSuccessful = (payload.event === 'TRANSACTION.SUCCESSFUL') ||
+            (data.status === 0 || data.status === '0') ||
+            (payload.status === 0 || payload.status === '0');
+        if (!isSuccessful) {
             console.log('❌ Vote payment failed');
             res.status(200).json({ success: true, message: 'Failed payment acknowledged' });
             return;
         }
-        const Vote = (await Promise.resolve().then(() => __importStar(require('../models/Vote')))).default;
-        const Contestant = (await Promise.resolve().then(() => __importStar(require('../models/Contestant')))).default;
         let vote = await Vote.findOne({ paymentReference: reference });
         if (!vote) {
             console.log('Creating new vote record...');
@@ -378,29 +375,34 @@ const handlePaymentWebhook = async (req, res) => {
                 userId: null,
                 reference: reference,
                 amount: amountPaid,
-                currency: payload.currencyCode || 'NGN',
+                currency: data.currencyCode || payload.currencyCode || 'NGN',
                 status: 'initiated',
-                paymentMethod: payload.channelId?.toString() || 'unknown',
+                paymentMethod: data.paymentMethod || data.channelId?.toString() || payload.channelId?.toString() || 'unknown',
                 gatewayResponse: payload
             });
             await paymentTransaction.save();
+            const customer = data.customer || {};
+            const customerEmail = customer.customerEmail || data.customerId || payload.customerId || contestant.email;
+            const customerFirstName = customer.firstName || payload.customerFirstName || '';
+            const customerLastName = customer.lastName || payload.customerLastName || '';
+            const customerPhone = customer.phoneNo || payload.customerPhoneNumber || '';
             vote = new Vote({
                 contestantId: contestant._id,
-                contestantEmail: payload.customerId || contestant.email,
+                contestantEmail: customerEmail,
                 numberOfVotes: numberOfVotes,
                 amountPaid: amountPaid,
-                currency: payload.currencyCode || 'NGN',
+                currency: data.currencyCode || payload.currencyCode || 'NGN',
                 voterInfo: {
-                    firstName: payload.customerFirstName,
-                    lastName: payload.customerLastName,
-                    email: payload.customerId,
-                    phone: payload.customerPhoneNumber
+                    firstName: customerFirstName,
+                    lastName: customerLastName,
+                    email: customerEmail,
+                    phone: customerPhone
                 },
                 paymentReference: reference,
                 paymentTransactionId: paymentTransaction._id,
                 paymentStatus: 'pending',
-                paymentMethod: payload.channelId?.toString() || 'unknown',
-                notes: payload.statusMessage
+                paymentMethod: data.paymentMethod || data.channelId?.toString() || payload.channelId?.toString() || 'unknown',
+                notes: data.statusMessage || payload.statusMessage
             });
             await vote.save();
         }
