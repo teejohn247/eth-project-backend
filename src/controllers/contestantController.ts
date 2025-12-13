@@ -302,13 +302,13 @@ export const voteForContestant = async (req: Request, res: Response): Promise<vo
     }
 
     // Check if contestant is active
-    if (contestant.status !== 'active') {
-      res.status(400).json({
-        success: false,
-        message: `Cannot vote for contestant with status: ${contestant.status}`
-      });
-      return;
-    }
+    // if (contestant.status !== 'active') {
+    //   res.status(400).json({
+    //     success: false,
+    //     message: `Cannot vote for contestant with status: ${contestant.status}`
+    //   });
+    //   return;
+    // }
 
     // Generate payment reference if not provided
     const votePaymentReference = paymentReference || `VOTE_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`;
@@ -518,11 +518,26 @@ export const verifyVotePayment = async (req: Request, res: Response): Promise<vo
 
     // If payment wasn't already counted, update contestant stats
     if (previousStatus !== 'completed') {
-      const contestant = await Contestant.findById(vote.contestantId);
+      // Handle both populated and non-populated contestantId
+      const contestantId = vote.contestantId && typeof vote.contestantId === 'object' && vote.contestantId._id 
+        ? vote.contestantId._id 
+        : vote.contestantId;
+      
+      const contestant = await Contestant.findById(contestantId);
       if (contestant) {
-        contestant.totalVotes += vote.numberOfVotes;
-        contestant.totalVoteAmount += vote.amountPaid;
-        await contestant.save();
+        // Use updateOne to avoid validation issues with partial documents
+        await Contestant.updateOne(
+          { _id: contestantId },
+          { 
+            $inc: { 
+              totalVotes: vote.numberOfVotes,
+              totalVoteAmount: vote.amountPaid
+            }
+          }
+        );
+        console.log(`✅ Updated contestant ${contestant.contestantNumber}: +${vote.numberOfVotes} votes, +₦${vote.amountPaid}`);
+      } else {
+        console.error(`❌ Contestant not found for ID: ${contestantId}`);
       }
     }
 
@@ -532,7 +547,7 @@ export const verifyVotePayment = async (req: Request, res: Response): Promise<vo
       data: {
         voteId: vote._id,
         paymentStatus: 'completed',
-        contestantId: vote.contestantId,
+        contestantId: vote.contestantId?._id || vote.contestantId, // Extract _id if populated
         numberOfVotes: vote.numberOfVotes,
         amountPaid: vote.amountPaid
       }

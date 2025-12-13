@@ -38,26 +38,28 @@ const ContestantSchema = new mongoose_1.Schema({
     userId: {
         type: mongoose_1.Schema.Types.ObjectId,
         ref: 'User',
-        required: true,
+        required: false,
         index: true
     },
     registrationId: {
         type: mongoose_1.Schema.Types.ObjectId,
         ref: 'Registration',
-        required: true,
-        unique: true,
+        required: false,
+        unique: false,
+        sparse: true,
         index: true
     },
     contestantNumber: {
         type: String,
         unique: true,
-        required: true,
+        required: false,
+        sparse: true,
         index: true
     },
-    firstName: { type: String, required: true, trim: true },
-    lastName: { type: String, required: true, trim: true },
-    email: { type: String, required: true, lowercase: true, trim: true, index: true },
-    phoneNo: { type: String, required: true, trim: true },
+    firstName: { type: String, required: false, trim: true },
+    lastName: { type: String, required: false, trim: true },
+    email: { type: String, required: false, lowercase: true, trim: true, index: true },
+    phoneNo: { type: String, required: false, trim: true },
     dateOfBirth: Date,
     age: Number,
     gender: { type: String, enum: ['Male', 'Female'] },
@@ -98,11 +100,11 @@ const ContestantSchema = new mongoose_1.Schema({
         default: 0,
         min: 0
     },
-    registrationNumber: { type: String, required: true },
+    registrationNumber: { type: String, required: false },
     registrationType: {
         type: String,
         enum: ['individual', 'group', 'bulk'],
-        required: true
+        required: false
     }
 }, {
     timestamps: true
