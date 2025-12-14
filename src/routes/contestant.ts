@@ -7,7 +7,8 @@ import {
   voteForContestant,
   verifyVotePayment,
   getContestantVotes,
-  getAllVotes
+  getAllVotes,
+  getVotingSummary
 } from '../controllers/contestantController';
 
 const router = express.Router();
@@ -582,6 +583,67 @@ router.get('/', getContestants);
  *       500:
  *         description: Server error
  */
+/**
+ * @swagger
+ * /api/v1/contestants/votes/summary:
+ *   get:
+ *     summary: Get voting statistics summary
+ *     tags: [Contestants]
+ *     description: Returns comprehensive voting statistics including total votes, amounts, contestant stats, and top performers
+ *     responses:
+ *       200:
+ *         description: Voting summary retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     overall:
+ *                       type: object
+ *                       properties:
+ *                         totalVotes:
+ *                           type: integer
+ *                         totalAmount:
+ *                           type: number
+ *                         totalVoteTransactions:
+ *                           type: integer
+ *                         averageVotesPerTransaction:
+ *                           type: number
+ *                         averageAmountPerTransaction:
+ *                           type: number
+ *                     contestants:
+ *                       type: object
+ *                       properties:
+ *                         total:
+ *                           type: integer
+ *                         active:
+ *                           type: integer
+ *                         totalVotes:
+ *                           type: integer
+ *                         totalAmount:
+ *                           type: number
+ *                         averageVotesPerContestant:
+ *                           type: number
+ *                         averageAmountPerContestant:
+ *                           type: number
+ *                     votesByStatus:
+ *                       type: object
+ *                     recentActivity:
+ *                       type: object
+ *                     topContestants:
+ *                       type: array
+ *       500:
+ *         description: Server error
+ */
+router.get('/votes/summary', getVotingSummary);
+
 router.get('/votes', getAllVotes);
 
 router.get('/:contestantId/votes', getContestantVotes);

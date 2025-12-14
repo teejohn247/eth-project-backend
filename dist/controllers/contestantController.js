@@ -1,9 +1,42 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAllVotes = exports.getContestantVotes = exports.verifyVotePayment = exports.voteForContestant = exports.getContestant = exports.getContestants = exports.promoteToContestant = void 0;
+exports.getAllVotes = exports.getVotingSummary = exports.getContestantVotes = exports.verifyVotePayment = exports.voteForContestant = exports.getContestant = exports.getContestants = exports.promoteToContestant = void 0;
 const Registration_1 = __importDefault(require("../models/Registration"));
 const Contestant_1 = __importDefault(require("../models/Contestant"));
 const Vote_1 = __importDefault(require("../models/Vote"));
@@ -500,6 +533,130 @@ const getContestantVotes = async (req, res) => {
     }
 };
 exports.getContestantVotes = getContestantVotes;
+const getVotingSummary = async (req, res) => {
+    try {
+        const Vote = (await Promise.resolve().then(() => __importStar(require('../models/Vote')))).default;
+        const Contestant = (await Promise.resolve().then(() => __importStar(require('../models/Contestant')))).default;
+        const voteStats = await Vote.aggregate([
+            {
+                $match: {
+                    paymentStatus: 'completed'
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalVotes: { $sum: '$numberOfVotes' },
+                    totalAmount: { $sum: '$amountPaid' },
+                    totalVoteRecords: { $sum: 1 },
+                    averageVotesPerTransaction: { $avg: '$numberOfVotes' },
+                    averageAmountPerTransaction: { $avg: '$amountPaid' }
+                }
+            }
+        ]);
+        const votesByStatus = await Vote.aggregate([
+            {
+                $group: {
+                    _id: '$paymentStatus',
+                    count: { $sum: 1 },
+                    totalVotes: { $sum: '$numberOfVotes' },
+                    totalAmount: { $sum: '$amountPaid' }
+                }
+            }
+        ]);
+        const contestantStats = await Contestant.aggregate([
+            {
+                $group: {
+                    _id: null,
+                    totalContestants: { $sum: 1 },
+                    activeContestants: {
+                        $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] }
+                    },
+                    totalContestantVotes: { $sum: '$totalVotes' },
+                    totalContestantAmount: { $sum: '$totalVoteAmount' },
+                    averageVotesPerContestant: { $avg: '$totalVotes' },
+                    averageAmountPerContestant: { $avg: '$totalVoteAmount' }
+                }
+            }
+        ]);
+        const allContestants = await Contestant.find({})
+            .sort({ totalVotes: -1 })
+            .select('contestantNumber firstName lastName profilePhoto totalVotes totalVoteAmount')
+            .lean();
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const recentVoteStats = await Vote.aggregate([
+            {
+                $match: {
+                    paymentStatus: 'completed',
+                    createdAt: { $gte: thirtyDaysAgo }
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    recentVotes: { $sum: '$numberOfVotes' },
+                    recentAmount: { $sum: '$amountPaid' },
+                    recentTransactions: { $sum: 1 }
+                }
+            }
+        ]);
+        const summary = {
+            overall: {
+                totalVotes: voteStats[0]?.totalVotes || 0,
+                totalAmount: voteStats[0]?.totalAmount || 0,
+                totalVoteTransactions: voteStats[0]?.totalVoteRecords || 0,
+                averageVotesPerTransaction: Math.round(voteStats[0]?.averageVotesPerTransaction || 0),
+                averageAmountPerTransaction: Math.round(voteStats[0]?.averageAmountPerTransaction || 0)
+            },
+            contestants: {
+                total: contestantStats[0]?.totalContestants || 0,
+                active: contestantStats[0]?.activeContestants || 0,
+                totalVotes: contestantStats[0]?.totalContestantVotes || 0,
+                totalAmount: contestantStats[0]?.totalContestantAmount || 0,
+                averageVotesPerContestant: Math.round(contestantStats[0]?.averageVotesPerContestant || 0),
+                averageAmountPerContestant: Math.round(contestantStats[0]?.averageAmountPerContestant || 0)
+            },
+            votesByStatus: votesByStatus.reduce((acc, item) => {
+                acc[item._id] = {
+                    count: item.count,
+                    totalVotes: item.totalVotes,
+                    totalAmount: item.totalAmount
+                };
+                return acc;
+            }, {}),
+            recentActivity: {
+                last30Days: {
+                    votes: recentVoteStats[0]?.recentVotes || 0,
+                    amount: recentVoteStats[0]?.recentAmount || 0,
+                    transactions: recentVoteStats[0]?.recentTransactions || 0
+                }
+            },
+            topContestants: allContestants.map((c, index) => ({
+                rank: index + 1,
+                contestantNumber: c.contestantNumber,
+                name: `${c.firstName} ${c.lastName}`,
+                profilePhoto: c.profilePhoto || null,
+                votes: c.totalVotes || 0,
+                amount: c.totalVoteAmount || 0
+            }))
+        };
+        res.status(200).json({
+            success: true,
+            message: 'Voting summary retrieved successfully',
+            data: summary
+        });
+    }
+    catch (error) {
+        console.error('Get voting summary error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to retrieve voting summary',
+            error: process.env.NODE_ENV === 'development' ? error : undefined
+        });
+    }
+};
+exports.getVotingSummary = getVotingSummary;
 const getAllVotes = async (req, res) => {
     try {
         const { page = 1, limit = 50, paymentStatus, contestantId, searchQuery, sortBy = 'createdAt', order = 'desc' } = req.query;
