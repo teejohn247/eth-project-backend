@@ -630,6 +630,145 @@ export const getContestantVotes = async (req: Request, res: Response): Promise<v
   }
 };
 
+// Get voting statistics summary
+export const getVotingSummary = async (req: Request, res: Response): Promise<void> => {
+  try {
+    // Import Vote and Contestant models
+    const Vote = (await import('../models/Vote')).default;
+    const Contestant = (await import('../models/Contestant')).default;
+
+    // Aggregate vote statistics
+    const voteStats = await Vote.aggregate([
+      {
+        $match: {
+          paymentStatus: 'completed'
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalVotes: { $sum: '$numberOfVotes' },
+          totalAmount: { $sum: '$amountPaid' },
+          totalVoteRecords: { $sum: 1 },
+          averageVotesPerTransaction: { $avg: '$numberOfVotes' },
+          averageAmountPerTransaction: { $avg: '$amountPaid' }
+        }
+      }
+    ]);
+
+    // Get vote statistics by payment status
+    const votesByStatus = await Vote.aggregate([
+      {
+        $group: {
+          _id: '$paymentStatus',
+          count: { $sum: 1 },
+          totalVotes: { $sum: '$numberOfVotes' },
+          totalAmount: { $sum: '$amountPaid' }
+        }
+      }
+    ]);
+
+    // Get contestant statistics
+    const contestantStats = await Contestant.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalContestants: { $sum: 1 },
+          activeContestants: {
+            $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] }
+          },
+          totalContestantVotes: { $sum: '$totalVotes' },
+          totalContestantAmount: { $sum: '$totalVoteAmount' },
+          averageVotesPerContestant: { $avg: '$totalVotes' },
+          averageAmountPerContestant: { $avg: '$totalVoteAmount' }
+        }
+      }
+    ]);
+
+    // Get all contestants by votes (sorted by total votes descending)
+    const allContestants = await Contestant.find({})
+      .sort({ totalVotes: -1 })
+      .select('contestantNumber firstName lastName profilePhoto totalVotes totalVoteAmount')
+      .lean();
+
+    // Get vote statistics by date (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const recentVoteStats = await Vote.aggregate([
+      {
+        $match: {
+          paymentStatus: 'completed',
+          createdAt: { $gte: thirtyDaysAgo }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          recentVotes: { $sum: '$numberOfVotes' },
+          recentAmount: { $sum: '$amountPaid' },
+          recentTransactions: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Format response
+    const summary = {
+      overall: {
+        totalVotes: voteStats[0]?.totalVotes || 0,
+        totalAmount: voteStats[0]?.totalAmount || 0,
+        totalVoteTransactions: voteStats[0]?.totalVoteRecords || 0,
+        averageVotesPerTransaction: Math.round(voteStats[0]?.averageVotesPerTransaction || 0),
+        averageAmountPerTransaction: Math.round(voteStats[0]?.averageAmountPerTransaction || 0)
+      },
+      contestants: {
+        total: contestantStats[0]?.totalContestants || 0,
+        active: contestantStats[0]?.activeContestants || 0,
+        totalVotes: contestantStats[0]?.totalContestantVotes || 0,
+        totalAmount: contestantStats[0]?.totalContestantAmount || 0,
+        averageVotesPerContestant: Math.round(contestantStats[0]?.averageVotesPerContestant || 0),
+        averageAmountPerContestant: Math.round(contestantStats[0]?.averageAmountPerContestant || 0)
+      },
+      votesByStatus: votesByStatus.reduce((acc, item) => {
+        acc[item._id] = {
+          count: item.count,
+          totalVotes: item.totalVotes,
+          totalAmount: item.totalAmount
+        };
+        return acc;
+      }, {} as any),
+      recentActivity: {
+        last30Days: {
+          votes: recentVoteStats[0]?.recentVotes || 0,
+          amount: recentVoteStats[0]?.recentAmount || 0,
+          transactions: recentVoteStats[0]?.recentTransactions || 0
+        }
+      },
+      topContestants: allContestants.map((c, index) => ({
+        rank: index + 1,
+        contestantNumber: c.contestantNumber,
+        name: `${c.firstName} ${c.lastName}`,
+        profilePhoto: c.profilePhoto || null,
+        votes: c.totalVotes || 0,
+        amount: c.totalVoteAmount || 0
+      }))
+    };
+
+    res.status(200).json({
+      success: true,
+      message: 'Voting summary retrieved successfully',
+      data: summary
+    });
+  } catch (error) {
+    console.error('Get voting summary error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve voting summary',
+      error: process.env.NODE_ENV === 'development' ? error : undefined
+    });
+  }
+};
+
 // Get all votes with filtering
 export const getAllVotes = async (req: Request, res: Response): Promise<void> => {
   try {
