@@ -137,7 +137,7 @@ const promoteToContestant = async (req, res) => {
 exports.promoteToContestant = promoteToContestant;
 const getContestants = async (req, res) => {
     try {
-        const { status, talentCategory, sortBy = 'contestantNumber', order = 'asc', page = 1, limit = 2000000, searchQuery } = req.query;
+        const { status, talentCategory, sortBy = 'totalVotes', order = 'desc', page = 1, limit = 2000000, searchQuery } = req.query;
         const query = {};
         if (status) {
             query.status = status;

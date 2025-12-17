@@ -195,8 +195,15 @@ export const getAllTransactions = async (req: AuthenticatedRequest, res: Respons
     const limitNumber = parseInt(limit as string);
     const skip = (pageNumber - 1) * limitNumber;
 
-    // Build filter object
-    const filter: any = {};
+    // Exclude voting transactions - get all vote payment references
+    const Vote = (await import('../models/Vote')).default;
+    const voteReferences = (await Vote.distinct('paymentReference')).filter((ref: string | null | undefined) => ref != null);
+
+    // Build filter object - only include registration transactions (exclude voting transactions)
+    const filter: any = {
+      registrationId: { $ne: null, $exists: true },
+      reference: { $nin: voteReferences } // Exclude any transaction that has a corresponding Vote
+    };
 
     if (status) {
       filter.status = status;
@@ -262,9 +269,16 @@ export const getAllTransactions = async (req: AuthenticatedRequest, res: Respons
     const totalCount = await PaymentTransaction.countDocuments(filter);
     const totalPages = Math.ceil(totalCount / limitNumber);
 
-    // Calculate summary statistics
+    // Calculate summary statistics (only registration transactions, excluding voting transactions)
+    // The filter already excludes voting transactions, but we ensure it's explicitly set here
     const summaryPipeline = [
-      { $match: filter },
+      { 
+        $match: {
+          ...filter,
+          // Always exclude voting transactions (ensure it's set even if filter was modified)
+          reference: { $nin: voteReferences }
+        }
+      },
       {
         $group: {
           _id: null,
@@ -456,8 +470,19 @@ export const getDashboardStats = async (req: AuthenticatedRequest, res: Response
       }
     ]);
 
-    // Get payment statistics
+    // Get payment statistics (REGISTRATION TRANSACTIONS ONLY)
+    // Only include transactions that are linked to a registration (exclude vote-only transactions)
+    // Exclude transactions that are linked to votes by checking if a Vote exists with the same reference
+    const Vote = (await import('../models/Vote')).default;
+    const voteReferences = (await Vote.distinct('paymentReference')).filter((ref: string | null | undefined) => ref != null);
+    
     const paymentStats = await PaymentTransaction.aggregate([
+      {
+        $match: {
+          registrationId: { $ne: null, $exists: true },
+          reference: { $nin: voteReferences } // Exclude any transaction that has a corresponding Vote
+        }
+      },
       {
         $group: {
           _id: '$status',
@@ -466,6 +491,8 @@ export const getDashboardStats = async (req: AuthenticatedRequest, res: Response
         }
       }
     ]);
+
+    console.log(paymentStats);
 
     // Get user statistics
     const userStats = await User.aggregate([
@@ -485,8 +512,12 @@ export const getDashboardStats = async (req: AuthenticatedRequest, res: Response
       .select('registrationNumber registrationType status createdAt personalInfo.firstName personalInfo.lastName')
       .lean();
 
-    // Get recent transactions
-    const recentTransactions = await PaymentTransaction.find()
+    // Get recent registration transactions ONLY (exclude vote-only transactions)
+    // Exclude transactions that are linked to votes
+    const recentTransactions = await PaymentTransaction.find({
+        registrationId: { $ne: null, $exists: true },
+        reference: { $nin: voteReferences } // Exclude any transaction that has a corresponding Vote
+      })
       .populate('userId', 'firstName lastName email')
       .populate('registrationId', 'registrationNumber')
       .sort({ createdAt: -1 })
