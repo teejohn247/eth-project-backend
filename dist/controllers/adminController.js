@@ -177,7 +177,12 @@ const getAllTransactions = async (req, res) => {
         const pageNumber = parseInt(page);
         const limitNumber = parseInt(limit);
         const skip = (pageNumber - 1) * limitNumber;
-        const filter = {};
+        const Vote = (await Promise.resolve().then(() => __importStar(require('../models/Vote')))).default;
+        const voteReferences = (await Vote.distinct('paymentReference')).filter((ref) => ref != null);
+        const filter = {
+            registrationId: { $ne: null, $exists: true },
+            reference: { $nin: voteReferences }
+        };
         if (status) {
             filter.status = status;
         }
@@ -229,7 +234,12 @@ const getAllTransactions = async (req, res) => {
         const totalCount = await models_1.PaymentTransaction.countDocuments(filter);
         const totalPages = Math.ceil(totalCount / limitNumber);
         const summaryPipeline = [
-            { $match: filter },
+            {
+                $match: {
+                    ...filter,
+                    reference: { $nin: voteReferences }
+                }
+            },
             {
                 $group: {
                     _id: null,
@@ -390,7 +400,15 @@ const getDashboardStats = async (req, res) => {
                 }
             }
         ]);
+        const Vote = (await Promise.resolve().then(() => __importStar(require('../models/Vote')))).default;
+        const voteReferences = (await Vote.distinct('paymentReference')).filter((ref) => ref != null);
         const paymentStats = await models_1.PaymentTransaction.aggregate([
+            {
+                $match: {
+                    registrationId: { $ne: null, $exists: true },
+                    reference: { $nin: voteReferences }
+                }
+            },
             {
                 $group: {
                     _id: '$status',
@@ -399,6 +417,7 @@ const getDashboardStats = async (req, res) => {
                 }
             }
         ]);
+        console.log(paymentStats);
         const userStats = await models_1.User.aggregate([
             {
                 $group: {
@@ -413,7 +432,10 @@ const getDashboardStats = async (req, res) => {
             .limit(10)
             .select('registrationNumber registrationType status createdAt personalInfo.firstName personalInfo.lastName')
             .lean();
-        const recentTransactions = await models_1.PaymentTransaction.find()
+        const recentTransactions = await models_1.PaymentTransaction.find({
+            registrationId: { $ne: null, $exists: true },
+            reference: { $nin: voteReferences }
+        })
             .populate('userId', 'firstName lastName email')
             .populate('registrationId', 'registrationNumber')
             .sort({ createdAt: -1 })
