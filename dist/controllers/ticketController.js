@@ -375,16 +375,6 @@ const verifyTicketPayment = async (req, res) => {
             await ticketPurchase.save();
         }
         ticketPurchase.paymentStatus = 'completed';
-        if (!ticketPurchase.ticketSent && ticketPurchase.ticketNumbers && ticketPurchase.ticketNumbers.length > 0) {
-            try {
-                await emailService_1.default.sendTicketEmail(ticketPurchase.email, ticketPurchase.firstName, ticketPurchase.lastName, ticketPurchase.purchaseReference, ticketPurchase.tickets, ticketPurchase.ticketNumbers, ticketPurchase.totalAmount);
-                ticketPurchase.ticketSent = true;
-                ticketPurchase.ticketSentAt = new Date();
-            }
-            catch (error) {
-                console.error('Failed to send ticket email after payment verification:', error);
-            }
-        }
         await ticketPurchase.save();
         for (const ticketItem of ticketPurchase.tickets) {
             const ticket = await Ticket_1.default.findById(ticketItem.ticketId);
@@ -397,12 +387,9 @@ const verifyTicketPayment = async (req, res) => {
                 }
             }
         }
-        const message = ticketPurchase.ticketSent
-            ? 'Payment verified successfully. Tickets already sent to email.'
-            : 'Payment verified successfully. Tickets sent to email.';
         res.status(200).json({
             success: true,
-            message,
+            message: 'Payment verified successfully.',
             data: {
                 purchaseReference: ticketPurchase.purchaseReference,
                 ticketNumbers: ticketPurchase.ticketNumbers || [],
