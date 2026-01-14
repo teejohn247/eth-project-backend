@@ -1,0 +1,12 @@
+{
+  "firstName": "Tolu",
+  "lastName": "Johnson",
+  "email": "teejohn247@gmail.com",
+  "phone": "08161582774",
+  "tickets": [
+    {
+      "ticketType": "regular",
+      "quantity": 1
+    }
+  ]
+}

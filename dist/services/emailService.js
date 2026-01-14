@@ -1172,13 +1172,6 @@ class EmailService {
             to: email,
             subject,
             html: htmlContent,
-            attachments: [
-                {
-                    filename: `Edo-Talent-Hunt-Tickets-${purchaseReference}.pdf`,
-                    content: pdfBuffer,
-                    contentType: 'application/pdf'
-                }
-            ]
         };
         try {
             await this.transporter.sendMail(mailOptions);
@@ -1241,7 +1234,7 @@ class EmailService {
       `;
         }).join('');
         const performersImageUrl = process.env.PERFORMERS_IMAGE_URL || 'https://res.cloudinary.com/dbwtjruq8/image/upload/v1768391085/edo-talent-hunt/email/performers-collage.jpg';
-        const logoImageUrl = process.env.LOGO_IMAGE_URL || 'https://www.edotalenthunt.com/assets/img/project/eth-logo-wht.png';
+        const logoImageUrl = process.env.LOGO_IMAGE_URL || 'https://res.cloudinary.com/dbwtjruq8/image/upload/v1768407909/edo-talent-hunt/email/edo-logo.png';
         return `
       <!DOCTYPE html>
       <html lang="en">
