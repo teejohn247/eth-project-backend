@@ -9,6 +9,38 @@ const TicketPurchase_1 = __importDefault(require("../models/TicketPurchase"));
 const PaymentTransaction_1 = __importDefault(require("../models/PaymentTransaction"));
 const crypto_1 = __importDefault(require("crypto"));
 const emailService_1 = __importDefault(require("../services/emailService"));
+const getTicketDisplayName = (ticketType) => {
+    const nameMap = {
+        'regular': 'Regular',
+        'vip': 'VIP for Couple',
+        'table_of_5': 'Gold Table',
+        'table_of_10': 'Sponsors Table'
+    };
+    return nameMap[ticketType] || ticketType;
+};
+const mapTicketNameToType = (name) => {
+    const normalized = name.trim().toLowerCase().replace(/\s+/g, ' ');
+    const nameMap = {
+        'regular': 'regular',
+        'vip for couple': 'vip',
+        'gold table': 'table_of_5',
+        'sponsors table': 'table_of_10',
+        'vip_for_couple': 'vip',
+        'gold_table': 'table_of_5',
+        'sponsors_table': 'table_of_10',
+        'vip': 'vip',
+        'gold': 'table_of_5',
+        'sponsors': 'table_of_10',
+        'table_of_5': 'table_of_5',
+        'table of 5': 'table_of_5',
+        'table_of_10': 'table_of_10',
+        'table of 10': 'table_of_10',
+        'vipforcouple': 'vip',
+        'goldtable': 'table_of_5',
+        'sponsorstable': 'table_of_10'
+    };
+    return nameMap[normalized] || null;
+};
 const getTickets = async (req, res) => {
     try {
         const tickets = await Ticket_1.default.find({ isActive: true }).sort({ price: 1 });
@@ -83,26 +115,28 @@ const purchaseTickets = async (req, res) => {
         const ticketDetails = [];
         let totalAmount = 0;
         for (const ticketItem of ticketArray) {
-            const { ticketType, quantity } = ticketItem;
-            if (!ticketType || !quantity || quantity < 1) {
+            const ticketIdentifier = ticketItem.name || ticketItem.ticketType || ticketItem.ticketName;
+            const quantity = ticketItem.quantity;
+            if (!ticketIdentifier || !quantity || quantity < 1) {
                 res.status(400).json({
                     success: false,
-                    message: `Invalid ticket data: ticketType and quantity (min 1) are required for each ticket`
+                    message: `Invalid ticket data: 'name' or 'ticketType' and quantity (min 1) are required for each ticket`
                 });
                 return;
             }
-            if (!['regular', 'vip', 'table_of_5', 'table_of_10'].includes(ticketType)) {
+            const normalizedTicketType = mapTicketNameToType(ticketIdentifier);
+            if (!normalizedTicketType) {
                 res.status(400).json({
                     success: false,
-                    message: `Invalid ticket type: ${ticketType}. Must be regular, vip, table_of_5, or table_of_10`
+                    message: `Invalid ticket: "${ticketIdentifier}". Accepted values: Regular, VIP for Couple, Gold Table, or Sponsors Table (case-insensitive)`
                 });
                 return;
             }
-            const ticket = await Ticket_1.default.findOne({ ticketType, isActive: true });
+            const ticket = await Ticket_1.default.findOne({ ticketType: normalizedTicketType, isActive: true });
             if (!ticket) {
                 res.status(404).json({
                     success: false,
-                    message: `Ticket type ${ticketType} not found or inactive`
+                    message: `Ticket "${ticketIdentifier}" not found or inactive in database`
                 });
                 return;
             }
@@ -111,7 +145,7 @@ const purchaseTickets = async (req, res) => {
                 if (quantity > available) {
                     res.status(400).json({
                         success: false,
-                        message: `Insufficient tickets available for ${ticketType}. Available: ${available}, Requested: ${quantity}`
+                        message: `Insufficient tickets available for ${ticketIdentifier}. Available: ${available}, Requested: ${quantity}`
                     });
                     return;
                 }
@@ -189,6 +223,7 @@ const purchaseTickets = async (req, res) => {
                 email,
                 phone,
                 tickets: ticketDetails.map(t => ({
+                    name: getTicketDisplayName(t.ticketType),
                     ticketType: t.ticketType,
                     quantity: t.quantity,
                     unitPrice: t.unitPrice,

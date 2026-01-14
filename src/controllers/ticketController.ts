@@ -6,6 +6,50 @@ import crypto from 'crypto';
 import emailService from '../services/emailService';
 import { AuthenticatedRequest } from '../types';
 
+// Helper function to get display name for ticket type
+const getTicketDisplayName = (ticketType: string): string => {
+  const nameMap: { [key: string]: string } = {
+    'regular': 'Regular',
+    'vip': 'VIP for Couple',
+    'table_of_5': 'Gold Table',
+    'table_of_10': 'Sponsors Table'
+  };
+  return nameMap[ticketType] || ticketType;
+};
+
+// Helper function to map frontend names to database ticket types (case-insensitive)
+const mapTicketNameToType = (name: string): string | null => {
+  // Normalize: trim, lowercase, remove extra spaces
+  const normalized = name.trim().toLowerCase().replace(/\s+/g, ' ');
+  
+  const nameMap: { [key: string]: string } = {
+    // Display names (from frontend)
+    'regular': 'regular',
+    'vip for couple': 'vip',
+    'gold table': 'table_of_5',
+    'sponsors table': 'table_of_10',
+    // Alternative formats with underscores
+    'vip_for_couple': 'vip',
+    'gold_table': 'table_of_5',
+    'sponsors_table': 'table_of_10',
+    // Short forms
+    'vip': 'vip',
+    'gold': 'table_of_5',
+    'sponsors': 'table_of_10',
+    // Database ticket types (direct mapping)
+    'table_of_5': 'table_of_5',
+    'table of 5': 'table_of_5',
+    'table_of_10': 'table_of_10',
+    'table of 10': 'table_of_10',
+    // Additional variations
+    'vipforcouple': 'vip',
+    'goldtable': 'table_of_5',
+    'sponsorstable': 'table_of_10'
+  };
+  
+  return nameMap[normalized] || null;
+};
+
 // Get all available tickets
 export const getTickets = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -99,31 +143,36 @@ export const purchaseTickets = async (req: Request, res: Response): Promise<void
     let totalAmount = 0;
 
     for (const ticketItem of ticketArray) {
-      const { ticketType, quantity } = ticketItem;
+      // Accept both 'name' and 'ticketType' fields (case-insensitive)
+      const ticketIdentifier = ticketItem.name || ticketItem.ticketType || ticketItem.ticketName;
+      const quantity = ticketItem.quantity;
 
-      if (!ticketType || !quantity || quantity < 1) {
+      if (!ticketIdentifier || !quantity || quantity < 1) {
         res.status(400).json({
           success: false,
-          message: `Invalid ticket data: ticketType and quantity (min 1) are required for each ticket`
+          message: `Invalid ticket data: 'name' or 'ticketType' and quantity (min 1) are required for each ticket`
         });
         return;
       }
 
-      if (!['regular', 'vip', 'table_of_5', 'table_of_10'].includes(ticketType)) {
+      // Map frontend ticket name to database ticket type (case-insensitive)
+      const normalizedTicketType = mapTicketNameToType(ticketIdentifier);
+      
+      if (!normalizedTicketType) {
         res.status(400).json({
           success: false,
-          message: `Invalid ticket type: ${ticketType}. Must be regular, vip, table_of_5, or table_of_10`
+          message: `Invalid ticket: "${ticketIdentifier}". Accepted values: Regular, VIP for Couple, Gold Table, or Sponsors Table (case-insensitive)`
         });
         return;
       }
 
-      // Find ticket
-      const ticket = await Ticket.findOne({ ticketType, isActive: true });
+      // Find ticket using normalized type
+      const ticket = await Ticket.findOne({ ticketType: normalizedTicketType, isActive: true });
 
       if (!ticket) {
         res.status(404).json({
           success: false,
-          message: `Ticket type ${ticketType} not found or inactive`
+          message: `Ticket "${ticketIdentifier}" not found or inactive in database`
         });
         return;
       }
@@ -134,7 +183,7 @@ export const purchaseTickets = async (req: Request, res: Response): Promise<void
         if (quantity > available) {
           res.status(400).json({
             success: false,
-            message: `Insufficient tickets available for ${ticketType}. Available: ${available}, Requested: ${quantity}`
+            message: `Insufficient tickets available for ${ticketIdentifier}. Available: ${available}, Requested: ${quantity}`
           });
           return;
         }
@@ -145,7 +194,7 @@ export const purchaseTickets = async (req: Request, res: Response): Promise<void
 
       ticketDetails.push({
         ticketId: ticket._id,
-        ticketType: ticket.ticketType,
+        ticketType: ticket.ticketType as 'regular' | 'vip' | 'table_of_5' | 'table_of_10',
         quantity,
         unitPrice,
         totalPrice
@@ -243,6 +292,7 @@ export const purchaseTickets = async (req: Request, res: Response): Promise<void
         email,
         phone,
         tickets: ticketDetails.map(t => ({
+          name: getTicketDisplayName(t.ticketType),
           ticketType: t.ticketType,
           quantity: t.quantity,
           unitPrice: t.unitPrice,
