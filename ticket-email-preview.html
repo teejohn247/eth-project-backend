@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ticket Email Preview</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      line-height: 1.6;
+      color: #333333;
+      background: linear-gradient(135deg, #F5F5DC 0%, #FFF8DC 50%, #FFFACD 100%);
+      margin: 0;
+      padding: 20px;
+    }
+    
+    .email-wrapper {
+      max-width: 650px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 25px 50px rgba(218, 165, 32, 0.2);
+      border: 2px solid rgba(255, 215, 0, 0.3);
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #FFD700 0%, #F4D03F 30%, #DAA520 70%, #B8860B 100%);
+      padding: 40px 40px 30px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .circular-frame {
+      width: 140px;
+      height: 140px;
+      margin: 0 auto 20px;
+      background: #ffffff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 
+        0 0 0 6px rgba(255, 255, 255, 0.8),
+        0 0 0 12px rgba(255, 215, 0, 0.6),
+        0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+    
+    .logo img {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    
+    .brand-name {
+      font-size: 28px;
+      font-weight: 900;
+      color: #1a1a1a;
+      text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.3);
+      letter-spacing: 3px;
+      margin: 0 0 5px 0;
+      text-transform: uppercase;
+    }
+    
+    .event-subtitle {
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(0, 0, 0, 0.7);
+      margin-bottom: 5px;
+    }
+    
+    .performers-banner {
+      width: 100%;
+      height: 140px;
+      object-fit: cover;
+      object-position: top;
+      display: block;
+      margin-top: -8px;
+      position: relative;
+    }
+    
+    .performers-overlay {
+      position: relative;
+      width: 100%;
+      height: 140px;
+      overflow: hidden;
+    }
+    
+    .performers-overlay::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: linear-gradient(to bottom, transparent, #ffffff);
+    }
+    
+    .content {
+      padding: 40px;
+      background: #ffffff;
+    }
+    
+    .success-badge {
+      background: linear-gradient(135deg, #10B981, #059669);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 30px;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 25px;
+      box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+    }
+    
+    .greeting {
+      font-size: 26px;
+      font-weight: 700;
+      color: #1a202c;
+      margin-bottom: 15px;
+    }
+    
+    .intro-text {
+      color: #4A5568;
+      margin-bottom: 25px;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+    
+    .highlight-box {
+      background: #FFD700;
+      color: #1a1a1a;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 700;
+    }
+    
+    .purchase-info {
+      background: #F7FAFC;
+      border-radius: 12px;
+      padding: 18px;
+      margin: 25px 0;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+    
+    .info-item {
+      flex: 1;
+      min-width: 200px;
+    }
+    
+    .info-label {
+      color: #718096;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+    
+    .info-value {
+      color: #2D3748;
+      font-weight: 700;
+      font-size: 14px;
+    }
+    
+    .ticket-card {
+      background: #ffffff;
+      border: 4px solid #FFD700;
+      border-radius: 16px;
+      overflow: hidden;
+      margin: 25px 0;
+    }
+    
+    .ticket-card-header {
+      background: linear-gradient(135deg, #FFD700, #DAA520);
+      padding: 15px 20px;
+    }
+    
+    .ticket-card-title {
+      color: #1a1a1a;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 14px;
+      letter-spacing: 0.5px;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+    }
+    
+    tbody tr {
+      border-bottom: 1px solid #E2E8F0;
+    }
+    
+    tbody tr:last-child {
+      border-bottom: none;
+    }
+    
+    td {
+      padding: 15px 20px;
+      color: #4A5568;
+    }
+    
+    .total-row {
+      background: linear-gradient(135deg, #D946EF, #C026D3);
+      color: white;
+    }
+    
+    .total-row td {
+      color: white;
+      font-weight: 700;
+      padding: 15px 20px;
+    }
+    
+    .ticket-numbers {
+      background: linear-gradient(to right, rgba(255, 215, 0, 0.05), transparent);
+      border-left: 4px solid #FFD700;
+      padding: 25px;
+      margin: 25px 0;
+      border-radius: 12px;
+    }
+    
+    .ticket-numbers h4 {
+      color: #2D3748;
+      margin-bottom: 10px;
+      font-size: 16px;
+      font-weight: 700;
+    }
+    
+    .ticket-numbers-note {
+      color: #718096;
+      font-size: 13px;
+      margin-bottom: 15px;
+    }
+    
+    .ticket-number {
+      background: #ffffff;
+      padding: 8px 15px;
+      margin: 6px 6px 6px 0;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-weight: 700;
+      color: #B8860B;
+      border: 2px dashed #DAA520;
+      display: inline-block;
+      font-size: 13px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    
+    .important-info {
+      background: linear-gradient(135deg, rgba(217, 70, 239, 0.05), rgba(192, 38, 211, 0.05));
+      border: 2px solid rgba(217, 70, 239, 0.3);
+      border-radius: 12px;
+      padding: 25px;
+      margin: 25px 0;
+    }
+    
+    .important-info h4 {
+      color: #D946EF;
+      margin-bottom: 15px;
+      font-size: 15px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      background: #D946EF;
+      color: white;
+      padding: 6px 15px;
+      border-radius: 8px;
+      gap: 6px;
+    }
+    
+    .important-info ul {
+      list-style: disc;
+      padding-left: 25px;
+      color: rgba(0, 0, 0, 0.7);
+      line-height: 1.9;
+    }
+    
+    .important-info li {
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    
+    .footer {
+      background: linear-gradient(135deg, #F7FAFC 0%, #EDF2F7 100%);
+      padding: 35px;
+      text-align: center;
+      border-top: 4px solid rgba(255, 215, 0, 0.3);
+    }
+    
+    .footer-title {
+      font-size: 20px;
+      font-weight: 900;
+      color: #1a202c;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    
+    .footer-subtitle {
+      font-size: 14px;
+      color: #718096;
+      margin-bottom: 20px;
+      font-style: italic;
+    }
+    
+    .footer-text {
+      font-size: 12px;
+      color: #A0AEC0;
+      line-height: 1.6;
+    }
+    
+    @media (max-width: 600px) {
+      .content {
+        padding: 30px 20px;
+      }
+      
+      .circular-frame {
+        width: 110px;
+        height: 110px;
+      }
+      
+      .logo img {
+        width: 80px;
+        height: 80px;
+      }
+      
+      .brand-name {
+        font-size: 22px;
+      }
+      
+      .performers-banner,
+      .performers-overlay {
+        height: 100px;
+      }
+      
+      .greeting {
+        font-size: 22px;
+      }
+      
+      .purchase-info {
+        flex-direction: column;
+        gap: 12px;
+      }
+      
+      table {
+        font-size: 12px;
+      }
+      
+      td {
+        padding: 12px 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="email-wrapper">
+    <!-- Header with Logo -->
+    <div class="header">
+      <div class="circular-frame">
+        <div class="logo">
+          <img src="https://www.edotalenthunt.com/assets/img/project/eth-logo-wht.png" alt="Edo Talent Hunt Logo" />
+        </div>
+      </div>
+      <h1 class="brand-name">Grand Finale</h1>
+      <div class="event-subtitle">14th January 2026 • Victor Uwaifo Creative Hub</div>
+    </div>
+    
+    <!-- Performers Banner -->
+    <div class="performers-overlay">
+      <img src="https://i.ibb.co/vQdp7Th/performers.jpg" alt="Edo Talent Hunt Performers" class="performers-banner" />
+    </div>
+    
+    <!-- Content -->
+    <div class="content">
+      <div class="success-badge">
+        <span>✓</span>
+        <span>Payment Successful</span>
+      </div>
+      
+      <h2 class="greeting">Hello John!</h2>
+      
+      <p class="intro-text">
+        Your tickets are confirmed and ready. Thank you for your purchase! Your tickets for <span class="highlight-box">Edo Talent Hunt Grand Finale</span> have been successfully generated.
+      </p>
+      
+      <!-- Purchase Info -->
+      <div class="purchase-info">
+        <div class="info-item">
+          <div class="info-label">Order</div>
+          <div class="info-value">ETH-2026-ABC123</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Purchase Date</div>
+          <div class="info-value">January 14, 2026</div>
+        </div>
+      </div>
+      
+      <!-- Ticket Card -->
+      <div class="ticket-card">
+        <div class="ticket-card-header">
+          <div class="ticket-card-title">🎟️ Your Tickets</div>
+        </div>
+        
+        <table>
+          <tbody>
+            <tr style="border-bottom: 1px solid #E2E8F0;">
+              <td style="padding: 12px 15px; text-align: left;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <span style="background: linear-gradient(135deg, #D4A574, #B8860B); color: white; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 700;">2x</span>
+                  <strong style="color: #2D3748; text-transform: uppercase; font-size: 13px;">VIP FOR COUPLE</strong>
+                </div>
+                <div style="font-size: 11px; color: #718096; margin-top: 4px; margin-left: 42px;">₦50,000/ticket</div>
+              </td>
+              <td style="padding: 12px 15px; text-align: right; color: #2D3748; font-weight: 700; font-size: 16px;">₦100,000</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #E2E8F0;">
+              <td style="padding: 12px 15px; text-align: left;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <span style="background: linear-gradient(135deg, #D4A574, #B8860B); color: white; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 700;">3x</span>
+                  <strong style="color: #2D3748; text-transform: uppercase; font-size: 13px;">REGULAR TICKETS</strong>
+                </div>
+                <div style="font-size: 11px; color: #718096; margin-top: 4px; margin-left: 42px;">₦10,000/ticket</div>
+              </td>
+              <td style="padding: 12px 15px; text-align: right; color: #2D3748; font-weight: 700; font-size: 16px;">₦30,000</td>
+            </tr>
+            <tr class="total-row">
+              <td style="text-align: right; text-transform: uppercase;"><strong>Total</strong></td>
+              <td style="text-align: right; font-size: 18px;"><strong>₦130,000</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- Ticket Numbers -->
+      <div class="ticket-numbers">
+        <h4>🎫 Your Ticket Numbers</h4>
+        <p class="ticket-numbers-note">
+          Save these numbers — you'll need them for entry.
+        </p>
+        <span class="ticket-number">ETH-001-2026</span>
+        <span class="ticket-number">ETH-002-2026</span>
+        <span class="ticket-number">ETH-003-2026</span>
+        <span class="ticket-number">ETH-004-2026</span>
+        <span class="ticket-number">ETH-005-2026</span>
+      </div>
+      
+      <!-- Important Info -->
+      <div class="important-info">
+        <h4>📋 Important Information</h4>
+        <ul>
+          <li>Bring a valid ID and this email confirmation to the event</li>
+          <li>Your ticket numbers are unique and non-transferable</li>
+          <li>Gates open at 4PM — arrive early!</li>
+          <li>For questions, contact our support team</li>
+        </ul>
+      </div>
+    </div>
+    
+    <!-- Footer -->
+    <div class="footer">
+      <div class="footer-title">Edo Talent Hunt</div>
+      <div class="footer-subtitle">Empowering talents across Edo State and beyond</div>
+      <div class="footer-text">
+        © 2026 Edo Talent Hunt. All rights reserved.<br>
+        This is an automated message, please do not reply directly.
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+

@@ -5,18 +5,70 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TicketPdfGenerator = void 0;
 const pdfkit_1 = __importDefault(require("pdfkit"));
+const path_1 = __importDefault(require("path"));
+const fs_1 = __importDefault(require("fs"));
+const EVENT_DETAILS = {
+    title: 'EDO TALENT HUNT',
+    subtitle: 'GRAND Finale',
+    organizer: 'Ministry of Arts,\nCulture & Tourism',
+    venue: 'VICTOR UWAIFO CREATIVE HUB',
+    address: '200, VEGETABLE MARKET, AIRPORT ROAD, BENIN CITY',
+    date: '14 JAN 2026',
+    time: '4PM',
+    contacts: ['08138643441', '08149503130', '07056626808', '08078648585']
+};
+const TICKET_CONFIGS = {
+    regular: {
+        name: 'Regular\nTickets',
+        price: '10K',
+        label: 'Per Person',
+        gradientStart: '#ff6b6b',
+        gradientEnd: '#ee5a6f'
+    },
+    vip: {
+        name: 'VIP for\nCouple',
+        price: '50K',
+        label: 'Two Persons',
+        gradientStart: '#c44569',
+        gradientEnd: '#d63447'
+    },
+    table_of_5: {
+        name: 'Gold\nTable',
+        price: '500K',
+        label: 'Full Table',
+        gradientStart: '#2c2c2c',
+        gradientEnd: '#1a1a1a'
+    },
+    table_of_10: {
+        name: 'Sponsors\nTable',
+        price: '1M',
+        label: 'Full Table',
+        gradientStart: '#2c3e50',
+        gradientEnd: '#3498db'
+    }
+};
 class TicketPdfGenerator {
     static async generateAllTicketsPdf(tickets, purchaseData) {
         return new Promise((resolve, reject) => {
             try {
                 const doc = new pdfkit_1.default({
-                    size: [800, 300],
+                    size: [600, 200],
                     margins: { top: 0, bottom: 0, left: 0, right: 0 }
                 });
                 const chunks = [];
                 doc.on('data', (chunk) => chunks.push(chunk));
                 doc.on('end', () => resolve(Buffer.concat(chunks)));
                 doc.on('error', reject);
+                const logoPath = path_1.default.join(process.cwd(), 'public', 'images', 'edo.png');
+                const collagePath = path_1.default.join(process.cwd(), 'public', 'images', 'contestants-collage.jpg');
+                let logoImage = null;
+                let collageImage = null;
+                if (fs_1.default.existsSync(logoPath)) {
+                    logoImage = fs_1.default.readFileSync(logoPath);
+                }
+                if (fs_1.default.existsSync(collagePath)) {
+                    collageImage = fs_1.default.readFileSync(collagePath);
+                }
                 tickets.forEach((ticket, index) => {
                     if (index > 0) {
                         doc.addPage();
@@ -31,7 +83,7 @@ class TicketPdfGenerator {
                         purchaseDate: purchaseData.purchaseDate,
                         price: ticket.price
                     };
-                    this.drawLuxuryTicket(doc, ticketData);
+                    this.drawTicket(doc, ticketData, logoImage, collageImage);
                 });
                 doc.end();
             }
@@ -40,214 +92,208 @@ class TicketPdfGenerator {
             }
         });
     }
-    static drawLuxuryTicket(doc, ticketData) {
-        const width = 800;
-        const height = 300;
-        const mainSectionWidth = width * 0.67;
-        const stubSectionWidth = width * 0.33;
-        const stubX = mainSectionWidth;
-        doc.rect(5, 5, width, height)
-            .fillColor('#000000')
-            .opacity(0.1)
-            .fill();
-        this.drawGoldenSection(doc, ticketData, mainSectionWidth, height);
-        this.drawBlackStubSection(doc, ticketData, stubX, stubSectionWidth, height);
+    static drawTicket(doc, ticketData, logoImage, collageImage) {
+        const width = 600;
+        const height = 200;
+        const leftSectionWidth = width * 0.35;
+        const rightSectionWidth = width * 0.65;
+        const rightSectionX = leftSectionWidth;
+        const normalizedType = ticketData.ticketType.toLowerCase().replace(/\s+/g, '_');
+        const config = TICKET_CONFIGS[normalizedType] || TICKET_CONFIGS.regular;
+        this.drawLeftSection(doc, ticketData, config, 0, 0, leftSectionWidth, height);
+        this.drawDashedBorder(doc, leftSectionWidth, 0, height);
+        this.drawRightSection(doc, ticketData, rightSectionX, 0, rightSectionWidth, height, logoImage, collageImage);
     }
-    static drawGoldenSection(doc, ticketData, width, height) {
-        doc.rect(0, 0, width, height)
-            .fillColor('#DAA520')
+    static drawLeftSection(doc, ticketData, config, x, y, width, height) {
+        doc.rect(x, y, width, height)
+            .fillColor(config.gradientEnd)
             .fill();
-        for (let i = 0; i < width; i += 2) {
-            doc.moveTo(i, 0)
-                .lineTo(i, height)
-                .strokeColor('#FFD700')
-                .lineWidth(0.5)
-                .opacity(0.3)
-                .stroke();
+        for (let i = 0; i < height; i += 2) {
+            const opacity = 0.3 + (i / height) * 0.2;
+            doc.rect(x, y + i, width, 1)
+                .fillColor(config.gradientStart)
+                .opacity(opacity)
+                .fill();
         }
-        doc.rect(0, 0, width, height)
-            .fillColor('#FFD700')
-            .opacity(0.4)
-            .fill();
-        this.drawVerticalBarcode(doc, 10, 20, 30, height - 40, ticketData.ticketNumber);
-        const ticketNum = ticketData.ticketNumber.replace(/-/g, ' ').replace(/ /g, '');
-        doc.save();
-        doc.translate(50, height / 2);
-        doc.rotate(-90);
-        doc.fontSize(10)
-            .fillColor('#000000')
-            .font('Courier-Bold')
-            .text(ticketNum, 0, 0, {
-            width: height
-        });
-        doc.restore();
-        const logoX = width / 2 - 40;
-        const logoY = 30;
-        this.drawETHLogo(doc, logoX, logoY, 80);
-        doc.fontSize(48)
-            .fillColor('#000000')
-            .font('Helvetica-Bold')
-            .text('TICKET', width / 2 - 100, 120, {
-            align: 'center',
-            width: 200
-        });
-        doc.fontSize(16)
-            .fillColor('#000000')
-            .font('Helvetica-Bold')
-            .text('EDO TALENT HUNT', width / 2 - 100, 170, {
-            align: 'center',
-            width: 200
-        });
-        const dateText = ticketData.purchaseDate.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric'
-        }).toUpperCase();
-        const timeText = ticketData.purchaseDate.toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-        }).toUpperCase();
-        doc.fontSize(14)
-            .fillColor('#000000')
-            .font('Helvetica')
-            .text(`${dateText} - ${timeText}`, width / 2 - 100, 200, {
-            align: 'center',
-            width: 200
-        });
-        doc.fontSize(12)
-            .fillColor('#000000')
-            .font('Helvetica-Bold')
-            .text(`${ticketData.firstName.toUpperCase()} ${ticketData.lastName.toUpperCase()}`, width / 2 - 100, 225, {
-            align: 'center',
-            width: 200
-        });
-        const hash = ticketData.ticketNumber.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        const gate = String((hash % 50) + 1).padStart(2, '0');
-        const row = String((hash % 30) + 1).padStart(2, '0');
-        const seat = String((hash % 100) + 1).padStart(2, '0');
-        const infoX = width / 2 - 120;
-        const infoY = 250;
-        doc.fontSize(10)
-            .fillColor('#000000')
-            .font('Helvetica')
-            .text('GATE', infoX, infoY, { width: 80 })
-            .text('ROW', infoX + 80, infoY, { width: 80 })
-            .text('SEAT', infoX + 160, infoY, { width: 80 });
-        doc.fontSize(14)
-            .fillColor('#000000')
-            .font('Helvetica-Bold')
-            .text(gate, infoX, infoY + 15, { width: 80 })
-            .text(row, infoX + 80, infoY + 15, { width: 80 })
-            .text(seat, infoX + 160, infoY + 15, { width: 80 });
-    }
-    static drawBlackStubSection(doc, ticketData, x, width, height) {
-        doc.rect(x, 0, width, height)
-            .fillColor('#000000')
-            .fill();
-        for (let y = 0; y < height; y += 4) {
-            doc.moveTo(x, y)
-                .lineTo(x, y + 2)
-                .strokeColor('#FFD700')
-                .lineWidth(1)
-                .opacity(0.5)
-                .stroke();
-        }
-        doc.save();
-        doc.translate(x + 15, height / 2);
-        doc.rotate(-90);
-        doc.fontSize(12)
+        const typeY = y + 30;
+        doc.fontSize(11)
             .fillColor('#FFFFFF')
             .font('Helvetica-Bold')
-            .text('ADMIT ONE', 0, 0, {
-            width: height
+            .text(config.name, x + width / 2, typeY, {
+            align: 'center',
+            width: width - 20,
+            lineGap: 2
         });
-        doc.restore();
-        doc.save();
-        doc.translate(x + width / 2, height / 2);
-        doc.rotate(-90);
+        const priceY = typeY + 35;
         doc.fontSize(36)
-            .fillColor('#FFD700')
-            .font('Helvetica-Bold')
-            .text('TICKET', 0, 0, {
-            width: height,
-            align: 'center'
-        });
-        doc.restore();
-        const typeLabels = {
-            regular: 'REGULAR',
-            vip: 'VIP',
-            table_of_5: 'TABLE OF 5',
-            table_of_10: 'TABLE OF 10'
-        };
-        const typeLabel = typeLabels[ticketData.ticketType];
-        doc.save();
-        doc.translate(x + width - 20, height / 2);
-        doc.rotate(-90);
-        doc.fontSize(10)
             .fillColor('#FFFFFF')
             .font('Helvetica-Bold')
-            .text(typeLabel, 0, 0, {
-            width: height
+            .text(config.price, x + width / 2, priceY, {
+            align: 'center',
+            width: width - 20
         });
-        doc.restore();
-        const barcodeY = height - 50;
-        const barcodeWidth = width - 40;
-        this.drawHorizontalBarcode(doc, x + 20, barcodeY, barcodeWidth, 20, ticketData.ticketNumber);
-        const ticketNum = ticketData.ticketNumber.replace(/-/g, ' ').replace(/ /g, '');
+        const labelY = priceY + 40;
+        doc.fontSize(10)
+            .fillColor('#FFFFFF')
+            .font('Helvetica')
+            .text(config.label, x + width / 2, labelY, {
+            align: 'center',
+            width: width - 20
+        });
+        const badgeY = y + height - 25;
+        const badgeWidth = 80;
+        const badgeHeight = 15;
+        const badgeX = x + (width - badgeWidth) / 2;
+        doc.rect(badgeX, badgeY, badgeWidth, badgeHeight)
+            .fillColor('rgba(255, 255, 255, 0.2)')
+            .fill();
+        doc.rect(badgeX, badgeY, badgeWidth, badgeHeight)
+            .strokeColor('rgba(255, 255, 255, 0.3)')
+            .lineWidth(1)
+            .stroke();
         doc.fontSize(8)
             .fillColor('#FFFFFF')
-            .font('Courier')
-            .text(ticketNum, x + 20, barcodeY + 25, {
-            width: barcodeWidth
-        });
-    }
-    static drawETHLogo(doc, x, y, size) {
-        doc.circle(x + size / 2, y + size / 2, size / 2)
-            .fillColor('#FFFFFF')
-            .opacity(0.2)
-            .fill();
-        doc.circle(x + size / 2, y + size / 2, size / 2)
-            .strokeColor('#000000')
-            .lineWidth(2)
-            .stroke();
-        doc.fontSize(20)
-            .fillColor('#000000')
             .font('Helvetica-Bold')
-            .text('ETH', x + size / 2 - 20, y + size / 2 - 8, {
-            width: 40
+            .text('Official Ticket', badgeX + badgeWidth / 2, badgeY + 4, {
+            align: 'center',
+            width: badgeWidth
         });
-        doc.circle(x + size / 2, y + size / 2, size / 2 + 5)
-            .strokeColor('#FFD700')
-            .lineWidth(1)
-            .opacity(0.6)
-            .stroke();
     }
-    static drawVerticalBarcode(doc, x, y, width, height, ticketNumber) {
-        const hash = ticketNumber.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        const barCount = 20;
-        const barWidth = width / barCount;
-        for (let i = 0; i < barCount; i++) {
-            const barHeight = height * (0.4 + (hash + i) % 6 * 0.1);
-            const isThick = (hash + i) % 3 === 0;
-            const actualWidth = isThick ? barWidth * 1.5 : barWidth;
-            doc.rect(x + (i * barWidth), y + (height - barHeight), actualWidth, barHeight)
-                .fillColor('#FFFFFF')
-                .fill();
+    static drawDashedBorder(doc, x, y, height) {
+        const dashLength = 8;
+        const gapLength = 4;
+        let currentY = y;
+        while (currentY < y + height) {
+            doc.moveTo(x, currentY)
+                .lineTo(x, Math.min(currentY + dashLength, y + height))
+                .strokeColor('#FFFFFF')
+                .lineWidth(2)
+                .opacity(0.5)
+                .stroke();
+            currentY += dashLength + gapLength;
         }
     }
-    static drawHorizontalBarcode(doc, x, y, width, height, ticketNumber) {
-        const hash = ticketNumber.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        const barCount = 40;
-        const barWidth = width / barCount;
-        let currentX = x;
-        for (let i = 0; i < barCount; i++) {
-            const barHeight = height * (0.5 + (hash + i) % 5 * 0.1);
-            const isThick = (hash + i) % 3 === 0;
-            const actualWidth = isThick ? barWidth * 1.5 : barWidth;
-            doc.rect(currentX, y + (height - barHeight), actualWidth, barHeight)
-                .fillColor('#FFFFFF')
+    static drawRightSection(doc, ticketData, x, y, width, height, logoImage, collageImage) {
+        doc.rect(x, y, width, height)
+            .fillColor('#FFFFFF')
+            .fill();
+        const headerY = y + 15;
+        const logoSize = 30;
+        const logoX = x + 15;
+        const logoY = headerY;
+        if (logoImage) {
+            try {
+                doc.image(logoImage, logoX, logoY, { width: logoSize, height: logoSize, fit: [logoSize, logoSize] });
+            }
+            catch (error) {
+                doc.rect(logoX, logoY, logoSize, logoSize)
+                    .fillColor('#4CAF50')
+                    .fill();
+            }
+        }
+        else {
+            doc.rect(logoX, logoY, logoSize, logoSize)
+                .fillColor('#4CAF50')
                 .fill();
-            currentX += actualWidth;
+        }
+        const organizerX = logoX + logoSize + 8;
+        doc.fontSize(10)
+            .fillColor('#666666')
+            .font('Helvetica')
+            .text(EVENT_DETAILS.organizer, organizerX, logoY, {
+            width: 150,
+            lineGap: 1
+        });
+        const titleX = x + 15;
+        const titleY = headerY + 40;
+        doc.fontSize(18)
+            .fillColor('#333333')
+            .font('Helvetica-Bold')
+            .text('EDO', titleX, titleY, {
+            width: width - 30
+        });
+        doc.fontSize(18)
+            .fillColor('#333333')
+            .font('Helvetica-Bold')
+            .text('TALENT', titleX, titleY + 20, {
+            width: width - 30
+        });
+        doc.fontSize(18)
+            .fillColor('#333333')
+            .font('Helvetica-Bold')
+            .text('HUNT', titleX, titleY + 40, {
+            width: width - 30
+        });
+        const subtitleY = titleY + 65;
+        doc.fontSize(14)
+            .fillColor('#666666')
+            .font('Helvetica-Bold')
+            .text(EVENT_DETAILS.subtitle, titleX, subtitleY, {
+            width: width - 30
+        });
+        const footerY = y + height - 50;
+        const footerHeight = 35;
+        this.drawDashedTopBorder(doc, x, footerY, width);
+        const detailsX = x + 15;
+        const detailsY = footerY + 8;
+        const contactText = `FOR INFO: ${EVENT_DETAILS.contacts.join(', ')}`;
+        doc.fontSize(9)
+            .fillColor('#888888')
+            .font('Helvetica')
+            .text(contactText, detailsX, detailsY, {
+            width: width - 100,
+            lineGap: 1.5
+        });
+        const dateBadgeX = x + width - 75;
+        const dateBadgeY = footerY + 5;
+        const dateBadgeWidth = 60;
+        const dateBadgeHeight = 30;
+        doc.rect(dateBadgeX, dateBadgeY, dateBadgeWidth, dateBadgeHeight)
+            .fillColor('#667eea')
+            .fill();
+        doc.fontSize(10)
+            .fillColor('#FFFFFF')
+            .opacity(0.9)
+            .font('Helvetica-Bold')
+            .text('JAN', dateBadgeX + dateBadgeWidth / 2, dateBadgeY + 5, {
+            align: 'center',
+            width: dateBadgeWidth
+        });
+        doc.opacity(1);
+        doc.fontSize(16)
+            .fillColor('#FFFFFF')
+            .font('Helvetica-Bold')
+            .text('14', dateBadgeX + dateBadgeWidth / 2, dateBadgeY + 15, {
+            align: 'center',
+            width: dateBadgeWidth
+        });
+        if (collageImage) {
+            try {
+                const collageX = x + width / 2 - 40;
+                const collageY = y + height / 2 - 30;
+                const collageWidth = 80;
+                const collageHeight = 60;
+                doc.image(collageImage, collageX, collageY, {
+                    width: collageWidth,
+                    height: collageHeight,
+                    fit: [collageWidth, collageHeight]
+                });
+            }
+            catch (error) {
+            }
+        }
+    }
+    static drawDashedTopBorder(doc, x, y, width) {
+        const dashLength = 8;
+        const gapLength = 4;
+        let currentX = x;
+        while (currentX < x + width) {
+            doc.moveTo(currentX, y)
+                .lineTo(Math.min(currentX + dashLength, x + width), y)
+                .strokeColor('#DDDDDD')
+                .lineWidth(1)
+                .stroke();
+            currentX += dashLength + gapLength;
         }
     }
 }

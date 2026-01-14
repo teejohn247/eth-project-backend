@@ -1,4 +1,6 @@
 import PDFDocument from 'pdfkit';
+import path from 'path';
+import fs from 'fs';
 
 interface TicketData {
   ticketNumber: string;
@@ -10,6 +12,50 @@ interface TicketData {
   purchaseDate: Date;
   price: number;
 }
+
+// Event details constants
+const EVENT_DETAILS = {
+  title: 'EDO TALENT HUNT',
+  subtitle: 'GRAND Finale',
+  organizer: 'Ministry of Arts,\nCulture & Tourism',
+  venue: 'VICTOR UWAIFO CREATIVE HUB',
+  address: '200, VEGETABLE MARKET, AIRPORT ROAD, BENIN CITY',
+  date: '14 JAN 2026',
+  time: '4PM',
+  contacts: ['08138643441', '08149503130', '07056626808', '08078648585']
+};
+
+// Ticket type configurations matching HTML design
+const TICKET_CONFIGS = {
+  regular: {
+    name: 'Regular\nTickets',
+    price: '10K',
+    label: 'Per Person',
+    gradientStart: '#ff6b6b',
+    gradientEnd: '#ee5a6f'
+  },
+  vip: {
+    name: 'VIP for\nCouple',
+    price: '50K',
+    label: 'Two Persons',
+    gradientStart: '#c44569',
+    gradientEnd: '#d63447'
+  },
+  table_of_5: {
+    name: 'Gold\nTable',
+    price: '500K',
+    label: 'Full Table',
+    gradientStart: '#2c2c2c',
+    gradientEnd: '#1a1a1a'
+  },
+  table_of_10: {
+    name: 'Sponsors\nTable',
+    price: '1M',
+    label: 'Full Table',
+    gradientStart: '#2c3e50',
+    gradientEnd: '#3498db'
+  }
+};
 
 export class TicketPdfGenerator {
   /**
@@ -33,7 +79,7 @@ export class TicketPdfGenerator {
     return new Promise((resolve, reject) => {
       try {
         const doc = new PDFDocument({
-          size: [800, 300], // Landscape ticket size
+          size: [600, 200], // Landscape ticket size matching HTML
           margins: { top: 0, bottom: 0, left: 0, right: 0 }
         });
 
@@ -42,6 +88,23 @@ export class TicketPdfGenerator {
         doc.on('data', (chunk) => chunks.push(chunk));
         doc.on('end', () => resolve(Buffer.concat(chunks)));
         doc.on('error', reject);
+
+        // Load images
+        const logoPath = path.join(process.cwd(), 'public', 'images', 'edo.png');
+        const collagePath = path.join(process.cwd(), 'public', 'images', 'contestants-collage.jpg');
+        
+        let logoImage: Buffer | null = null;
+        let collageImage: Buffer | null = null;
+
+        // Try to load logo
+        if (fs.existsSync(logoPath)) {
+          logoImage = fs.readFileSync(logoPath);
+        }
+
+        // Try to load collage (if it exists)
+        if (fs.existsSync(collagePath)) {
+          collageImage = fs.readFileSync(collagePath);
+        }
 
         // Draw each ticket
         tickets.forEach((ticket, index) => {
@@ -60,7 +123,7 @@ export class TicketPdfGenerator {
             price: ticket.price
           };
 
-          this.drawLuxuryTicket(doc, ticketData);
+          this.drawTicket(doc, ticketData, logoImage, collageImage);
         });
 
         doc.end();
@@ -70,287 +133,310 @@ export class TicketPdfGenerator {
     });
   }
 
-  private static drawLuxuryTicket(doc: PDFKit.PDFDocument, ticketData: TicketData): void {
-    const width = 800;
-    const height = 300;
-    const mainSectionWidth = width * 0.67; // Left 2/3 for golden section
-    const stubSectionWidth = width * 0.33; // Right 1/3 for black stub
-    const stubX = mainSectionWidth;
-    
-    // Draw shadow effect
-    doc.rect(5, 5, width, height)
-      .fillColor('#000000')
-      .opacity(0.1)
-      .fill();
+  private static drawTicket(
+    doc: PDFKit.PDFDocument,
+    ticketData: TicketData,
+    logoImage: Buffer | null,
+    collageImage: Buffer | null
+  ): void {
+    const width = 600;
+    const height = 200;
+    const leftSectionWidth = width * 0.35; // 35% left section
+    const rightSectionWidth = width * 0.65; // 65% right section
+    const rightSectionX = leftSectionWidth;
 
-    // Main golden section (left 2/3)
-    this.drawGoldenSection(doc, ticketData, mainSectionWidth, height);
+    // Normalize ticket type to match config keys
+    const normalizedType = ticketData.ticketType.toLowerCase().replace(/\s+/g, '_') as keyof typeof TICKET_CONFIGS;
+    const config = TICKET_CONFIGS[normalizedType] || TICKET_CONFIGS.regular; // Default to regular if not found
 
-    // Black stub section (right 1/3)
-    this.drawBlackStubSection(doc, ticketData, stubX, stubSectionWidth, height);
+    // Draw left section (ticket type and price)
+    this.drawLeftSection(doc, ticketData, config, 0, 0, leftSectionWidth, height);
+
+    // Draw dashed border
+    this.drawDashedBorder(doc, leftSectionWidth, 0, height);
+
+    // Draw right section (event details)
+    this.drawRightSection(doc, ticketData, rightSectionX, 0, rightSectionWidth, height, logoImage, collageImage);
   }
 
-  private static drawGoldenSection(doc: PDFKit.PDFDocument, ticketData: TicketData, width: number, height: number): void {
-    // Golden background with vertical texture
-    doc.rect(0, 0, width, height)
-      .fillColor('#DAA520') // Dark goldenrod
+  private static drawLeftSection(
+    doc: PDFKit.PDFDocument,
+    ticketData: TicketData,
+    config: typeof TICKET_CONFIGS.regular,
+    x: number,
+    y: number,
+    width: number,
+    height: number
+  ): void {
+    // Gradient background (simulated with solid color - PDFKit doesn't support gradients easily)
+    // Using the gradient end color as base
+    doc.rect(x, y, width, height)
+      .fillColor(config.gradientEnd)
       .fill();
 
-    // Draw vertical striped texture
-    for (let i = 0; i < width; i += 2) {
-      doc.moveTo(i, 0)
-        .lineTo(i, height)
-        .strokeColor('#FFD700') // Gold
-        .lineWidth(0.5)
-        .opacity(0.3)
-        .stroke();
+    // Add some texture to simulate gradient
+    for (let i = 0; i < height; i += 2) {
+      const opacity = 0.3 + (i / height) * 0.2;
+      doc.rect(x, y + i, width, 1)
+        .fillColor(config.gradientStart)
+        .opacity(opacity)
+        .fill();
     }
 
-    // Overlay gradient effect
-    doc.rect(0, 0, width, height)
-      .fillColor('#FFD700') // Gold
-      .opacity(0.4)
-      .fill();
-
-    // Vertical barcode on left edge
-    this.drawVerticalBarcode(doc, 10, 20, 30, height - 40, ticketData.ticketNumber);
-
-    // Ticket number next to barcode (vertical)
-    const ticketNum = ticketData.ticketNumber.replace(/-/g, ' ').replace(/ /g, '');
-    doc.save();
-    doc.translate(50, height / 2);
-    doc.rotate(-90);
-    
-    doc.fontSize(10)
-      .fillColor('#000000')
-      .font('Courier-Bold')
-      .text(ticketNum, 0, 0, {
-        width: height
-      });
-    
-    doc.restore();
-
-    // Logo area (centered horizontally in golden section)
-    const logoX = width / 2 - 40;
-    const logoY = 30;
-    this.drawETHLogo(doc, logoX, logoY, 80);
-
-    // Main "TICKET" title
-    doc.fontSize(48)
-      .fillColor('#000000')
-      .font('Helvetica-Bold')
-      .text('TICKET', width / 2 - 100, 120, {
-        align: 'center',
-        width: 200
-      });
-
-    // Event name
-    doc.fontSize(16)
-      .fillColor('#000000')
-      .font('Helvetica-Bold')
-      .text('EDO TALENT HUNT', width / 2 - 100, 170, {
-        align: 'center',
-        width: 200
-      });
-
-    // Date and time
-    const dateText = ticketData.purchaseDate.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric'
-    }).toUpperCase();
-    const timeText = ticketData.purchaseDate.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: true
-    }).toUpperCase();
-
-    doc.fontSize(14)
-      .fillColor('#000000')
-      .font('Helvetica')
-      .text(`${dateText} - ${timeText}`, width / 2 - 100, 200, {
-        align: 'center',
-        width: 200
-      });
-
-    // Ticket holder name
-    doc.fontSize(12)
-      .fillColor('#000000')
-      .font('Helvetica-Bold')
-      .text(`${ticketData.firstName.toUpperCase()} ${ticketData.lastName.toUpperCase()}`, width / 2 - 100, 225, {
-        align: 'center',
-        width: 200
-      });
-
-    // Gate, Row, Seat information
-    const hash = ticketData.ticketNumber.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const gate = String((hash % 50) + 1).padStart(2, '0');
-    const row = String((hash % 30) + 1).padStart(2, '0');
-    const seat = String((hash % 100) + 1).padStart(2, '0');
-
-    const infoX = width / 2 - 120;
-    const infoY = 250;
-
-    // Labels
-    doc.fontSize(10)
-      .fillColor('#000000')
-      .font('Helvetica')
-      .text('GATE', infoX, infoY, { width: 80 })
-      .text('ROW', infoX + 80, infoY, { width: 80 })
-      .text('SEAT', infoX + 160, infoY, { width: 80 });
-
-    // Values
-    doc.fontSize(14)
-      .fillColor('#000000')
-      .font('Helvetica-Bold')
-      .text(gate, infoX, infoY + 15, { width: 80 })
-      .text(row, infoX + 80, infoY + 15, { width: 80 })
-      .text(seat, infoX + 160, infoY + 15, { width: 80 });
-  }
-
-  private static drawBlackStubSection(doc: PDFKit.PDFDocument, ticketData: TicketData, x: number, width: number, height: number): void {
-    // Black background
-    doc.rect(x, 0, width, height)
-      .fillColor('#000000')
-      .fill();
-
-    // Dashed line separator
-    for (let y = 0; y < height; y += 4) {
-      doc.moveTo(x, y)
-        .lineTo(x, y + 2)
-        .strokeColor('#FFD700')
-        .lineWidth(1)
-        .opacity(0.5)
-        .stroke();
-    }
-
-    // "ADMIT ONE" (left edge, vertical)
-    doc.save();
-    doc.translate(x + 15, height / 2);
-    doc.rotate(-90);
-    
-    doc.fontSize(12)
+    // Ticket type (centered)
+    const typeY = y + 30;
+    doc.fontSize(11)
       .fillColor('#FFFFFF')
       .font('Helvetica-Bold')
-      .text('ADMIT ONE', 0, 0, {
-        width: height
+      .text(config.name, x + width / 2, typeY, {
+        align: 'center',
+        width: width - 20,
+        lineGap: 2
       });
-    
-    doc.restore();
 
-    // "TICKET" (center, vertical, golden)
-    doc.save();
-    doc.translate(x + width / 2, height / 2);
-    doc.rotate(-90);
-    
+    // Price (large, bold)
+    const priceY = typeY + 35;
     doc.fontSize(36)
-      .fillColor('#FFD700')
-      .font('Helvetica-Bold')
-      .text('TICKET', 0, 0, {
-        width: height,
-        align: 'center'
-      });
-      
-    
-    doc.restore();
-
-    // Ticket type label (right edge, vertical)
-    const typeLabels = {
-      regular: 'REGULAR',
-      vip: 'VIP',
-      table_of_5: 'TABLE OF 5',
-      table_of_10: 'TABLE OF 10'
-    };
-    const typeLabel = typeLabels[ticketData.ticketType];
-
-    doc.save();
-    doc.translate(x + width - 20, height / 2);
-    doc.rotate(-90);
-    
-    doc.fontSize(10)
       .fillColor('#FFFFFF')
       .font('Helvetica-Bold')
-      .text(typeLabel, 0, 0, {
-        width: height
+      .text(config.price, x + width / 2, priceY, {
+        align: 'center',
+        width: width - 20
       });
-    
-    doc.restore();
 
-    // Horizontal barcode at bottom right
-    const barcodeY = height - 50;
-    const barcodeWidth = width - 40;
-    this.drawHorizontalBarcode(doc, x + 20, barcodeY, barcodeWidth, 20, ticketData.ticketNumber);
+    // Label (Per Person, Two Persons, etc.)
+    const labelY = priceY + 40;
+    doc.fontSize(10)
+      .fillColor('#FFFFFF')
+      .font('Helvetica')
+      .text(config.label, x + width / 2, labelY, {
+        align: 'center',
+        width: width - 20
+      });
 
-    // Ticket number below barcode
-    const ticketNum = ticketData.ticketNumber.replace(/-/g, ' ').replace(/ /g, '');
+    // "Official Ticket" badge at bottom
+    const badgeY = y + height - 25;
+    const badgeWidth = 80;
+    const badgeHeight = 15;
+    const badgeX = x + (width - badgeWidth) / 2;
+
+    // Badge background
+    doc.rect(badgeX, badgeY, badgeWidth, badgeHeight)
+      .fillColor('rgba(255, 255, 255, 0.2)')
+      .fill();
+
+    doc.rect(badgeX, badgeY, badgeWidth, badgeHeight)
+      .strokeColor('rgba(255, 255, 255, 0.3)')
+      .lineWidth(1)
+      .stroke();
+
+    // Badge text
     doc.fontSize(8)
       .fillColor('#FFFFFF')
-      .font('Courier')
-      .text(ticketNum, x + 20, barcodeY + 25, {
-        width: barcodeWidth
-      });
-  }
-
-  private static drawETHLogo(doc: PDFKit.PDFDocument, x: number, y: number, size: number): void {
-    // Draw circular logo frame
-    doc.circle(x + size/2, y + size/2, size/2)
-      .fillColor('#FFFFFF')
-      .opacity(0.2)
-      .fill();
-
-    doc.circle(x + size/2, y + size/2, size/2)
-      .strokeColor('#000000')
-      .lineWidth(2)
-      .stroke();
-
-    // Draw "ETH" text in the logo
-    doc.fontSize(20)
-      .fillColor('#000000')
       .font('Helvetica-Bold')
-      .text('ETH', x + size/2 - 20, y + size/2 - 8, {
-        width: 40
+      .text('Official Ticket', badgeX + badgeWidth / 2, badgeY + 4, {
+        align: 'center',
+        width: badgeWidth
       });
-
-    // Draw decorative circle around
-    doc.circle(x + size/2, y + size/2, size/2 + 5)
-      .strokeColor('#FFD700')
-      .lineWidth(1)
-      .opacity(0.6)
-      .stroke();
   }
 
-  private static drawVerticalBarcode(doc: PDFKit.PDFDocument, x: number, y: number, width: number, height: number, ticketNumber: string): void {
-    const hash = ticketNumber.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const barCount = 20;
-    const barWidth = width / barCount;
-    
-    for (let i = 0; i < barCount; i++) {
-      const barHeight = height * (0.4 + (hash + i) % 6 * 0.1);
-      const isThick = (hash + i) % 3 === 0;
-      const actualWidth = isThick ? barWidth * 1.5 : barWidth;
+  private static drawDashedBorder(
+    doc: PDFKit.PDFDocument,
+    x: number,
+    y: number,
+    height: number
+  ): void {
+    // Draw dashed vertical line
+    const dashLength = 8;
+    const gapLength = 4;
+    let currentY = y;
+
+    while (currentY < y + height) {
+      doc.moveTo(x, currentY)
+        .lineTo(x, Math.min(currentY + dashLength, y + height))
+        .strokeColor('#FFFFFF')
+        .lineWidth(2)
+        .opacity(0.5)
+        .stroke();
       
-      doc.rect(x + (i * barWidth), y + (height - barHeight), actualWidth, barHeight)
-        .fillColor('#FFFFFF')
-        .fill();
+      currentY += dashLength + gapLength;
     }
   }
 
-  private static drawHorizontalBarcode(doc: PDFKit.PDFDocument, x: number, y: number, width: number, height: number, ticketNumber: string): void {
-    const hash = ticketNumber.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const barCount = 40;
-    const barWidth = width / barCount;
+  private static drawRightSection(
+    doc: PDFKit.PDFDocument,
+    ticketData: TicketData,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    logoImage: Buffer | null,
+    collageImage: Buffer | null
+  ): void {
+    // White background
+    doc.rect(x, y, width, height)
+      .fillColor('#FFFFFF')
+      .fill();
+
+    // Event header section
+    const headerY = y + 15;
     
-    let currentX = x;
-    
-    for (let i = 0; i < barCount; i++) {
-      const barHeight = height * (0.5 + (hash + i) % 5 * 0.1);
-      const isThick = (hash + i) % 3 === 0;
-      const actualWidth = isThick ? barWidth * 1.5 : barWidth;
-      
-      doc.rect(currentX, y + (height - barHeight), actualWidth, barHeight)
-        .fillColor('#FFFFFF')
+    // Logo square (30x30)
+    const logoSize = 30;
+    const logoX = x + 15;
+    const logoY = headerY;
+
+    if (logoImage) {
+      // Add logo image
+      try {
+        doc.image(logoImage, logoX, logoY, { width: logoSize, height: logoSize, fit: [logoSize, logoSize] });
+      } catch (error) {
+        // Fallback to colored square if image fails
+        doc.rect(logoX, logoY, logoSize, logoSize)
+          .fillColor('#4CAF50')
+          .fill();
+      }
+    } else {
+      // Fallback: green square
+      doc.rect(logoX, logoY, logoSize, logoSize)
+        .fillColor('#4CAF50')
         .fill();
+    }
+
+    // Organizer text next to logo
+    const organizerX = logoX + logoSize + 8;
+    doc.fontSize(10)
+      .fillColor('#666666')
+      .font('Helvetica')
+      .text(EVENT_DETAILS.organizer, organizerX, logoY, {
+        width: 150,
+        lineGap: 1
+      });
+
+    // Event title with gradient effect (simulated)
+    const titleX = x + 15;
+    const titleY = headerY + 40;
+    
+    // Main title "EDO TALENT HUNT" with gradient highlight effect
+    doc.fontSize(18)
+      .fillColor('#333333')
+      .font('Helvetica-Bold')
+      .text('EDO', titleX, titleY, {
+        width: width - 30
+      });
+
+    doc.fontSize(18)
+      .fillColor('#333333')
+      .font('Helvetica-Bold')
+      .text('TALENT', titleX, titleY + 20, {
+        width: width - 30
+      });
+
+    doc.fontSize(18)
+      .fillColor('#333333')
+      .font('Helvetica-Bold')
+      .text('HUNT', titleX, titleY + 40, {
+        width: width - 30
+      });
+
+    // Subtitle "GRAND Finale"
+    const subtitleY = titleY + 65;
+    doc.fontSize(14)
+      .fillColor('#666666')
+      .font('Helvetica-Bold')
+      .text(EVENT_DETAILS.subtitle, titleX, subtitleY, {
+        width: width - 30
+      });
+
+    // Event footer section
+    const footerY = y + height - 50;
+    const footerHeight = 35;
+
+    // Dashed top border
+    this.drawDashedTopBorder(doc, x, footerY, width);
+
+    // Event details (left side)
+    const detailsX = x + 15;
+    const detailsY = footerY + 8;
+    
+    const contactText = `FOR INFO: ${EVENT_DETAILS.contacts.join(', ')}`;
+    doc.fontSize(9)
+      .fillColor('#888888')
+      .font('Helvetica')
+      .text(contactText, detailsX, detailsY, {
+        width: width - 100,
+        lineGap: 1.5
+      });
+
+    // Date badge (right side)
+    const dateBadgeX = x + width - 75;
+    const dateBadgeY = footerY + 5;
+    const dateBadgeWidth = 60;
+    const dateBadgeHeight = 30;
+
+    // Date badge background with gradient (purple)
+    doc.rect(dateBadgeX, dateBadgeY, dateBadgeWidth, dateBadgeHeight)
+      .fillColor('#667eea')
+      .fill();
+
+    // Month
+    doc.fontSize(10)
+      .fillColor('#FFFFFF')
+      .opacity(0.9)
+      .font('Helvetica-Bold')
+      .text('JAN', dateBadgeX + dateBadgeWidth / 2, dateBadgeY + 5, {
+        align: 'center',
+        width: dateBadgeWidth
+      });
+    
+    doc.opacity(1); // Reset opacity
+
+    // Day
+    doc.fontSize(16)
+      .fillColor('#FFFFFF')
+      .font('Helvetica-Bold')
+      .text('14', dateBadgeX + dateBadgeWidth / 2, dateBadgeY + 15, {
+        align: 'center',
+        width: dateBadgeWidth
+      });
+
+    // Optional: Add collage image in the middle area if available
+    if (collageImage) {
+      try {
+        const collageX = x + width / 2 - 40;
+        const collageY = y + height / 2 - 30;
+        const collageWidth = 80;
+        const collageHeight = 60;
+        
+        doc.image(collageImage, collageX, collageY, { 
+          width: collageWidth, 
+          height: collageHeight,
+          fit: [collageWidth, collageHeight]
+        });
+      } catch (error) {
+        // Silently fail if image can't be loaded
+      }
+    }
+  }
+
+  private static drawDashedTopBorder(
+    doc: PDFKit.PDFDocument,
+    x: number,
+    y: number,
+    width: number
+  ): void {
+    const dashLength = 8;
+    const gapLength = 4;
+    let currentX = x;
+
+    while (currentX < x + width) {
+      doc.moveTo(currentX, y)
+        .lineTo(Math.min(currentX + dashLength, x + width), y)
+        .strokeColor('#DDDDDD')
+        .lineWidth(1)
+        .stroke();
       
-      currentX += actualWidth;
+      currentX += dashLength + gapLength;
     }
   }
 }
