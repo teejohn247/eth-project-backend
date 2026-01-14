@@ -11,11 +11,10 @@ export declare class TicketPdfGenerator {
         purchaseDate: Date;
         totalAmount: number;
     }): Promise<Buffer>;
-    private static drawLuxuryTicket;
-    private static drawGoldenSection;
-    private static drawBlackStubSection;
-    private static drawETHLogo;
-    private static drawVerticalBarcode;
-    private static drawHorizontalBarcode;
+    private static drawTicket;
+    private static drawLeftSection;
+    private static drawDashedBorder;
+    private static drawRightSection;
+    private static drawDashedTopBorder;
 }
 //# sourceMappingURL=ticketPdfGenerator.d.ts.map

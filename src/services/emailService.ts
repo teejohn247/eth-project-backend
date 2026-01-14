@@ -1187,13 +1187,13 @@ class EmailService {
       to: email,
       subject,
       html: htmlContent,
-      attachments: [
-        {
-          filename: `Edo-Talent-Hunt-Tickets-${purchaseReference}.pdf`,
-          content: pdfBuffer,
-          contentType: 'application/pdf'
-        }
-      ]
+      // attachments: [
+      //   {
+      //     filename: `Edo-Talent-Hunt-Tickets-${purchaseReference}.pdf`,
+      //     content: pdfBuffer,
+      //     contentType: 'application/pdf'
+      //   }
+      // ]
     };
 
     try {
@@ -1217,29 +1217,60 @@ class EmailService {
     ticketNumbers: string[],
     totalAmount: number
   ): string {
-    const ticketRows = tickets.map((ticket, index) => {
-      const startIndex = tickets.slice(0, index).reduce((sum, t) => sum + t.quantity, 0);
-      const ticketNums = ticketNumbers.slice(startIndex, startIndex + ticket.quantity);
-      
+    const ticketItems = tickets.map((ticket, index) => {
+      const isVIP = ticket.ticketType.toUpperCase().includes('VIP') || ticket.ticketType.toUpperCase().includes('COUPLE');
       return `
-        <tr style="border-bottom: 1px solid #E2E8F0;">
-          <td style="padding: 15px; text-align: left;">
-            <strong style="color: #2D3748; text-transform: uppercase;">${ticket.ticketType}</strong>
-          </td>
-          <td style="padding: 15px; text-align: center; color: #4A5568;">${ticket.quantity}</td>
-          <td style="padding: 15px; text-align: right; color: #4A5568;">₦${ticket.unitPrice.toLocaleString()}</td>
-          <td style="padding: 15px; text-align: right; color: #2D3748; font-weight: 600;">₦${ticket.totalPrice.toLocaleString()}</td>
-        </tr>
-        <tr>
-          <td colspan="4" style="padding: 10px 15px; background: #F7FAFC;">
-            <div style="font-size: 12px; color: #718096;">
-              <strong>Ticket Numbers:</strong> ${ticketNums.join(', ')}
-            </div>
-          </td>
-        </tr>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="padding: 12px 0; border-bottom: ${index < tickets.length - 1 ? '1px solid #27272A' : 'none'};">
+          <tr>
+            <td width="48" style="vertical-align: middle;">
+              <div style="width: 48px; height: 48px; border-radius: 12px; text-align: center; line-height: 48px; font-size: 16px; font-weight: 700; ${isVIP ? 'background: rgba(251, 191, 36, 0.15); color: #FBBF24;' : 'background: #27272A; color: #A1A1AA;'}">
+                ${ticket.quantity}×
+              </div>
+            </td>
+            <td width="12"></td>
+            <td style="vertical-align: middle;">
+              <p style="color: #FFFFFF; font-size: 15px; font-weight: 600; margin: 0 0 4px 0; text-transform: uppercase;">${ticket.ticketType}</p>
+              <p style="color: #71717A; font-size: 13px; margin: 0;">₦${ticket.unitPrice.toLocaleString()}/ticket</p>
+            </td>
+            <td width="20"></td>
+            <td style="vertical-align: middle; text-align: right; white-space: nowrap;">
+              <p style="color: #FFFFFF; font-weight: 700; margin: 0; font-size: 16px;">₦${ticket.totalPrice.toLocaleString()}</p>
+            </td>
+          </tr>
+        </table>
+      `;
+    }).join('');
+    
+    const ticketNumberCards = ticketNumbers.map((num, index) => {
+      return `
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #27272A; border-radius: 12px; margin-bottom: 8px;">
+          <tr>
+            <td style="padding: 12px 16px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td width="24" style="vertical-align: middle;">
+                    <span style="color: #FBBF24; font-size: 18px;">🎟️</span>
+                  </td>
+                  <td width="12"></td>
+                  <td style="vertical-align: middle;">
+                    <span style="color: #FFFFFF; font-family: 'Courier New', monospace; font-size: 14px;">${num}</span>
+                  </td>
+                  <td style="vertical-align: middle; text-align: right;">
+                    <span style="color: #52525B; font-size: 12px;">#${index + 1}</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
       `;
     }).join('');
 
+    // Use hosted image URLs - these need to be publicly accessible via CDN/Cloudinary
+    // The performers image has been uploaded to Cloudinary
+    const performersImageUrl = process.env.PERFORMERS_IMAGE_URL || 'https://res.cloudinary.com/dbwtjruq8/image/upload/v1768391085/edo-talent-hunt/email/performers-collage.jpg';
+    const logoImageUrl = process.env.LOGO_IMAGE_URL || 'https://www.edotalenthunt.com/assets/img/project/eth-logo-wht.png';
+    
     return `
       <!DOCTYPE html>
       <html lang="en">
@@ -1257,269 +1288,364 @@ class EmailService {
           body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             line-height: 1.6;
-            color: #333333;
-            background: linear-gradient(135deg, #F5F5DC 0%, #FFF8DC 50%, #FFFACD 100%);
+            background: #09090B;
             margin: 0;
-            padding: 20px;
+            padding: 16px;
           }
           
-          .email-wrapper {
-            max-width: 600px;
+          .email-container {
+            max-width: 512px;
             margin: 0 auto;
-            background: #ffffff;
+            background: #18181B;
             border-radius: 24px;
             overflow: hidden;
-            box-shadow: 0 25px 50px rgba(218, 165, 32, 0.2);
-            border: 2px solid rgba(255, 215, 0, 0.3);
+            border: 1px solid #27272A;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
           }
           
-          .header {
-            background: linear-gradient(135deg, #FFD700 0%, #F4D03F 30%, #DAA520 70%, #B8860B 100%);
-            padding: 60px 40px;
-            text-align: center;
+          .hero-section {
             position: relative;
+            height: 240px;
             overflow: hidden;
+            background: #09090B;
           }
           
-          .circular-frame {
-            width: 160px;
-            height: 160px;
-            margin: 0 auto 30px;
-            background: #ffffff;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 
-              0 0 0 8px rgba(255, 255, 255, 0.8),
-              0 0 0 16px rgba(255, 215, 0, 0.6),
-              0 15px 35px rgba(0, 0, 0, 0.2);
-          }
-          
-          .logo img {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
+          .hero-image {
+            width: 100%;
+            height: 100%;
             object-fit: cover;
+            opacity: 0.85;
           }
           
-          .brand-name {
-            font-size: 36px;
-            font-weight: 900;
-            color: #1a1a1a;
-            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.3);
-            letter-spacing: 3px;
-            margin: 0 0 10px 0;
-            text-transform: uppercase;
+          .hero-gradient {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(to bottom, rgba(9, 9, 11, 0) 0%, rgba(9, 9, 11, 0.4) 30%, rgba(24, 24, 27, 0.95) 85%, #18181B 100%);
+          }
+          
+          .logo-badge {
+            position: absolute;
+            bottom: 0px;
+            left: 50%;
+            transform: translateX(-50%) rotate(2deg);
+            z-index: 10;
+            width: 88px;
+            height: 88px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%);
+            padding: 3px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 0 4px rgba(251, 191, 36, 0.1);
+          }
+          
+          .logo-badge-inner {
+            width: 100%;
+            height: 100%;
+            border-radius: 17px;
+            background: #18181B;
+            padding: 12px;
+            transform: rotate(-2deg);
+          }
+          
+          .logo-badge img {
+            display: block;
+            width: 100%;
+            height: auto;
+            max-width: 64px;
+            margin: 0 auto;
           }
           
           .content {
-            padding: 50px 40px;
-            background: #ffffff;
+            padding: 60px 24px 32px;
+            background: #18181B;
           }
           
-          .greeting {
-            font-size: 24px;
-            font-weight: 600;
-            color: #2D3748;
-            margin-bottom: 20px;
+          .brand-status {
+            text-align: center;
+            margin-bottom: 24px;
+          }
+          
+          .brand-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #FFFFFF;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
           }
           
           .success-badge {
-            background: linear-gradient(135deg, #48BB78, #38A169);
-            color: white;
-            padding: 12px 24px;
-            border-radius: 25px;
-            font-size: 14px;
-            font-weight: 700;
-            text-transform: uppercase;
             display: inline-block;
-            margin-bottom: 30px;
-            box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3);
-          }
-          
-          .ticket-card {
-            background: linear-gradient(135deg, #FFF9E6 0%, #FFF5CC 100%);
-            border: 3px solid #FFD700;
+            padding: 6px 12px;
             border-radius: 20px;
-            padding: 30px;
-            margin: 30px 0;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
           }
           
-          .purchase-info {
-            background: #F7FAFC;
-            border-radius: 12px;
-            padding: 20px;
-            margin: 20px 0;
+          .success-dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #34D399;
+            margin-right: 8px;
+            vertical-align: middle;
           }
           
-          .purchase-info p {
-            margin: 8px 0;
-            color: #4A5568;
-            font-size: 14px;
-          }
-          
-          .purchase-info strong {
-            color: #2D3748;
-          }
-          
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-            background: white;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-          }
-          
-          th {
-            background: linear-gradient(135deg, #FFD700, #DAA520);
-            color: #1a1a1a;
-            padding: 15px;
-            text-align: left;
-            font-weight: 700;
-            text-transform: uppercase;
+          .success-text {
+            color: #34D399;
             font-size: 12px;
-            letter-spacing: 1px;
+            font-weight: 500;
+            vertical-align: middle;
           }
           
-          td {
-            padding: 15px;
-            color: #4A5568;
+          .greeting-section {
+            text-align: center;
+            margin-bottom: 24px;
+          }
+          
+          .greeting-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #FFFFFF;
+            margin-bottom: 8px;
+          }
+          
+          .greeting-subtitle {
+            font-size: 14px;
+            color: #A1A1AA;
+          }
+          
+          .order-card {
+            background: #09090B;
+            border: 1px solid #27272A;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+          }
+          
+          .order-header {
+            font-size: 12px;
+            margin-bottom: 16px;
+          }
+          
+          .order-label {
+            color: #71717A;
+          }
+          
+          .order-reference {
+            color: #A1A1AA;
+            font-family: 'Courier New', monospace;
+          }
+          
+          .ticket-items {
+            margin-bottom: 16px;
           }
           
           .total-row {
-            background: linear-gradient(135deg, #FFD700, #DAA520);
+            padding-top: 16px;
+            margin-top: 12px;
+            border-top: 1px solid #3F3F46;
+          }
+          
+          .total-label {
+            color: #A1A1AA;
+            font-size: 15px;
+            font-weight: 500;
+          }
+          
+          .total-amount {
+            font-size: 24px;
             font-weight: 700;
-            color: #1a1a1a;
+            color: #FBBF24;
+            letter-spacing: -0.5px;
           }
           
-          .ticket-numbers {
-            background: #F7FAFC;
-            border-left: 4px solid #FFD700;
-            padding: 20px;
-            margin: 20px 0;
-            border-radius: 8px;
+          .tickets-section {
+            margin-bottom: 24px;
           }
           
-          .ticket-numbers h4 {
-            color: #2D3748;
-            margin-bottom: 10px;
-            font-size: 16px;
+          .tickets-label {
+            color: #71717A;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            text-align: center;
+            margin-bottom: 12px;
           }
           
-          .ticket-number {
-            background: white;
-            padding: 10px 15px;
-            margin: 5px 0;
-            border-radius: 8px;
-            font-family: 'Courier New', monospace;
-            font-weight: 600;
-            color: #B8860B;
-            border: 2px dashed #DAA520;
-            display: inline-block;
-            margin-right: 10px;
-            margin-bottom: 10px;
+          .event-info {
+            background: rgba(251, 191, 36, 0.05);
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid rgba(251, 191, 36, 0.1);
+          }
+          
+          .event-header {
+            margin-bottom: 12px;
+          }
+          
+          .event-icon {
+            font-size: 18px;
+          }
+          
+          .event-title {
+            color: #FFFFFF;
+            font-size: 14px;
+            font-weight: 500;
+          }
+          
+          .event-location {
+            color: #71717A;
+            font-size: 12px;
+          }
+          
+          .event-list {
+            color: #A1A1AA;
+            font-size: 12px;
+            margin-left: 32px;
+            list-style: none;
+          }
+          
+          .event-list li {
+            margin-bottom: 4px;
           }
           
           .footer {
-            background: linear-gradient(135deg, #F7FAFC 0%, #EDF2F7 100%);
-            padding: 40px;
+            padding: 24px;
+            background: #09090B;
+            border-top: 1px solid #27272A;
             text-align: center;
-            border-top: 3px solid #E2E8F0;
+          }
+          
+          .footer-text {
+            color: #52525B;
+            font-size: 12px;
+          }
+          
+          .footer-link {
+            color: #71717A;
+            text-decoration: none;
+          }
+          
+          .footer-link:hover {
+            color: #FBBF24;
           }
           
           @media (max-width: 600px) {
+            body {
+              padding: 8px;
+            }
+            
+            .email-container {
+              border-radius: 16px;
+            }
+            
+            .hero-section {
+              height: 144px;
+            }
+            
+            .logo-badge {
+              width: 64px;
+              height: 64px;
+            }
+            
             .content {
-              padding: 30px 20px;
-            }
-            
-            table {
-              font-size: 12px;
-            }
-            
-            th, td {
-              padding: 10px 8px;
+              padding: 48px 20px 24px;
             }
           }
         </style>
       </head>
       <body>
-        <div class="email-wrapper">
-          <div class="header">
-            <div class="circular-frame">
-              <div class="logo">
-                <img src="https://www.edotalenthunt.com/assets/img/project/eth-logo-wht.png" alt="Edo Talent Hunt Logo" />
+        <div class="email-container">
+          <!-- Hero Section -->
+          <div class="hero-section">
+            <img src="${performersImageUrl}" alt="Performers" class="hero-image" />
+            <div class="hero-gradient"></div>
+            
+            <!-- Logo Badge -->
+            <div class="logo-badge">
+              <div class="logo-badge-inner">
+                <img src="${logoImageUrl}" alt="Edo Talent Hunt" />
               </div>
             </div>
-            <h1 class="brand-name">Edo Talent Hunt</h1>
           </div>
-          
+
+          <!-- Main Content -->
           <div class="content">
-            <div class="success-badge">✅ Payment Successful</div>
-            
-            <h2 class="greeting">Hello ${firstName} ${lastName}!</h2>
-            
-            <p style="color: #4A5568; margin-bottom: 30px; font-size: 16px;">
-              Thank you for your purchase! Your tickets for Edo Talent Hunt have been successfully generated and are attached below.
-            </p>
-            
-            <div class="purchase-info">
-              <p><strong>Purchase Reference:</strong> ${purchaseReference}</p>
-              <p><strong>Purchase Date:</strong> ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            <!-- Brand & Status -->
+            <div class="brand-status">
+              <h1 class="brand-title">Edo Talent Hunt</h1>
+              <div class="success-badge">
+                <div class="success-dot"></div>
+                <span class="success-text">Payment Successful</span>
+              </div>
             </div>
-            
-            <div class="ticket-card">
-              <h3 style="color: #B8860B; margin-bottom: 20px; text-transform: uppercase; font-size: 18px;">Your Tickets</h3>
+
+            <!-- Greeting -->
+            <div class="greeting-section">
+              <h2 class="greeting-title">Hi ${firstName}! 🎉</h2>
+              <p class="greeting-subtitle">Your tickets are confirmed and ready.</p>
+            </div>
+
+            <!-- Order Card -->
+            <div class="order-card">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 16px;">
+                <tr>
+                  <td class="order-label">Order</td>
+                  <td class="order-reference" style="text-align: right;">${purchaseReference}</td>
+                </tr>
+              </table>
               
-              <table>
-                <thead>
-                  <tr>
-                    <th>Ticket Type</th>
-                    <th style="text-align: center;">Quantity</th>
-                    <th style="text-align: right;">Unit Price</th>
-                    <th style="text-align: right;">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${ticketRows}
-                  <tr class="total-row">
-                    <td colspan="3" style="text-align: right; padding-right: 20px;"><strong>TOTAL</strong></td>
-                    <td style="text-align: right;"><strong>₦${totalAmount.toLocaleString()}</strong></td>
-                  </tr>
-                </tbody>
+              <div class="ticket-items">
+                ${ticketItems}
+              </div>
+              
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" class="total-row">
+                <tr>
+                  <td class="total-label">Total</td>
+                  <td class="total-amount" style="text-align: right;">₦${totalAmount.toLocaleString()}</td>
+                </tr>
               </table>
             </div>
-            
-            <div class="ticket-numbers">
-              <h4>🎟️ Your Ticket Numbers</h4>
-              <p style="color: #718096; font-size: 14px; margin-bottom: 15px;">
-                Please save these ticket numbers. You'll need them for entry to the event.
-              </p>
-              ${ticketNumbers.map(num => `<span class="ticket-number">${num}</span>`).join('')}
+
+            <!-- Ticket Numbers -->
+            <div class="tickets-section">
+              <p class="tickets-label">Your Tickets</p>
+              <div>
+                ${ticketNumberCards}
+              </div>
             </div>
-            
-            <div style="background: #FFF5F5; border: 2px solid #FEB2B2; border-radius: 12px; padding: 20px; margin: 30px 0;">
-              <h4 style="color: #742A2A; margin-bottom: 10px;">📋 Important Information</h4>
-              <ul style="color: #742A2A; padding-left: 20px; line-height: 1.8;">
-                <li>Please bring a valid ID and this email confirmation to the event</li>
-                <li>Your ticket numbers are unique and non-transferable</li>
-                <li>Arrive early to avoid delays at the entrance</li>
-                <li>For any questions, contact our support team</li>
+
+            <!-- Event Info -->
+            <div class="event-info">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" class="event-header">
+                <tr>
+                  <td width="24" style="vertical-align: top;">
+                    <span class="event-icon">📍</span>
+                  </td>
+                  <td width="12"></td>
+                  <td style="vertical-align: top;">
+                    <p class="event-title">Grand Finale</p>
+                    <p class="event-location">Victor Uwaifo Creative Hub, Benin City</p>
+                  </td>
+                </tr>
+              </table>
+              <ul class="event-list">
+                <li>• Bring valid ID matching ticket name</li>
+                <li>• Gates open 4PM — arrive early</li>
+                <li>• Present this email at entry</li>
               </ul>
             </div>
           </div>
-          
+
+          <!-- Footer -->
           <div class="footer">
-            <div style="font-size: 18px; font-weight: 700; color: #2D3748; margin-bottom: 8px;">Edo Talent Hunt</div>
-            <div style="font-size: 14px; color: #718096; margin-bottom: 20px; font-style: italic;">
-              Empowering talents across Edo State and beyond
-            </div>
-            <div style="font-size: 13px; color: #718096; line-height: 1.5;">
-              © 2024 Edo Talent Hunt. All rights reserved.<br>
-              This is an automated message, please do not reply directly to this email.
-            </div>
+            <p class="footer-text">
+              © 2026 Edo Talent Hunt • <a href="mailto:support@edotalenthunt.com" class="footer-link">Get Help</a>
+            </p>
           </div>
         </div>
       </body>

@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your Edo Talent Hunt Tickets</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      line-height: 1.6;
+      background: #09090B;
+      margin: 0;
+      padding: 16px;
+    }
+    
+    .email-container {
+      max-width: 512px;
+      margin: 0 auto;
+      background: #18181B;
+      border-radius: 24px;
+      overflow: hidden;
+      border: 1px solid #27272A;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+    
+    .hero-section {
+      position: relative;
+      height: 240px;
+      overflow: hidden;
+      background: #09090B;
+    }
+    
+    .hero-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.85;
+    }
+    
+    .hero-gradient {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(9, 9, 11, 0) 0%, rgba(9, 9, 11, 0.4) 30%, rgba(24, 24, 27, 0.95) 85%, #18181B 100%);
+    }
+    
+    .logo-badge {
+      position: absolute;
+      bottom: -40px;
+      left: 50%;
+      transform: translateX(-50%) rotate(2deg);
+      z-index: 10;
+      width: 88px;
+      height: 88px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%);
+      padding: 3px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 0 4px rgba(251, 191, 36, 0.1);
+    }
+    
+    .logo-badge-inner {
+      width: 100%;
+      height: 100%;
+      border-radius: 17px;
+      background: #18181B;
+      padding: 10px;
+      transform: rotate(-2deg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .logo-badge img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    
+    .content {
+      padding: 60px 24px 32px;
+      background: #18181B;
+    }
+    
+    .brand-status {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    
+    .brand-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #FFFFFF;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+    }
+    
+    .success-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 9999px;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+    
+    .success-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #34D399;
+    }
+    
+    .success-text {
+      color: #34D399;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .greeting-section {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    
+    .greeting-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #FFFFFF;
+      margin-bottom: 8px;
+    }
+    
+    .greeting-subtitle {
+      font-size: 14px;
+      color: #A1A1AA;
+    }
+    
+    .order-card {
+      background: #09090B;
+      border: 1px solid #27272A;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    
+    .order-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      margin-bottom: 16px;
+    }
+    
+    .order-label {
+      color: #71717A;
+    }
+    
+    .order-reference {
+      color: #A1A1AA;
+      font-family: 'Courier New', monospace;
+    }
+    
+    .ticket-items {
+      margin-bottom: 16px;
+    }
+    
+    .total-row {
+      padding-top: 16px;
+      margin-top: 12px;
+      border-top: 1px solid #3F3F46;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .total-label {
+      color: #A1A1AA;
+      font-size: 15px;
+      font-weight: 500;
+    }
+    
+    .total-amount {
+      font-size: 24px;
+      font-weight: 700;
+      color: #FBBF24;
+      letter-spacing: -0.5px;
+    }
+    
+    .tickets-section {
+      margin-bottom: 24px;
+    }
+    
+    .tickets-label {
+      color: #71717A;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      text-align: center;
+      margin-bottom: 12px;
+    }
+    
+    .event-info {
+      background: rgba(251, 191, 36, 0.05);
+      border-radius: 12px;
+      padding: 16px;
+      border: 1px solid rgba(251, 191, 36, 0.1);
+    }
+    
+    .event-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    
+    .event-icon {
+      font-size: 18px;
+    }
+    
+    .event-title {
+      color: #FFFFFF;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    
+    .event-location {
+      color: #71717A;
+      font-size: 12px;
+    }
+    
+    .event-list {
+      color: #A1A1AA;
+      font-size: 12px;
+      margin-left: 32px;
+      list-style: none;
+    }
+    
+    .event-list li {
+      margin-bottom: 4px;
+    }
+    
+    .footer {
+      padding: 24px;
+      background: #09090B;
+      border-top: 1px solid #27272A;
+      text-align: center;
+    }
+    
+    .footer-text {
+      color: #52525B;
+      font-size: 12px;
+    }
+    
+    .footer-link {
+      color: #71717A;
+      text-decoration: none;
+    }
+    
+    .footer-link:hover {
+      color: #FBBF24;
+    }
+    
+    @media (max-width: 600px) {
+      body {
+        padding: 8px;
+      }
+      
+      .email-container {
+        border-radius: 16px;
+      }
+      
+      .hero-section {
+        height: 144px;
+      }
+      
+      .logo-badge {
+        width: 64px;
+        height: 64px;
+      }
+      
+      .content {
+        padding: 48px 20px 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <!-- Hero Section -->
+    <div class="hero-section">
+      <img src="https://res.cloudinary.com/dbwtjruq8/image/upload/v1768391085/edo-talent-hunt/email/performers-collage.jpg" alt="Performers" class="hero-image" />
+      <div class="hero-gradient"></div>
+      
+      <!-- Logo Badge -->
+      <div class="logo-badge">
+        <div class="logo-badge-inner">
+          <img src="https://www.edotalenthunt.com/assets/img/project/eth-logo-wht.png" alt="Edo Talent Hunt" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="content">
+      <!-- Brand & Status -->
+      <div class="brand-status">
+        <h1 class="brand-title">Edo Talent Hunt</h1>
+        <div class="success-badge">
+          <div class="success-dot"></div>
+          <span class="success-text">Payment Successful</span>
+        </div>
+      </div>
+
+      <!-- Greeting -->
+      <div class="greeting-section">
+        <h2 class="greeting-title">Hi John! 🎉</h2>
+        <p class="greeting-subtitle">Your tickets are confirmed and ready.</p>
+      </div>
+
+      <!-- Order Card -->
+      <div class="order-card">
+        <div class="order-header">
+          <span class="order-label">Order</span>
+          <span class="order-reference">TEST-1768390703326</span>
+        </div>
+        
+        <div class="ticket-items">
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #27272A;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div style="width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; background: #27272A; color: #A1A1AA;">
+                2×
+              </div>
+              <div>
+                <p style="color: #FFFFFF; font-size: 15px; font-weight: 600; margin: 0 0 4px 0; text-transform: uppercase;">regular</p>
+                <p style="color: #71717A; font-size: 13px; margin: 0;">₦10,000/ticket</p>
+              </div>
+            </div>
+            <p style="color: #FFFFFF; font-weight: 700; margin: 0; font-size: 16px;">₦20,000</p>
+          </div>
+          
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 0;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div style="width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; background: rgba(251, 191, 36, 0.15); color: #FBBF24;">
+                1×
+              </div>
+              <div>
+                <p style="color: #FFFFFF; font-size: 15px; font-weight: 600; margin: 0 0 4px 0; text-transform: uppercase;">vip</p>
+                <p style="color: #71717A; font-size: 13px; margin: 0;">₦50,000/ticket</p>
+              </div>
+            </div>
+            <p style="color: #FFFFFF; font-weight: 700; margin: 0; font-size: 16px;">₦50,000</p>
+          </div>
+        </div>
+        
+        <div class="total-row">
+          <span class="total-label">Total</span>
+          <span class="total-amount">₦70,000</span>
+        </div>
+      </div>
+
+      <!-- Ticket Numbers -->
+      <div class="tickets-section">
+        <p class="tickets-label">Your Tickets</p>
+        <div>
+          <div style="position: relative; background: #27272A; border-radius: 12px; padding: 12px 16px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span style="color: #FBBF24; font-size: 18px;">🎟️</span>
+              <span style="color: #FFFFFF; font-family: 'Courier New', monospace; font-size: 14px;">ETH-2026-ABC001</span>
+            </div>
+            <span style="color: #52525B; font-size: 12px;">#1</span>
+            <!-- Ticket notches -->
+            <div style="position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 8px; height: 16px; background: #09090B; border-radius: 0 4px 4px 0; margin-left: -4px;"></div>
+            <div style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 8px; height: 16px; background: #09090B; border-radius: 4px 0 0 4px; margin-right: -4px;"></div>
+          </div>
+          
+          <div style="position: relative; background: #27272A; border-radius: 12px; padding: 12px 16px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span style="color: #FBBF24; font-size: 18px;">🎟️</span>
+              <span style="color: #FFFFFF; font-family: 'Courier New', monospace; font-size: 14px;">ETH-2026-ABC002</span>
+            </div>
+            <span style="color: #52525B; font-size: 12px;">#2</span>
+            <!-- Ticket notches -->
+            <div style="position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 8px; height: 16px; background: #09090B; border-radius: 0 4px 4px 0; margin-left: -4px;"></div>
+            <div style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 8px; height: 16px; background: #09090B; border-radius: 4px 0 0 4px; margin-right: -4px;"></div>
+          </div>
+          
+          <div style="position: relative; background: #27272A; border-radius: 12px; padding: 12px 16px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span style="color: #FBBF24; font-size: 18px;">🎟️</span>
+              <span style="color: #FFFFFF; font-family: 'Courier New', monospace; font-size: 14px;">ETH-2026-ABC003</span>
+            </div>
+            <span style="color: #52525B; font-size: 12px;">#3</span>
+            <!-- Ticket notches -->
+            <div style="position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 8px; height: 16px; background: #09090B; border-radius: 0 4px 4px 0; margin-left: -4px;"></div>
+            <div style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 8px; height: 16px; background: #09090B; border-radius: 4px 0 0 4px; margin-right: -4px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Event Info -->
+      <div class="event-info">
+        <div class="event-header">
+          <span class="event-icon">📍</span>
+          <div>
+            <p class="event-title">Grand Finale</p>
+            <p class="event-location">Victor Uwaifo Creative Hub, Benin City</p>
+          </div>
+        </div>
+        <ul class="event-list">
+          <li>• Bring valid ID matching ticket name</li>
+          <li>• Gates open 4PM — arrive early</li>
+          <li>• Present this email at entry</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <p class="footer-text">
+        © 2026 Edo Talent Hunt • <a href="mailto:support@edotalenthunt.com" class="footer-link">Get Help</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+
