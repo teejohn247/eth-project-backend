@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createTransaction = exports.updatePaymentTransaction = exports.getAllPayments = exports.savePaymentInfo = exports.refundPayment = exports.handlePaymentWebhook = exports.getPaymentStatus = exports.verifyPayment = exports.initializePayment = void 0;
+exports.createTransaction = exports.updatePaymentTransaction = exports.getAllPayments = exports.savePaymentInfo = exports.refundPayment = exports.handleTicketPaymentWebhook = exports.handlePaymentWebhook = exports.getPaymentStatus = exports.verifyPayment = exports.initializePayment = void 0;
 const Registration_1 = __importDefault(require("../models/Registration"));
 const PaymentTransaction_1 = __importDefault(require("../models/PaymentTransaction"));
 const crypto_1 = __importDefault(require("crypto"));
@@ -449,6 +449,114 @@ const handlePaymentWebhook = async (req, res) => {
     }
 };
 exports.handlePaymentWebhook = handlePaymentWebhook;
+const handleTicketPaymentWebhook = async (req, res) => {
+    try {
+        const payload = req.body;
+        console.log('📥 Ticket payment webhook received:', JSON.stringify(payload, null, 2));
+        const data = payload.data || payload;
+        const reference = data.transRef || data.reference || data.businessRef || payload.transRef || payload.reference || payload.businessRef;
+        if (!reference) {
+            console.error('❌ No payment reference in webhook');
+            res.status(200).json({
+                success: true,
+                message: 'Webhook received but no reference found'
+            });
+            return;
+        }
+        const TicketPurchase = (await Promise.resolve().then(() => __importStar(require('../models/TicketPurchase')))).default;
+        const Ticket = (await Promise.resolve().then(() => __importStar(require('../models/Ticket')))).default;
+        const emailService = (await Promise.resolve().then(() => __importStar(require('../services/emailService')))).default;
+        const ticketPurchase = await TicketPurchase.findOne({ paymentReference: reference });
+        if (!ticketPurchase) {
+            console.log(`⚠️ Ticket purchase not found for reference: ${reference}`);
+            res.status(200).json({
+                success: true,
+                message: 'Ticket purchase not found - webhook acknowledged'
+            });
+            return;
+        }
+        if (ticketPurchase.paymentStatus === 'completed') {
+            console.log(`⏭️ Payment reference ${reference} already processed - ignoring webhook`);
+            res.status(200).json({
+                success: true,
+                message: 'Payment already processed - webhook ignored'
+            });
+            return;
+        }
+        const isSuccessful = (payload.event === 'TRANSACTION.SUCCESSFUL') ||
+            (data.status === 0 || data.status === '0') ||
+            (payload.status === 0 || payload.status === '0');
+        if (!isSuccessful) {
+            console.log('❌ Ticket payment failed');
+            ticketPurchase.paymentStatus = 'failed';
+            await ticketPurchase.save();
+            const paymentTransaction = await PaymentTransaction_1.default.findOne({ reference });
+            if (paymentTransaction) {
+                paymentTransaction.status = 'failed';
+                paymentTransaction.failureReason = data.responseMessage || payload.responseMessage || 'Payment failed';
+                paymentTransaction.gatewayResponse = payload;
+                await paymentTransaction.save();
+            }
+            res.status(200).json({ success: true, message: 'Failed payment acknowledged' });
+            return;
+        }
+        console.log('✅ Payment successful - processing ticket purchase...');
+        const previousStatus = ticketPurchase.paymentStatus;
+        ticketPurchase.paymentStatus = 'completed';
+        await ticketPurchase.save();
+        const paymentTransaction = await PaymentTransaction_1.default.findOne({ reference });
+        if (paymentTransaction) {
+            paymentTransaction.status = 'successful';
+            paymentTransaction.gatewayResponse = payload;
+            paymentTransaction.processedAt = new Date();
+            await paymentTransaction.save();
+            console.log('✅ Payment transaction updated');
+        }
+        if (previousStatus !== 'completed') {
+            for (const ticketItem of ticketPurchase.tickets) {
+                const ticket = await Ticket.findById(ticketItem.ticketId);
+                if (ticket) {
+                    ticket.soldQuantity += ticketItem.quantity;
+                    await ticket.save();
+                    console.log(`✅ Updated ticket ${ticketItem.ticketType}: +${ticketItem.quantity} sold`);
+                }
+            }
+        }
+        if (!ticketPurchase.ticketSent && ticketPurchase.ticketNumbers && ticketPurchase.ticketNumbers.length > 0) {
+            try {
+                await emailService.sendTicketEmail(ticketPurchase.email, ticketPurchase.firstName, ticketPurchase.lastName, ticketPurchase.purchaseReference, ticketPurchase.tickets, ticketPurchase.ticketNumbers, ticketPurchase.totalAmount);
+                ticketPurchase.ticketSent = true;
+                ticketPurchase.ticketSentAt = new Date();
+                await ticketPurchase.save();
+                console.log(`✅ Ticket email sent to ${ticketPurchase.email}`);
+            }
+            catch (emailError) {
+                console.error('❌ Failed to send ticket email:', emailError);
+            }
+        }
+        console.log('✅ Ticket payment processed successfully');
+        res.status(200).json({
+            success: true,
+            message: 'Ticket payment processed successfully',
+            data: {
+                purchaseReference: ticketPurchase.purchaseReference,
+                paymentReference: reference,
+                ticketNumbers: ticketPurchase.ticketNumbers,
+                email: ticketPurchase.email,
+                ticketSent: ticketPurchase.ticketSent
+            }
+        });
+    }
+    catch (error) {
+        console.error('❌ Ticket payment webhook error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Webhook processing failed',
+            error: process.env.NODE_ENV === 'development' ? error : undefined
+        });
+    }
+};
+exports.handleTicketPaymentWebhook = handleTicketPaymentWebhook;
 const refundPayment = async (req, res) => {
     try {
         const { reference } = req.params;

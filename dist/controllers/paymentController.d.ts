@@ -4,6 +4,7 @@ export declare const initializePayment: (req: AuthenticatedRequest, res: Respons
 export declare const verifyPayment: (req: Request, res: Response) => Promise<void>;
 export declare const getPaymentStatus: (req: AuthenticatedRequest, res: Response) => Promise<void>;
 export declare const handlePaymentWebhook: (req: Request, res: Response) => Promise<void>;
+export declare const handleTicketPaymentWebhook: (req: Request, res: Response) => Promise<void>;
 export declare const refundPayment: (req: AuthenticatedRequest, res: Response) => Promise<void>;
 export declare const savePaymentInfo: (req: AuthenticatedRequest, res: Response) => Promise<void>;
 export declare const getAllPayments: (req: AuthenticatedRequest, res: Response) => Promise<void>;

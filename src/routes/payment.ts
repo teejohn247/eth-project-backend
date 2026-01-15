@@ -4,6 +4,7 @@ import {
   verifyPayment,
   getPaymentStatus,
   handlePaymentWebhook,
+  handleTicketPaymentWebhook,
   refundPayment,
   savePaymentInfo,
   getAllPayments,
@@ -178,9 +179,9 @@ router.get('/status/:registrationId', authenticateToken, getPaymentStatus);
  *       400:
  *         description: Invalid webhook signature
  */
-router.post('/webhook', handlePaymentWebhook);
+router.post('/webhook', handleTicketPaymentWebhook);
 
-router.post('/voting-webhook', handlePaymentWebhook);
+router.post('/voting-webhook', handleTicketPaymentWebhook);
 
 
 /**
