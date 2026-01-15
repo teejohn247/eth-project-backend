@@ -617,24 +617,37 @@ export const handleTicketPaymentWebhook = async (req: Request, res: Response): P
     const Ticket = (await import('../models/Ticket')).default;
     const emailService = (await import('../services/emailService')).default;
 
-    // Find ticket purchase by payment reference
-    const ticketPurchase = await TicketPurchase.findOne({ paymentReference: reference });
+    // Check if this payment reference has already been processed (to avoid duplicates)
+    const existingTransaction = await PaymentTransaction.findOne({ reference });
     
-    if (!ticketPurchase) {
-      console.log(`⚠️ Ticket purchase not found for reference: ${reference}`);
-      res.status(200).json({
-        success: true,
-        message: 'Ticket purchase not found - webhook acknowledged'
-      });
-      return;
-    }
-
-    // Check if payment was already processed
-    if (ticketPurchase.paymentStatus === 'completed') {
+    if (existingTransaction && existingTransaction.status === 'successful') {
       console.log(`⏭️ Payment reference ${reference} already processed - ignoring webhook`);
       res.status(200).json({
         success: true,
         message: 'Payment already processed - webhook ignored'
+      });
+      return;
+    }
+
+    // Find ticket purchase by payment reference
+    const ticketPurchase = await TicketPurchase.findOne({ paymentReference: reference });
+    
+    // if (!ticketPurchase) {
+    //   console.log(`⚠️ Ticket purchase not found for reference: ${reference}`);
+    //   console.log('This may be a payment initiated outside the system or a different payment type');
+    //   res.status(200).json({
+    //     success: true,
+    //     message: 'Ticket purchase not found - webhook acknowledged'
+    //   });
+    //   return;
+    // }
+
+    // Check if payment was already processed (additional check)
+    if (ticketPurchase.paymentStatus === 'completed') {
+      console.log(`⏭️ Ticket purchase ${ticketPurchase.purchaseReference} already completed - ignoring webhook`);
+      res.status(200).json({
+        success: true,
+        message: 'Ticket purchase already completed - webhook ignored'
       });
       return;
     }
