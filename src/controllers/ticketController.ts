@@ -111,7 +111,7 @@ export const getTicketByType = async (req: Request, res: Response): Promise<void
 // Purchase tickets
 export const purchaseTickets = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { firstName, lastName, email, phone, tickets: ticketArray } = req.body;
+    const { firstName, lastName, email, phone, paymentReference, tickets: ticketArray } = req.body;
 
     // Validate required fields
     if (!firstName || !lastName || !email || !ticketArray || !Array.isArray(ticketArray) || ticketArray.length === 0) {
@@ -216,13 +216,12 @@ export const purchaseTickets = async (req: Request, res: Response): Promise<void
       tickets: ticketDetails,
       totalAmount,
       currency: 'NGN',
-      paymentStatus: 'pending'
+      paymentStatus: 'completed'
     });
 
     await ticketPurchase.save();
 
     // Generate payment reference
-    const paymentReference = `ETH_TKT_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`;
 
     // Create payment transaction
     const paymentTransaction = new PaymentTransaction({
@@ -231,10 +230,10 @@ export const purchaseTickets = async (req: Request, res: Response): Promise<void
       reference: paymentReference,
       amount: totalAmount,
       currency: 'NGN',
-      status: 'initiated'
+      status: 'completed'
     });
 
-    await paymentTransaction.save();
+    // await paymentTransaction.save();
 
     // Update ticket purchase with payment reference
     ticketPurchase.paymentReference = paymentReference;
@@ -281,7 +280,7 @@ export const purchaseTickets = async (req: Request, res: Response): Promise<void
     // Return purchase details with payment info
     res.status(200).json({
       success: true,
-      message: emailSent 
+      message: emailSent
         ? 'Ticket purchase successful. Tickets generated and sent to email.'
         : 'Ticket purchase successful. Tickets generated. Email delivery failed - please save your ticket numbers.',
       data: {
@@ -301,7 +300,7 @@ export const purchaseTickets = async (req: Request, res: Response): Promise<void
         ticketNumbers,
         totalAmount,
         currency: 'NGN',
-        paymentStatus: 'pending',
+        paymentStatus: 'completed',
         ticketSent: emailSent,
         paymentUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment?reference=${paymentReference}`,
         ...(emailError && { emailError: 'Email could not be sent. Please contact support if you need your tickets.' })
@@ -348,110 +347,110 @@ export const verifyTicketPayment = async (req: Request, res: Response): Promise<
     // Find or create ticket purchase
     let ticketPurchase = await TicketPurchase.findOne({ paymentReference });
 
-    if (!ticketPurchase) {
-      // Extract ticket data from payment data or use defaults
-      // Handle different payload formats
-      const email = paymentData.customerId || paymentData.customer?.email || paymentData.email || 'unknown@example.com';
-      const firstName = paymentData.customerFirstName || paymentData.customer?.firstName || paymentData.customer?.name?.split(' ')[0] || 'Unknown';
-      const lastName = paymentData.customerLastName || paymentData.customer?.lastName || paymentData.customer?.name?.split(' ').slice(1).join(' ') || 'User';
-      // Phone is optional - use empty string if not provided
-      const phone = paymentData.customerPhoneNumber || paymentData.customer?.phone || paymentData.phone || '';
+    // if (!ticketPurchase) {
+    //   // Extract ticket data from payment data or use defaults
+    //   // Handle different payload formats
+    //   const email = paymentData.customerId || paymentData.customer?.email || paymentData.email || 'unknown@example.com';
+    //   const firstName = paymentData.customerFirstName || paymentData.customer?.firstName || paymentData.customer?.name?.split(' ')[0] || 'Unknown';
+    //   const lastName = paymentData.customerLastName || paymentData.customer?.lastName || paymentData.customer?.name?.split(' ').slice(1).join(' ') || 'User';
+    //   // Phone is optional - use empty string if not provided
+    //   const phone = paymentData.customerPhoneNumber || paymentData.customer?.phone || paymentData.phone || '';
 
-      // Process tickets from payment data - need to look up ticket IDs
-      const ticketDetails: Array<{
-        ticketId: any;
-        ticketType: 'regular' | 'vip' | 'table_of_5' | 'table_of_10';
-        quantity: number;
-        unitPrice: number;
-        totalPrice: number;
-      }> = [];
+    //   // Process tickets from payment data - need to look up ticket IDs
+    //   const ticketDetails: Array<{
+    //     ticketId: any;
+    //     ticketType: 'regular' | 'vip' | 'table_of_5' | 'table_of_10';
+    //     quantity: number;
+    //     unitPrice: number;
+    //     totalPrice: number;
+    //   }> = [];
 
-      if (paymentData.tickets && Array.isArray(paymentData.tickets) && paymentData.tickets.length > 0) {
-        for (const ticketItem of paymentData.tickets) {
-          const ticketType = ticketItem.ticketType;
-          const quantity = ticketItem.quantity || 1;
+    //   if (paymentData.tickets && Array.isArray(paymentData.tickets) && paymentData.tickets.length > 0) {
+    //     for (const ticketItem of paymentData.tickets) {
+    //       const ticketType = ticketItem.ticketType;
+    //       const quantity = ticketItem.quantity || 1;
           
-          if (ticketType && ['regular', 'vip', 'table_of_5', 'table_of_10'].includes(ticketType)) {
-            const ticket = await Ticket.findOne({ ticketType, isActive: true });
-            if (ticket) {
-              const unitPrice = ticketItem.unitPrice || ticket.price;
-              const totalPrice = unitPrice * quantity;
-              ticketDetails.push({
-                ticketId: ticket._id,
-                ticketType: ticket.ticketType,
-                quantity,
-                unitPrice,
-                totalPrice
-              });
-            }
-          }
-        }
-      }
+    //       if (ticketType && ['regular', 'vip', 'table_of_5', 'table_of_10'].includes(ticketType)) {
+    //         const ticket = await Ticket.findOne({ ticketType, isActive: true });
+    //         if (ticket) {
+    //           const unitPrice = ticketItem.unitPrice || ticket.price;
+    //           const totalPrice = unitPrice * quantity;
+    //           ticketDetails.push({
+    //             ticketId: ticket._id,
+    //             ticketType: ticket.ticketType,
+    //             quantity,
+    //             unitPrice,
+    //             totalPrice
+    //           });
+    //         }
+    //       }
+    //     }
+    //   }
 
-      // If no tickets found, infer from amount or create default
-      if (ticketDetails.length === 0) {
-        const amount = paymentTransaction.amount;
+    //   // If no tickets found, infer from amount or create default
+    //   if (ticketDetails.length === 0) {
+    //     const amount = paymentTransaction.amount;
         
-        // Try to match amount to ticket prices
-        const allTickets = await Ticket.find({ isActive: true }).sort({ price: 1 });
+    //     // Try to match amount to ticket prices
+    //     const allTickets = await Ticket.find({ isActive: true }).sort({ price: 1 });
         
-        // Find best matching ticket(s) based on amount
-        let matched = false;
-        for (const ticket of allTickets) {
-          if (amount >= ticket.price && amount % ticket.price === 0) {
-            const quantity = amount / ticket.price;
-            ticketDetails.push({
-              ticketId: ticket._id,
-              ticketType: ticket.ticketType,
-              quantity: Math.floor(quantity),
-              unitPrice: ticket.price,
-              totalPrice: ticket.price * Math.floor(quantity)
-            });
-            matched = true;
-            break;
-          }
-        }
+    //     // Find best matching ticket(s) based on amount
+    //     let matched = false;
+    //     for (const ticket of allTickets) {
+    //       if (amount >= ticket.price && amount % ticket.price === 0) {
+    //         const quantity = amount / ticket.price;
+    //         ticketDetails.push({
+    //           ticketId: ticket._id,
+    //           ticketType: ticket.ticketType,
+    //           quantity: Math.floor(quantity),
+    //           unitPrice: ticket.price,
+    //           totalPrice: ticket.price * Math.floor(quantity)
+    //         });
+    //         matched = true;
+    //         break;
+    //       }
+    //     }
         
-        // If no match, create default regular ticket
-        if (!matched) {
-          const defaultTicket = await Ticket.findOne({ ticketType: 'regular', isActive: true });
-          if (defaultTicket) {
-            ticketDetails.push({
-              ticketId: defaultTicket._id,
-              ticketType: 'regular',
-              quantity: 1,
-              unitPrice: defaultTicket.price,
-              totalPrice: defaultTicket.price
-            });
-          }
-        }
-      }
+    //     // If no match, create default regular ticket
+    //     if (!matched) {
+    //       const defaultTicket = await Ticket.findOne({ ticketType: 'regular', isActive: true });
+    //       if (defaultTicket) {
+    //         ticketDetails.push({
+    //           ticketId: defaultTicket._id,
+    //           ticketType: 'regular',
+    //           quantity: 1,
+    //           unitPrice: defaultTicket.price,
+    //           totalPrice: defaultTicket.price
+    //         });
+    //       }
+    //     }
+    //   }
 
-      // Create ticket purchase if it doesn't exist
-      ticketPurchase = new TicketPurchase({
-        purchaseReference: `TKT_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`,
-        firstName,
-        lastName,
-        email,
-        phone,
-        tickets: ticketDetails,
-        totalAmount: paymentTransaction.amount,
-        currency: paymentTransaction.currency,
-        paymentStatus: 'pending',
-        paymentReference: paymentReference,
-        paymentTransactionId: paymentTransaction._id,
-        ticketNumbers: [],
-        ticketSent: false
-      });
-      await ticketPurchase.save();
-    }
+    //   // Create ticket purchase if it doesn't exist
+    // //   ticketPurchase = new TicketPurchase({
+    // //     purchaseReference: `TKT_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`,
+    // //     firstName,
+    // //     lastName,
+    // //     email,
+    // //     phone,
+    // //     tickets: ticketDetails,
+    // //     totalAmount: paymentTransaction.amount,
+    // //     currency: paymentTransaction.currency,
+    // //     paymentStatus: 'pending',
+    // //     paymentReference: paymentReference,
+    // //     paymentTransactionId: paymentTransaction._id,
+    // //     ticketNumbers: [],
+    // //     ticketSent: false
+    // //   });
+    // //   await ticketPurchase.save();
+    // }
 
-    // Always approve payment since this endpoint is only called on success
-    // Save all payment data from frontend
-    paymentTransaction.status = 'successful';
-    paymentTransaction.gatewayResponse = paymentData; // Save all data from frontend
-    paymentTransaction.processedAt = new Date();
-    await paymentTransaction.save();
+    // // Always approve payment since this endpoint is only called on success
+    // // Save all payment data from frontend
+    // paymentTransaction.status = 'successful';
+    // paymentTransaction.gatewayResponse = paymentData; // Save all data from frontend
+    // paymentTransaction.processedAt = new Date();
+    // await paymentTransaction.save();
 
     // Check if already processed
     if (ticketPurchase.paymentStatus === 'completed') {
@@ -468,53 +467,73 @@ export const verifyTicketPayment = async (req: Request, res: Response): Promise<
     }
 
     // Generate ticket numbers if they don't exist
-    if (!ticketPurchase.ticketNumbers || ticketPurchase.ticketNumbers.length === 0) {
-      const ticketNumbers: string[] = [];
-      if (ticketPurchase.tickets && ticketPurchase.tickets.length > 0) {
-        for (const ticketItem of ticketPurchase.tickets) {
-          for (let i = 0; i < ticketItem.quantity; i++) {
-            const timestamp = Date.now();
-            const random = crypto.randomBytes(4).toString('hex').toUpperCase();
-            const ticketTypePrefix = ticketItem.ticketType.toUpperCase().replace('_', '-');
-            ticketNumbers.push(`ETH-${ticketTypePrefix}-${timestamp}-${random}`);
-          }
-        }
-      }
-      ticketPurchase.ticketNumbers = ticketNumbers;
-      await ticketPurchase.save();
-    }
+    // if (!ticketPurchase.ticketNumbers || ticketPurchase.ticketNumbers.length === 0) {
+    //   const ticketNumbers: string[] = [];
+    //   if (ticketPurchase.tickets && ticketPurchase.tickets.length > 0) {
+    //     for (const ticketItem of ticketPurchase.tickets) {
+    //       for (let i = 0; i < ticketItem.quantity; i++) {
+    //         const timestamp = Date.now();
+    //         const random = crypto.randomBytes(4).toString('hex').toUpperCase();
+    //         const ticketTypePrefix = ticketItem.ticketType.toUpperCase().replace('_', '-');
+    //         ticketNumbers.push(`ETH-${ticketTypePrefix}-${timestamp}-${random}`);
+    //       }
+    //     }
+    //   }
+    //   ticketPurchase.ticketNumbers = ticketNumbers;
+    //   await ticketPurchase.save();
+    // }
 
-    // Update payment status to completed
-    ticketPurchase.paymentStatus = 'completed';
+    // // Update payment status to completed
+    // ticketPurchase.paymentStatus = 'completed';
+
+    // try {
+    //   await emailService.sendTicketEmail(
+    //     ticketPurchase.email,
+    //     ticketPurchase.firstName,
+    //     ticketPurchase.lastName,
+    //     ticketPurchase.purchaseReference,
+    //     ticketPurchase.tickets,
+    //     ticketPurchase.ticketNumbers,
+    //     ticketPurchase.totalAmount
+    //   );
+    //   ticketPurchase.ticketSent = true;
+    //   ticketPurchase.ticketSentAt = new Date();
+    // } catch (error: any) {
+    //   console.error('Failed to send ticket email after payment verification:', error);
+    //   // Don't fail if email fails
+    // }
     
     // Note: Email is sent from purchaseTickets endpoint, not here
     // This prevents duplicate emails
     
-    await ticketPurchase.save();
+    // await ticketPurchase.save();
 
     // Update sold quantities for tickets (only if not already updated)
-    for (const ticketItem of ticketPurchase.tickets) {
-      const ticket = await Ticket.findById(ticketItem.ticketId);
-      if (ticket) {
-        // Check if we need to update sold quantity (only update once)
-        const currentSold = ticket.soldQuantity || 0;
-        const expectedSold = currentSold + ticketItem.quantity;
-        if (ticket.soldQuantity < expectedSold) {
-          ticket.soldQuantity += ticketItem.quantity;
-          await ticket.save();
-        }
-      }
-    }
+    // for (const ticketItem of ticketPurchase.tickets) {
+    //   const ticket = await Ticket.findById(ticketItem.ticketId);
+    //   if (ticket) {
+    //     // Check if we need to update sold quantity (only update once)
+    //     const currentSold = ticket.soldQuantity || 0;
+    //     const expectedSold = currentSold + ticketItem.quantity;
+    //     if (ticket.soldQuantity < expectedSold) {
+    //       ticket.soldQuantity += ticketItem.quantity;
+    //       await ticket.save();
+    //     }
+    //   }
+    // }
+    const message = ticketPurchase.ticketSent
+      ? 'Payment verified successfully. Tickets already sent to email.'
+      : 'Payment verified successfully. Tickets sent to email.';
 
     res.status(200).json({
       success: true,
-      message: 'Payment verified successfully.',
-      data: {
-        purchaseReference: ticketPurchase.purchaseReference,
-        ticketNumbers: ticketPurchase.ticketNumbers || [],
-        ticketSent: ticketPurchase.ticketSent,
-        email: ticketPurchase.email
-      }
+      message,
+      // data: {
+      //   purchaseReference: ticketPurchase.purchaseReference,
+      //   ticketNumbers: ticketPurchase.ticketNumbers || [],
+      //   ticketSent: ticketPurchase.ticketSent,
+      //   email: ticketPurchase.email
+      // }
     });
   } catch (error) {
     console.error('Verify ticket payment error:', error);

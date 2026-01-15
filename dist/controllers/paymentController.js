@@ -466,20 +466,21 @@ const handleTicketPaymentWebhook = async (req, res) => {
         const TicketPurchase = (await Promise.resolve().then(() => __importStar(require('../models/TicketPurchase')))).default;
         const Ticket = (await Promise.resolve().then(() => __importStar(require('../models/Ticket')))).default;
         const emailService = (await Promise.resolve().then(() => __importStar(require('../services/emailService')))).default;
-        const ticketPurchase = await TicketPurchase.findOne({ paymentReference: reference });
-        if (!ticketPurchase) {
-            console.log(`⚠️ Ticket purchase not found for reference: ${reference}`);
-            res.status(200).json({
-                success: true,
-                message: 'Ticket purchase not found - webhook acknowledged'
-            });
-            return;
-        }
-        if (ticketPurchase.paymentStatus === 'completed') {
+        const existingTransaction = await PaymentTransaction_1.default.findOne({ reference });
+        if (existingTransaction && existingTransaction.status === 'successful') {
             console.log(`⏭️ Payment reference ${reference} already processed - ignoring webhook`);
             res.status(200).json({
                 success: true,
                 message: 'Payment already processed - webhook ignored'
+            });
+            return;
+        }
+        const ticketPurchase = await TicketPurchase.findOne({ paymentReference: reference });
+        if (ticketPurchase.paymentStatus === 'completed') {
+            console.log(`⏭️ Ticket purchase ${ticketPurchase.purchaseReference} already completed - ignoring webhook`);
+            res.status(200).json({
+                success: true,
+                message: 'Ticket purchase already completed - webhook ignored'
             });
             return;
         }
